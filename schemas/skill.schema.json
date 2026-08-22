@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ability/skill.schema.json",
+  "title": "Ability skill definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "display", "max_level", "xp_to_next", "skill_points_per_level"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "display": { "$ref": "#/$defs/display" },
+    "max_level": { "type": "integer", "minimum": 1, "maximum": 10000 },
+    "xp_to_next": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "integer", "minimum": 1 }
+    },
+    "skill_points_per_level": { "type": "integer", "minimum": 0, "maximum": 1000 }
+  },
+  "$defs": {
+    "resource_location": {
+      "type": "string",
+      "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$"
+    },
+    "translation_key": {
+      "type": "string",
+      "pattern": "^[a-z0-9_.-]+$"
+    },
+    "display": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "description", "icon", "color", "sort_order"],
+      "properties": {
+        "name": { "$ref": "#/$defs/translation_key" },
+        "description": { "$ref": "#/$defs/translation_key" },
+        "icon": { "$ref": "#/$defs/resource_location" },
+        "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "sort_order": { "type": "integer" }
+      }
+    }
+  }
+}
