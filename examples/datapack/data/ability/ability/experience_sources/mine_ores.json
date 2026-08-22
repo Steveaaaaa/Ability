@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "skill": "ability:mining",
+  "base_xp": 5,
+  "trigger": {
+    "type": "ability:break_block",
+    "config": {
+      "block_tag": "c:ores",
+      "require_correct_tool": true,
+      "scale_by_destroy_time": true
+    }
+  },
+  "conditions": [
+    {
+      "type": "ability:not_game_mode",
+      "config": { "game_mode": "minecraft:creative" }
+    }
+  ],
+  "anti_abuse": {
+    "reject_player_placed": true,
+    "target_cooldown_ticks": 0,
+    "daily_soft_cap": 5000,
+    "xp_after_soft_cap_multiplier": 0.1
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ability/experience-source.schema.json",
+  "title": "Ability experience source definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "skill", "base_xp", "trigger", "conditions", "anti_abuse"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "skill": { "$ref": "#/$defs/resource_location" },
+    "base_xp": { "type": "integer", "minimum": 0 },
+    "trigger": { "$ref": "#/$defs/typed_config" },
+    "conditions": { "type": "array", "items": { "$ref": "#/$defs/typed_config" } },
+    "anti_abuse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reject_player_placed", "target_cooldown_ticks"],
+      "properties": {
+        "reject_player_placed": { "type": "boolean" },
+        "target_cooldown_ticks": { "type": "integer", "minimum": 0 },
+        "daily_soft_cap": { "type": "integer", "minimum": 0 },
+        "xp_after_soft_cap_multiplier": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "resource_location": {
+      "type": "string",
+      "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$"
+    },
+    "typed_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "config"],
+      "properties": {
+        "type": { "$ref": "#/$defs/resource_location" },
+        "config": { "type": "object" }
+      }
+    }
+  }
+}
