@@ -1,0 +1,77 @@
+package com.steveaaaaa.ability.data.model;
+
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.Dynamic;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import java.util.List;
+import net.minecraft.resources.ResourceLocation;
+
+public record AbilityDefinition(
+        int schemaVersion,
+        ResourceLocation skill,
+        DisplayDefinition display,
+        Purchase purchase,
+        Ranks ranks,
+        TypedConfig effect
+) {
+    private static final Codec<AbilityDefinition> RAW_CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Codec.INT.optionalFieldOf("schema_version", 1).forGetter(AbilityDefinition::schemaVersion),
+            ResourceLocation.CODEC.fieldOf("skill").forGetter(AbilityDefinition::skill),
+            DisplayDefinition.CODEC.fieldOf("display").forGetter(AbilityDefinition::display),
+            Purchase.CODEC.fieldOf("purchase").forGetter(AbilityDefinition::purchase),
+            Ranks.CODEC.fieldOf("ranks").forGetter(AbilityDefinition::ranks),
+            TypedConfig.CODEC.fieldOf("effect").forGetter(AbilityDefinition::effect)
+    ).apply(instance, AbilityDefinition::new));
+
+    public static final Codec<AbilityDefinition> CODEC = RAW_CODEC.flatXmap(
+            AbilityDefinition::validate,
+            AbilityDefinition::validate
+    );
+
+    private static DataResult<AbilityDefinition> validate(AbilityDefinition definition) {
+        if (definition.schemaVersion != 1) {
+            return DataResult.error(() -> "Unsupported ability schema_version: " + definition.schemaVersion);
+        }
+        return definition.ranks.validate().map(ignored -> definition);
+    }
+
+    public record Purchase(int skillLevel, int skillPoints, List<TypedConfig> requirements) {
+        public static final Codec<Purchase> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                Codec.INT.fieldOf("skill_level").forGetter(Purchase::skillLevel),
+                Codec.INT.fieldOf("skill_points").forGetter(Purchase::skillPoints),
+                TypedConfig.CODEC.listOf().optionalFieldOf("requirements", List.of()).forGetter(Purchase::requirements)
+        ).apply(instance, Purchase::new));
+
+        public Purchase {
+            requirements = List.copyOf(requirements);
+        }
+    }
+
+    public record Ranks(List<Integer> unlockSkillLevels, List<Dynamic<?>> values) {
+        public static final Codec<Ranks> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                Codec.INT.listOf().fieldOf("unlock_skill_levels").forGetter(Ranks::unlockSkillLevels),
+                Codec.PASSTHROUGH.listOf().fieldOf("values").forGetter(Ranks::values)
+        ).apply(instance, Ranks::new));
+
+        public Ranks {
+            unlockSkillLevels = List.copyOf(unlockSkillLevels);
+            values = List.copyOf(values);
+        }
+
+        private DataResult<Ranks> validate() {
+            if (unlockSkillLevels.isEmpty()) {
+                return DataResult.error(() -> "Ability must define at least one rank");
+            }
+            if (unlockSkillLevels.size() != values.size()) {
+                return DataResult.error(() -> "unlock_skill_levels and values must have equal lengths");
+            }
+            for (int index = 1; index < unlockSkillLevels.size(); index++) {
+                if (unlockSkillLevels.get(index) <= unlockSkillLevels.get(index - 1)) {
+                    return DataResult.error(() -> "unlock_skill_levels must be strictly increasing");
+                }
+            }
+            return DataResult.success(this);
+        }
+    }
+}

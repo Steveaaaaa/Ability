@@ -1,0 +1,10 @@
+{
+  "command.ability.add_xp.success": "已为 %3$s 名玩家增加 %1$s 点 %2$s 经验",
+  "command.ability.progress": "%1$s：等级 %2$s，总经验 %3$s",
+  "skill.ability.gathering": "采集",
+  "skill.ability.gathering.description": "通过采集自然资源积累经验。",
+  "skill.ability.mining": "挖掘",
+  "skill.ability.mining.description": "通过挖掘方块与矿石积累经验。",
+  "ability.ability.associated_ore": "伴生矿",
+  "ability.ability.associated_ore.description": "使用无附魔镐挖掘矿石时有概率获得相关伴生矿物。"
+}

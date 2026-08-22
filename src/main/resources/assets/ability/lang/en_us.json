@@ -1,0 +1,10 @@
+{
+  "command.ability.add_xp.success": "Added %s %s experience to %s player(s)",
+  "command.ability.progress": "%s: level %s, total experience %s",
+  "skill.ability.gathering": "Gathering",
+  "skill.ability.gathering.description": "Gain experience by collecting natural resources.",
+  "skill.ability.mining": "Mining",
+  "skill.ability.mining.description": "Gain experience by mining blocks and ores.",
+  "ability.ability.associated_ore": "Associated Ore",
+  "ability.ability.associated_ore.description": "Unenchanted pickaxes can produce related bonus ores."
+}
