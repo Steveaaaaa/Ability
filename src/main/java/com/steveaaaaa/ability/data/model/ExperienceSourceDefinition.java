@@ -39,6 +39,13 @@ public record ExperienceSourceDefinition(
         if (definition.baseXp < 0) {
             return DataResult.error(() -> "base_xp must be non-negative");
         }
+        if (definition.antiAbuse.targetCooldownTicks < 0 || definition.antiAbuse.dailySoftCap < 0) {
+            return DataResult.error(() -> "Anti-abuse cooldown and soft cap must be non-negative");
+        }
+        if (definition.antiAbuse.xpAfterSoftCapMultiplier < 0.0D
+                || definition.antiAbuse.xpAfterSoftCapMultiplier > 1.0D) {
+            return DataResult.error(() -> "xp_after_soft_cap_multiplier must be between 0 and 1");
+        }
         return DataResult.success(definition);
     }
 
@@ -50,9 +57,11 @@ public record ExperienceSourceDefinition(
     ) {
         public static final Codec<AntiAbuse> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 Codec.BOOL.fieldOf("reject_player_placed").forGetter(AntiAbuse::rejectPlayerPlaced),
-                Codec.INT.fieldOf("target_cooldown_ticks").forGetter(AntiAbuse::targetCooldownTicks),
-                Codec.INT.optionalFieldOf("daily_soft_cap", 0).forGetter(AntiAbuse::dailySoftCap),
-                Codec.DOUBLE.optionalFieldOf("xp_after_soft_cap_multiplier", 1.0D)
+                Codec.intRange(0, Integer.MAX_VALUE).fieldOf("target_cooldown_ticks")
+                        .forGetter(AntiAbuse::targetCooldownTicks),
+                Codec.intRange(0, Integer.MAX_VALUE).optionalFieldOf("daily_soft_cap", 0)
+                        .forGetter(AntiAbuse::dailySoftCap),
+                Codec.doubleRange(0.0D, 1.0D).optionalFieldOf("xp_after_soft_cap_multiplier", 1.0D)
                         .forGetter(AntiAbuse::xpAfterSoftCapMultiplier)
         ).apply(instance, AntiAbuse::new));
     }

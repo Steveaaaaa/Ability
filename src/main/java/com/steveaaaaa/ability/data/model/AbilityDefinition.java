@@ -38,8 +38,8 @@ public record AbilityDefinition(
 
     public record Purchase(int skillLevel, int skillPoints, List<TypedConfig> requirements) {
         public static final Codec<Purchase> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-                Codec.INT.fieldOf("skill_level").forGetter(Purchase::skillLevel),
-                Codec.INT.fieldOf("skill_points").forGetter(Purchase::skillPoints),
+                Codec.intRange(0, 10_000).fieldOf("skill_level").forGetter(Purchase::skillLevel),
+                Codec.intRange(0, 1_000_000).fieldOf("skill_points").forGetter(Purchase::skillPoints),
                 TypedConfig.CODEC.listOf().optionalFieldOf("requirements", List.of()).forGetter(Purchase::requirements)
         ).apply(instance, Purchase::new));
 
@@ -72,6 +72,17 @@ public record AbilityDefinition(
                 }
             }
             return DataResult.success(this);
+        }
+
+        public int rankForSkillLevel(int skillLevel) {
+            int rank = 0;
+            for (int unlockLevel : unlockSkillLevels) {
+                if (skillLevel < unlockLevel) {
+                    break;
+                }
+                rank++;
+            }
+            return rank;
         }
     }
 }

@@ -18,6 +18,14 @@ public final class ModAttachments {
                     .build()
     );
 
+    public static final Supplier<AttachmentType<ExperienceLimitState>> EXPERIENCE_LIMITS = ATTACHMENT_TYPES.register(
+            "experience_limits",
+            () -> AttachmentType.builder(() -> ExperienceLimitState.EMPTY)
+                    .serialize(ExperienceLimitState.CODEC)
+                    .copyOnDeath()
+                    .build()
+    );
+
     private ModAttachments() {
     }
 }

@@ -33,7 +33,7 @@
 - `xp_to_next`：从 0 级开始，每一级升到下一级所需经验；数组长度必须等于最高等级。
 - `skill_points_per_level`：每次真实升级授予的技能点。
 
-玩家保存累计经验 `total_xp`。当前等级通过经验曲线计算。数据包修改曲线后，显示等级会重新计算；已经发放的技能点不回收，避免更新整合包后出现负数技能点。
+玩家保存累计经验 `total_xp`。当前等级通过经验曲线计算。数据包修改曲线后，显示等级会重新计算；已经发放的技能点不回收，避免更新整合包后出现负数技能点。技能点按技能 ID 分别记录；玩家提升哪个技能，就只能使用该技能发放的点数购买其所属能力。
 
 ## 4. 能力定义
 
@@ -100,6 +100,10 @@
 - `ability:entity_upgrade`
 - `ability:composite`
 
+当前已实现方块掉落效果注册表，并以 `ability:associated_ore` 作为第一种效果类型。效果的固定目标由
+`effect.config` 定义，各阶概率由 `ranks.values` 定义；稀疏的高阶参数会覆盖并继承先前阶级，避免升级后
+丢失较低阶已经解锁的效果。
+
 复杂技能可以有专用类型，例如 `ability:weak_point`、`ability:charged_leap`，但仍从 JSON 读取所有可平衡参数。
 
 ## 7. 玩家持久化数据
@@ -108,15 +112,20 @@
 
 ```json
 {
-  "data_version": 1,
+  "data_version": 2,
   "skills": {
-    "ability:mining": { "total_xp": 1250 }
+    "ability:mining": {
+      "total_xp": 1250,
+      "granted_skill_points": 12,
+      "spent_skill_points": 6
+    }
   },
   "purchased_abilities": ["ability:associated_ore"],
-  "granted_skill_points": 12,
-  "spent_skill_points": 6
+  "legacy_unassigned_skill_points": 0
 }
 ```
+
+版本 1 存档中的全局剩余技能点会迁移到一次性的 `legacy_unassigned_skill_points`。购买能力时优先消耗这部分旧余额；新获得的技能点不会进入该余额，因此旧余额耗尽后所有点数都严格按技能隔离。
 
 运行时派生而不持久化：当前等级、能力阶级、属性修饰结果、可用技能点。短冷却默认只存在内存中；跨下线冷却才保存绝对游戏时间。
 

@@ -31,7 +31,16 @@
     "type": "ability:associated_ore",
     "config": {
       "required_tool_tag": "minecraft:pickaxes",
-      "require_unenchanted_tool": true
+      "require_unenchanted_tool": true,
+      "coal_ore_tag": "minecraft:coal_ores",
+      "copper_ore_tag": "minecraft:copper_ores",
+      "iron_ore_tag": "minecraft:iron_ores",
+      "nether_gold_ore": "minecraft:nether_gold_ore",
+      "coal_item": "minecraft:coal",
+      "raw_iron_item": "minecraft:raw_iron",
+      "raw_gold_item": "minecraft:raw_gold",
+      "diamond_item": "minecraft:diamond",
+      "emerald_item": "minecraft:emerald"
     }
   }
 }

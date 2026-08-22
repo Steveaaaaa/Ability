@@ -1,10 +1,21 @@
 {
   "command.ability.add_xp.success": "Added %s %s experience to %s player(s)",
-  "command.ability.progress": "%s: level %s, total experience %s",
+  "command.ability.progress": "%s: level %s, total experience %s, available skill points %s",
+  "command.ability.purchase.success": "Purchased %s for %s skill point(s); %s remaining",
+  "command.ability.purchase.already_purchased": "Ability %s is already purchased",
+  "command.ability.purchase.skill_level_too_low": "Owning skill level is too low: requires %s, current %s",
+  "command.ability.purchase.not_enough_points": "Not enough skill points: requires %s, current %s",
+  "command.ability.purchase.requirement_not_met": "Ability requirement not met: %s",
+  "command.ability.purchase.invalid_definition": "Invalid ability definition: %s",
+  "command.ability.rank": "%s: rank %s/%s, owning skill level %s, purchased=%s, active=%s",
   "skill.ability.gathering": "Gathering",
   "skill.ability.gathering.description": "Gain experience by collecting natural resources.",
   "skill.ability.mining": "Mining",
   "skill.ability.mining.description": "Gain experience by mining blocks and ores.",
+  "skill.ability.combat": "Combat",
+  "skill.ability.combat.description": "Gain experience by defeating hostile mobs.",
+  "skill.ability.farming": "Farming",
+  "skill.ability.farming.description": "Gain experience by harvesting mature crops.",
   "ability.ability.associated_ore": "Associated Ore",
   "ability.ability.associated_ore.description": "Unenchanted pickaxes can produce related bonus ores."
 }

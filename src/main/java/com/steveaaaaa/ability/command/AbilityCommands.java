@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.progress.ExperienceService;
 import java.util.Collection;
 import net.minecraft.commands.CommandSourceStack;
@@ -18,6 +19,9 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 public final class AbilityCommands {
     private static final DynamicCommandExceptionType UNKNOWN_SKILL = new DynamicCommandExceptionType(
             skill -> Component.literal("Unknown skill: " + skill)
+    );
+    private static final DynamicCommandExceptionType UNKNOWN_ABILITY = new DynamicCommandExceptionType(
+            ability -> Component.literal("Unknown ability: " + ability)
     );
 
     private AbilityCommands() {
@@ -42,7 +46,19 @@ public final class AbilityCommands {
                                                         EntityArgument.getPlayers(context, "targets"),
                                                         ResourceLocationArgument.getId(context, "skill"),
                                                         IntegerArgumentType.getInteger(context, "amount")
-                                                )))))));
+                                                ))))))
+                .then(Commands.literal("purchase")
+                        .then(Commands.argument("ability", ResourceLocationArgument.id())
+                                .executes(context -> purchaseAbility(
+                                        context.getSource(),
+                                        ResourceLocationArgument.getId(context, "ability")
+                                ))))
+                .then(Commands.literal("rank")
+                        .then(Commands.argument("ability", ResourceLocationArgument.id())
+                                .executes(context -> showRank(
+                                        context.getSource(),
+                                        ResourceLocationArgument.getId(context, "ability")
+                                )))));
     }
 
     private static int showProgress(CommandSourceStack source, ResourceLocation skillId)
@@ -56,7 +72,8 @@ public final class AbilityCommands {
                 "command.ability.progress",
                 view.skillId().toString(),
                 view.level(),
-                view.totalXp()
+                view.totalXp(),
+                view.availableSkillPoints()
         ), false);
         return view.level();
     }
@@ -80,5 +97,62 @@ public final class AbilityCommands {
                 targets.size()
         ), true);
         return targets.size();
+    }
+
+    private static int purchaseAbility(CommandSourceStack source, ResourceLocation abilityId)
+            throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        AbilityService.PurchaseResult result = AbilityService.purchase(player, abilityId);
+        switch (result.status()) {
+            case SUCCESS -> source.sendSuccess(() -> Component.translatable(
+                    "command.ability.purchase.success",
+                    result.abilityId().toString(),
+                    result.required(),
+                    result.actual()
+            ), false);
+            case UNKNOWN_ABILITY -> throw UNKNOWN_ABILITY.create(abilityId);
+            case ALREADY_PURCHASED -> source.sendFailure(Component.translatable(
+                    "command.ability.purchase.already_purchased",
+                    abilityId.toString()
+            ));
+            case SKILL_LEVEL_TOO_LOW -> source.sendFailure(Component.translatable(
+                    "command.ability.purchase.skill_level_too_low",
+                    result.required(),
+                    result.actual()
+            ));
+            case NOT_ENOUGH_SKILL_POINTS -> source.sendFailure(Component.translatable(
+                    "command.ability.purchase.not_enough_points",
+                    result.required(),
+                    result.actual()
+            ));
+            case REQUIREMENT_NOT_MET -> source.sendFailure(Component.translatable(
+                    "command.ability.purchase.requirement_not_met",
+                    result.detail()
+            ));
+            case INVALID_DEFINITION -> source.sendFailure(Component.translatable(
+                    "command.ability.purchase.invalid_definition",
+                    result.detail()
+            ));
+        }
+        return result.successful() ? 1 : 0;
+    }
+
+    private static int showRank(CommandSourceStack source, ResourceLocation abilityId)
+            throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        if (AbilityService.findAbility(player, abilityId).isEmpty()) {
+            throw UNKNOWN_ABILITY.create(abilityId);
+        }
+        AbilityService.RankView view = AbilityService.rank(player, abilityId);
+        source.sendSuccess(() -> Component.translatable(
+                "command.ability.rank",
+                view.abilityId().toString(),
+                view.rank(),
+                view.maxRank(),
+                view.skillLevel(),
+                view.purchased(),
+                view.active()
+        ), false);
+        return view.rank();
     }
 }

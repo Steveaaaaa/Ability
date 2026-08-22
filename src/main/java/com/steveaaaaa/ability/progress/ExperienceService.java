@@ -26,20 +26,26 @@ public final class ExperienceService {
         PlayerProgress before = player.getData(ModAttachments.PLAYER_PROGRESS);
         SkillProgress oldProgress = before.skill(skillId);
         int oldLevel = definition.levelForExperience(oldProgress.totalXp());
-        SkillProgress newProgress = oldProgress.add(amount);
-        int newLevel = definition.levelForExperience(newProgress.totalXp());
+        SkillProgress experienceUpdated = oldProgress.add(amount, 0);
+        int newLevel = definition.levelForExperience(experienceUpdated.totalXp());
         int grantedPoints = Math.max(0, newLevel - oldLevel) * definition.skillPointsPerLevel();
-        PlayerProgress after = before.withSkill(skillId, newProgress, grantedPoints);
+        PlayerProgress after = before.withSkill(skillId, experienceUpdated, grantedPoints);
         player.setData(ModAttachments.PLAYER_PROGRESS, after);
 
-        return new AwardResult(skillId, amount, oldLevel, newLevel, newProgress.totalXp(), grantedPoints);
+        return new AwardResult(skillId, amount, oldLevel, newLevel, experienceUpdated.totalXp(), grantedPoints);
     }
 
     public static ProgressView view(ServerPlayer player, ResourceLocation skillId) {
         SkillDefinition definition = findSkill(player, skillId)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown skill: " + skillId));
         SkillProgress progress = player.getData(ModAttachments.PLAYER_PROGRESS).skill(skillId);
-        return new ProgressView(skillId, definition.levelForExperience(progress.totalXp()), progress.totalXp());
+        PlayerProgress playerProgress = player.getData(ModAttachments.PLAYER_PROGRESS);
+        return new ProgressView(
+                skillId,
+                definition.levelForExperience(progress.totalXp()),
+                progress.totalXp(),
+                playerProgress.availableSkillPoints(skillId)
+        );
     }
 
     public record AwardResult(
@@ -52,6 +58,6 @@ public final class ExperienceService {
     ) {
     }
 
-    public record ProgressView(ResourceLocation skillId, int level, long totalXp) {
+    public record ProgressView(ResourceLocation skillId, int level, long totalXp, int availableSkillPoints) {
     }
 }

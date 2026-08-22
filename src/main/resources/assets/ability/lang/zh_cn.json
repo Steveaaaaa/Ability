@@ -1,10 +1,21 @@
 {
   "command.ability.add_xp.success": "已为 %3$s 名玩家增加 %1$s 点 %2$s 经验",
-  "command.ability.progress": "%1$s：等级 %2$s，总经验 %3$s",
+  "command.ability.progress": "%1$s：等级 %2$s，总经验 %3$s，可用技能点 %4$s",
+  "command.ability.purchase.success": "已购买 %1$s，消耗 %2$s 技能点，剩余 %3$s 点",
+  "command.ability.purchase.already_purchased": "已经购买了能力 %s",
+  "command.ability.purchase.skill_level_too_low": "所属技能等级不足：需要 %1$s，当前为 %2$s",
+  "command.ability.purchase.not_enough_points": "技能点不足：需要 %1$s，当前有 %2$s",
+  "command.ability.purchase.requirement_not_met": "未满足能力前置条件：%s",
+  "command.ability.purchase.invalid_definition": "能力数据无效：%s",
+  "command.ability.rank": "%1$s：阶级 %2$s/%3$s，所属技能等级 %4$s，已购买=%5$s，生效=%6$s",
   "skill.ability.gathering": "采集",
   "skill.ability.gathering.description": "通过采集自然资源积累经验。",
   "skill.ability.mining": "挖掘",
   "skill.ability.mining.description": "通过挖掘方块与矿石积累经验。",
+  "skill.ability.combat": "战斗",
+  "skill.ability.combat.description": "通过击杀敌对生物积累经验。",
+  "skill.ability.farming": "农业",
+  "skill.ability.farming.description": "通过收获成熟农作物积累经验。",
   "ability.ability.associated_ore": "伴生矿",
   "ability.ability.associated_ore.description": "使用无附魔镐挖掘矿石时有概率获得相关伴生矿物。"
 }
