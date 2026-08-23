@@ -119,7 +119,7 @@
   "ability.ability.chorus_transmutation": "Chorus Transmutation",
   "ability.ability.chorus_transmutation.description": "Use a chorus fruit in each hand on a configured block to transmute it; higher alchemy recipes also consume experience levels.",
   "ability.ability.ceiling_wire": "Ceiling Wire",
-  "ability.ability.ceiling_wire.description": "Double-tap Jump below a continuous sturdy ceiling to cling or detach; open-air edges block movement and non-solid ceilings detach you. Use offhand pointed dripstone to drop a damaging, stunning spike.",
+  "ability.ability.ceiling_wire.description": "Double-tap Jump below a continuous sturdy ceiling to cling or detach; open-air edges block movement and non-solid ceilings detach you. Use offhand pointed dripstone to drop a damaging, stunning spike vertically above its intended placement position.",
   "ability.ability.world_traveler": "World Traveler",
   "ability.ability.world_traveler.description": "Sneak-use an empty main hand on a container to bind it; record items in the 36-slot inventory sidebar and newly acquired matches route into that container. Rank two enables cross-dimensional routing.",
   "ability.ability.crushing_blow": "Crushing Blow",

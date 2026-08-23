@@ -16,9 +16,13 @@ import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -29,6 +33,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.PointedDripstoneBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
@@ -114,32 +119,49 @@ public final class CeilingWireEffect {
     }
 
     public static void releaseDripstone(PlayerInteractEvent.RightClickItem event) {
-        if (tryReleaseDripstone(event)) {
+        if (tryReleaseDripstone(event, event.getEntity().blockPosition())) {
             event.setCancellationResult(net.minecraft.world.InteractionResult.SUCCESS);
             event.setCanceled(true);
         }
     }
 
     public static void releaseDripstone(PlayerInteractEvent.RightClickBlock event) {
-        if (tryReleaseDripstone(event)) {
+        BlockPlaceContext placement = new BlockPlaceContext(
+                event.getEntity(),
+                event.getHand(),
+                event.getItemStack(),
+                event.getHitVec()
+        );
+        if (tryReleaseDripstone(event, placement.getClickedPos())) {
             event.setCancellationResult(net.minecraft.world.InteractionResult.SUCCESS);
             event.setCanceled(true);
         }
     }
 
-    private static boolean tryReleaseDripstone(PlayerInteractEvent event) {
+    private static boolean tryReleaseDripstone(PlayerInteractEvent event, BlockPos horizontalTarget) {
         if (!(event.getEntity() instanceof ServerPlayer player) || event.getHand() != InteractionHand.OFF_HAND
                 || !event.getItemStack().is(Items.POINTED_DRIPSTONE)) return false;
         State state = CLINGING.get(player.getUUID());
         long gameTime = player.level().getGameTime();
         if (state == null || !isReleaseReady(gameTime, state.lastRelease(), state.releaseIntervalTicks())) return false;
-        BlockPos origin = player.blockPosition().below();
+        BlockPos origin = releaseOrigin(player.blockPosition(), horizontalTarget);
         if (!player.level().getBlockState(origin).canBeReplaced()) return false;
         BlockState dripstone = Blocks.POINTED_DRIPSTONE.defaultBlockState()
                 .setValue(PointedDripstoneBlock.TIP_DIRECTION, Direction.DOWN);
         player.level().setBlock(origin, dripstone, 3);
         FallingBlockEntity falling = FallingBlockEntity.fall((ServerLevel) player.level(), origin, dripstone);
         falling.setHurtsEntities(1.0F, 40);
+        player.swing(InteractionHand.OFF_HAND, true);
+        player.level().playSound(
+                null,
+                falling.getX(),
+                falling.getY(),
+                falling.getZ(),
+                SoundEvents.POINTED_DRIPSTONE_FALL,
+                SoundSource.PLAYERS,
+                1.0F,
+                1.0F
+        );
         FALLING_ATTACKS.put(falling.getUUID(), new FallingAttack(player.getUUID(), state.rank(),
                 gameTime + 200));
         CLINGING.put(player.getUUID(), new State(
@@ -152,6 +174,10 @@ public final class CeilingWireEffect {
         ));
         if (!player.getAbilities().instabuild) event.getItemStack().shrink(1);
         return true;
+    }
+
+    static BlockPos releaseOrigin(BlockPos playerPosition, BlockPos horizontalTarget) {
+        return new BlockPos(horizontalTarget.getX(), playerPosition.getY() - 1, horizontalTarget.getZ());
     }
 
     static boolean isReleaseReady(long gameTime, long lastRelease, int intervalTicks) {
@@ -177,6 +203,25 @@ public final class CeilingWireEffect {
         float damage = (float) (owner.getAttributeValue(Attributes.ATTACK_DAMAGE) * attack.rank().damageMultiplier());
         event.setAmount(Math.max(event.getAmount(), damage));
         CombatStatusTracker.stun(event.getEntity(), attack.rank().stunTicks());
+        level.sendParticles(
+                new BlockParticleOption(ParticleTypes.BLOCK, Blocks.POINTED_DRIPSTONE.defaultBlockState()),
+                event.getEntity().getX(),
+                event.getEntity().getY() + event.getEntity().getBbHeight() * 0.5D,
+                event.getEntity().getZ(),
+                18,
+                0.35D,
+                0.35D,
+                0.35D,
+                0.08D
+        );
+        level.playSound(
+                null,
+                event.getEntity().blockPosition(),
+                SoundEvents.POINTED_DRIPSTONE_LAND,
+                SoundSource.PLAYERS,
+                1.2F,
+                0.9F
+        );
         if (owner.getRandom().nextDouble() < attack.rank().detachChance()) detach(owner);
     }
 

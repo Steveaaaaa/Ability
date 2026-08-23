@@ -119,7 +119,7 @@
   "ability.ability.chorus_transmutation": "紫颂果嬗变术",
   "ability.ability.chorus_transmutation.description": "双手各持紫颂果右击配方方块进行转化；高阶点金配方还会消耗对应经验等级。",
   "ability.ability.ceiling_wire": "威亚",
-  "ability.ability.ceiling_wire.description": "在连续坚固天花板下双击跳跃吸附或脱离；无法移入头顶为空气的区域，遇到非固体顶面会脱离；吸附时副手使用滴水石锥可投下造成伤害与眩晕的钟乳石。",
+  "ability.ability.ceiling_wire.description": "在连续坚固天花板下双击跳跃吸附或脱离；无法移入头顶为空气的区域，遇到非固体顶面会脱离；吸附时副手使用滴水石锥，可从实际放置位置上方垂直投下造成伤害与眩晕的钟乳石。",
   "ability.ability.world_traveler": "环球旅行者",
   "ability.ability.world_traveler.description": "潜行并用空主手右击容器进行绑定；在背包侧栏的36格过滤面板记录物品，之后获得的匹配物品会自动存入该容器。第二阶允许跨维度路由。",
   "ability.ability.crushing_blow": "压碎",

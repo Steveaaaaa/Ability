@@ -38,4 +38,12 @@ class CeilingWireEffectTest {
         assertFalse(CeilingWireEffect.isReleaseReady(109L, 100L, 10));
         assertTrue(CeilingWireEffect.isReleaseReady(110L, 100L, 10));
     }
+
+    @Test
+    void dripstoneStartsBelowPlayerAtPlacementHorizontalCoordinates() {
+        assertEquals(
+                new BlockPos(12, 63, -8),
+                CeilingWireEffect.releaseOrigin(new BlockPos(2, 64, 3), new BlockPos(12, 20, -8))
+        );
+    }
 }
