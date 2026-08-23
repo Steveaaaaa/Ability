@@ -36,4 +36,15 @@ class WolfPackEffectTest {
         assertFalse(WolfPackEffect.isBuffActive(state, 200L));
         assertEquals(15.0F, WolfPackEffect.applyDamageBonus(10.0F, 0.5D), 0.0001F);
     }
+
+    @Test
+    void dodgeRequiresAnActiveWindowLivingAttackerAndSuccessfulRoll() {
+        WolfPackEffect.WolfState state = new WolfPackEffect.WolfState(
+                true, 200L, 1000L, 0.5D, 0.8D, UUID.randomUUID()
+        );
+        assertTrue(WolfPackEffect.shouldDodge(state, 100L, 0.79D, true));
+        assertFalse(WolfPackEffect.shouldDodge(state, 100L, 0.80D, true));
+        assertFalse(WolfPackEffect.shouldDodge(state, 200L, 0.0D, true));
+        assertFalse(WolfPackEffect.shouldDodge(state, 100L, 0.0D, false));
+    }
 }

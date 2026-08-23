@@ -53,20 +53,7 @@ public final class WolfPackEffect {
         }
         WolfState updated = previous.withAttacking(attacking);
         if (attacking && !previous.wasAttacking() && now >= previous.cooldownEndsAt()) {
-            Optional<ActiveComponent> selected = activeComponents(owner).stream()
-                    .max(Comparator.comparingDouble((ActiveComponent component) -> component.rank().damageBonus())
-                            .thenComparingDouble(component -> component.rank().dodgeChance()));
-            if (selected.isPresent()) {
-                ActiveComponent component = selected.get();
-                updated = new WolfState(
-                        true,
-                        now + component.config().durationTicks(),
-                        now + component.rank().cooldownTicks(),
-                        component.rank().damageBonus(),
-                        component.rank().dodgeChance(),
-                        owner.getUUID()
-                );
-            }
+            updated = activate(owner, now).orElse(updated);
         }
         if (!attacking && now >= updated.buffEndsAt() && now >= updated.cooldownEndsAt()) {
             STATES.remove(wolf.getUUID());
@@ -78,16 +65,17 @@ public final class WolfPackEffect {
     public static void modifyDamage(LivingIncomingDamageEvent event) {
         long gameTime = event.getEntity().level().getGameTime();
         if (event.getSource().getEntity() instanceof Wolf attacker) {
-            WolfState state = STATES.get(attacker.getUUID());
+            WolfState state = ensureCombatBuff(attacker, gameTime);
             if (isBuffActive(state, gameTime)) {
                 event.setAmount(applyDamageBonus(event.getAmount(), state.damageBonus()));
             }
         }
         if (!event.isCanceled() && event.getEntity() instanceof Wolf victim) {
-            WolfState state = STATES.get(victim.getUUID());
-            if (isBuffActive(state, gameTime)
-                    && event.getSource().getEntity() != null
-                    && victim.getRandom().nextDouble() < state.dodgeChance()) {
+            WolfState state = victim.getTarget() == null
+                    ? STATES.get(victim.getUUID())
+                    : ensureCombatBuff(victim, gameTime);
+            if (shouldDodge(state, gameTime, victim.getRandom().nextDouble(),
+                    event.getSource().getEntity() != null)) {
                 event.setCanceled(true);
             }
         }
@@ -103,6 +91,37 @@ public final class WolfPackEffect {
 
     static float applyDamageBonus(float damage, double bonus) {
         return (float) Math.clamp(damage * (1.0D + Math.max(0.0D, bonus)), 0.0D, Float.MAX_VALUE);
+    }
+
+    static boolean shouldDodge(WolfState state, long gameTime, double roll, boolean hasAttacker) {
+        return hasAttacker && isBuffActive(state, gameTime) && roll < state.dodgeChance();
+    }
+
+    private static WolfState ensureCombatBuff(Wolf wolf, long gameTime) {
+        WolfState current = STATES.getOrDefault(wolf.getUUID(), WolfState.EMPTY);
+        if (isBuffActive(current, gameTime) || gameTime < current.cooldownEndsAt()
+                || !(wolf.getOwner() instanceof ServerPlayer owner)) {
+            return current;
+        }
+        WolfState activated = activate(owner, gameTime).orElse(current);
+        if (activated != current) {
+            STATES.put(wolf.getUUID(), activated);
+        }
+        return activated;
+    }
+
+    private static Optional<WolfState> activate(ServerPlayer owner, long gameTime) {
+        return activeComponents(owner).stream()
+                .max(Comparator.comparingDouble((ActiveComponent component) -> component.rank().damageBonus())
+                        .thenComparingDouble(component -> component.rank().dodgeChance()))
+                .map(component -> new WolfState(
+                        true,
+                        gameTime + component.config().durationTicks(),
+                        gameTime + component.rank().cooldownTicks(),
+                        component.rank().damageBonus(),
+                        component.rank().dodgeChance(),
+                        owner.getUUID()
+                ));
     }
 
     static RankValues merge(RankValues earlier, RankValues later) {
