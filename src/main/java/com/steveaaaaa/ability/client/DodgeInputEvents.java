@@ -32,18 +32,23 @@ public final class DodgeInputEvents {
     }
 
     static ActiveAbilityInput requestedDirection(Minecraft minecraft) {
-        if (minecraft.options.keyUp.isDown()) {
-            return ActiveAbilityInput.FORWARD;
+        int forward = (minecraft.options.keyUp.isDown() ? 1 : 0)
+                - (minecraft.options.keyDown.isDown() ? 1 : 0);
+        int right = (minecraft.options.keyRight.isDown() ? 1 : 0)
+                - (minecraft.options.keyLeft.isDown() ? 1 : 0);
+        return directionForAxes(forward, right);
+    }
+
+    static ActiveAbilityInput directionForAxes(int forward, int right) {
+        if (forward > 0) {
+            return right < 0 ? ActiveAbilityInput.FORWARD_LEFT
+                    : right > 0 ? ActiveAbilityInput.FORWARD_RIGHT : ActiveAbilityInput.FORWARD;
         }
-        if (minecraft.options.keyDown.isDown()) {
-            return ActiveAbilityInput.BACKWARD;
+        if (forward < 0) {
+            return right < 0 ? ActiveAbilityInput.BACKWARD_LEFT
+                    : right > 0 ? ActiveAbilityInput.BACKWARD_RIGHT : ActiveAbilityInput.BACKWARD;
         }
-        if (minecraft.options.keyLeft.isDown()) {
-            return ActiveAbilityInput.LEFT;
-        }
-        if (minecraft.options.keyRight.isDown()) {
-            return ActiveAbilityInput.RIGHT;
-        }
-        return ActiveAbilityInput.BACKWARD;
+        return right < 0 ? ActiveAbilityInput.LEFT
+                : right > 0 ? ActiveAbilityInput.RIGHT : ActiveAbilityInput.BACKWARD;
     }
 }

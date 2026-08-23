@@ -32,7 +32,7 @@
     "config": {
       "cooldown_ticks": 12,
       "duration_ticks": 8,
-      "horizontal_speed": 1.35,
+      "horizontal_speed": 2.7,
       "require_on_ground": true
     }
   }

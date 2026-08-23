@@ -92,7 +92,11 @@ public final class DodgeEffect {
         return input == ActiveAbilityInput.FORWARD
                 || input == ActiveAbilityInput.BACKWARD
                 || input == ActiveAbilityInput.LEFT
-                || input == ActiveAbilityInput.RIGHT;
+                || input == ActiveAbilityInput.RIGHT
+                || input == ActiveAbilityInput.FORWARD_LEFT
+                || input == ActiveAbilityInput.FORWARD_RIGHT
+                || input == ActiveAbilityInput.BACKWARD_LEFT
+                || input == ActiveAbilityInput.BACKWARD_RIGHT;
     }
 
     static Vec3 directionalMotion(Vec3 look, ActiveAbilityInput input, double speed) {
@@ -107,6 +111,10 @@ public final class DodgeEffect {
             case BACKWARD -> forward.scale(-speed);
             case LEFT -> right.scale(-speed);
             case RIGHT -> right.scale(speed);
+            case FORWARD_LEFT -> forward.subtract(right).normalize().scale(speed);
+            case FORWARD_RIGHT -> forward.add(right).normalize().scale(speed);
+            case BACKWARD_LEFT -> forward.scale(-1.0D).subtract(right).normalize().scale(speed);
+            case BACKWARD_RIGHT -> forward.scale(-1.0D).add(right).normalize().scale(speed);
             default -> Vec3.ZERO;
         };
     }

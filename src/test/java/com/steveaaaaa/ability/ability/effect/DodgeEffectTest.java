@@ -48,6 +48,22 @@ class DodgeEffectTest {
         );
         assertEquals(0.9D, forward.z, 1.0E-9D);
         assertEquals(-0.9D, backward.z, 1.0E-9D);
+        Vec3 forwardRight = DodgeEffect.directionalMotion(
+                new Vec3(0.0D, 0.0D, 1.0D),
+                ActiveAbilityInput.FORWARD_RIGHT,
+                0.9D
+        );
+        assertEquals(0.9D, forwardRight.length(), 1.0E-9D);
+        assertTrue(forwardRight.x < 0.0D);
+        assertTrue(forwardRight.z > 0.0D);
+        Vec3 backwardLeft = DodgeEffect.directionalMotion(
+                new Vec3(0.0D, 0.0D, 1.0D),
+                ActiveAbilityInput.BACKWARD_LEFT,
+                0.9D
+        );
+        assertEquals(0.9D, backwardLeft.length(), 1.0E-9D);
+        assertTrue(backwardLeft.x > 0.0D);
+        assertTrue(backwardLeft.z < 0.0D);
     }
 
     @Test
@@ -56,6 +72,10 @@ class DodgeEffectTest {
         assertTrue(DodgeEffect.isDodgeDirection(ActiveAbilityInput.BACKWARD));
         assertTrue(DodgeEffect.isDodgeDirection(ActiveAbilityInput.LEFT));
         assertTrue(DodgeEffect.isDodgeDirection(ActiveAbilityInput.RIGHT));
+        assertTrue(DodgeEffect.isDodgeDirection(ActiveAbilityInput.FORWARD_LEFT));
+        assertTrue(DodgeEffect.isDodgeDirection(ActiveAbilityInput.FORWARD_RIGHT));
+        assertTrue(DodgeEffect.isDodgeDirection(ActiveAbilityInput.BACKWARD_LEFT));
+        assertTrue(DodgeEffect.isDodgeDirection(ActiveAbilityInput.BACKWARD_RIGHT));
         assertFalse(DodgeEffect.isDodgeDirection(ActiveAbilityInput.CHARGE_START));
     }
 

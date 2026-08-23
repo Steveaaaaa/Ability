@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 class ActiveAbilityInputTest {
     @Test
-    void roundTripsEveryNetworkInputIncludingFourDodgeDirections() {
+    void roundTripsEveryNetworkInputIncludingEightDodgeDirections() {
         for (ActiveAbilityInput input : ActiveAbilityInput.values()) {
             assertEquals(input, ActiveAbilityInput.fromNetworkId(input.networkId()));
         }

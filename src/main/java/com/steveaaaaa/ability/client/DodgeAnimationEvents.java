@@ -47,6 +47,10 @@ public final class DodgeAnimationEvents {
     static ResourceLocation animation(ActiveAbilityInput direction) {
         return switch (direction) {
             case FORWARD -> AbilityMod.id("dodge_forward");
+            case FORWARD_LEFT -> AbilityMod.id("dodge_forward_left");
+            case FORWARD_RIGHT -> AbilityMod.id("dodge_forward_right");
+            case BACKWARD_LEFT -> AbilityMod.id("dodge_backward_left");
+            case BACKWARD_RIGHT -> AbilityMod.id("dodge_backward_right");
             case LEFT -> AbilityMod.id("dodge_left");
             case RIGHT -> AbilityMod.id("dodge_right");
             default -> AbilityMod.id("dodge_backward");

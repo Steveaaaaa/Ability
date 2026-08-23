@@ -42,6 +42,10 @@ public record ClientboundDodgeAnimationPayload(
         return input == ActiveAbilityInput.FORWARD
                 || input == ActiveAbilityInput.BACKWARD
                 || input == ActiveAbilityInput.LEFT
-                || input == ActiveAbilityInput.RIGHT;
+                || input == ActiveAbilityInput.RIGHT
+                || input == ActiveAbilityInput.FORWARD_LEFT
+                || input == ActiveAbilityInput.FORWARD_RIGHT
+                || input == ActiveAbilityInput.BACKWARD_LEFT
+                || input == ActiveAbilityInput.BACKWARD_RIGHT;
     }
 }
