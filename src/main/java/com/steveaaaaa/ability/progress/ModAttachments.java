@@ -34,6 +34,14 @@ public final class ModAttachments {
                     .build()
     );
 
+    public static final Supplier<AttachmentType<WorldTravelerState>> WORLD_TRAVELER_STATE = ATTACHMENT_TYPES.register(
+            "world_traveler_state",
+            () -> AttachmentType.builder(() -> WorldTravelerState.EMPTY)
+                    .serialize(WorldTravelerState.CODEC)
+                    .copyOnDeath()
+                    .build()
+    );
+
     private ModAttachments() {
     }
 }

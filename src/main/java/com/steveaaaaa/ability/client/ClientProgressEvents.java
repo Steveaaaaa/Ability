@@ -2,6 +2,7 @@ package com.steveaaaaa.ability.client;
 
 import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.network.ClientProgressCache;
+import com.steveaaaaa.ability.network.ClientWorldTravelerCache;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -15,5 +16,6 @@ public final class ClientProgressEvents {
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientProgressCache.clear();
+        ClientWorldTravelerCache.clear();
     }
 }

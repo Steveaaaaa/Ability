@@ -6,5 +6,8 @@
   "ranks": { "unlock_skill_levels": [16,18], "values": [
     {"cross_dimension":false}, {"cross_dimension":true}
   ]},
-  "effect": { "type": "ability:world_traveler", "config": { "item":"minecraft:compass", "cooldown_ticks":1200 } }
+  "effect": { "type": "ability:world_traveler", "config": {
+    "max_filter_slots": 36,
+    "remote_access": true
+  } }
 }

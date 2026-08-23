@@ -17,6 +17,7 @@ import net.neoforged.neoforge.event.PlayLevelSoundEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import net.minecraft.world.entity.animal.Wolf;
 
@@ -59,7 +60,10 @@ public final class AbilityEffectEventHandler {
 
     @SubscribeEvent
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        ChorusTransmutationEffect.transmute(event);
+        WorldTravelerEffect.bind(event);
+        if (!event.isCanceled()) {
+            ChorusTransmutationEffect.transmute(event);
+        }
         if (!event.isCanceled()) {
             BlastExcavationEffect.placeCharge(event);
         }
@@ -72,11 +76,13 @@ public final class AbilityEffectEventHandler {
     public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
         CeilingWireEffect.releaseDripstone(event);
         if (!event.isCanceled()) {
-            WorldTravelerEffect.activate(event);
-        }
-        if (!event.isCanceled()) {
             SupportAuraEffect.activate(event);
         }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onItemPickup(ItemEntityPickupEvent.Pre event) {
+        WorldTravelerEffect.routePickup(event);
     }
 
     @SubscribeEvent
@@ -177,6 +183,9 @@ public final class AbilityEffectEventHandler {
             SupportAuraEffect.processTick(player);
             CeilingWireEffect.processTick(player);
             if (player.tickCount % 5 == 0) {
+                WorldTravelerEffect.processInventoryRouting(player);
+            }
+            if (player.tickCount % 5 == 0) {
                 StealthEffect.processTick(player);
             }
             if (player.tickCount % 10 == 0) {
@@ -218,6 +227,7 @@ public final class AbilityEffectEventHandler {
             SupportAuraEffect.forget(player.getUUID());
             WolfPackEffect.forgetOwner(player.getUUID());
             CeilingWireEffect.forget(player);
+            WorldTravelerEffect.forget(player);
         }
     }
 
@@ -240,6 +250,7 @@ public final class AbilityEffectEventHandler {
             SupportAuraEffect.forget(player.getUUID());
             WolfPackEffect.forgetOwner(player.getUUID());
             CeilingWireEffect.forget(player);
+            WorldTravelerEffect.forget(player);
         }
     }
 
@@ -256,6 +267,7 @@ public final class AbilityEffectEventHandler {
             SupportAuraEffect.forget(player.getUUID());
             WolfPackEffect.forgetOwner(player.getUUID());
             CeilingWireEffect.forget(player);
+            WorldTravelerEffect.forget(player);
         }
     }
 

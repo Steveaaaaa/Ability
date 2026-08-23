@@ -2,6 +2,7 @@ package com.steveaaaaa.ability.network;
 
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.ability.ActiveAbilityActionService;
+import com.steveaaaaa.ability.ability.effect.WorldTravelerEffect;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -19,6 +20,24 @@ public final class AbilityNetwork {
                 ClientboundProgressPayload.TYPE,
                 ClientboundProgressPayload.STREAM_CODEC,
                 (payload, context) -> ClientProgressCache.accept(payload.snapshot())
+        );
+        registrar.playToClient(
+                ClientboundWorldTravelerStatePayload.TYPE,
+                ClientboundWorldTravelerStatePayload.STREAM_CODEC,
+                (payload, context) -> ClientWorldTravelerCache.accept(payload)
+        );
+        registrar.playToServer(
+                ServerboundWorldTravelerPayload.TYPE,
+                ServerboundWorldTravelerPayload.STREAM_CODEC,
+                (payload, context) -> {
+                    ServerPlayer player = (ServerPlayer) context.player();
+                    switch (payload.action()) {
+                        case REQUEST -> WorldTravelerEffect.requestState(player);
+                        case SET_FILTER -> WorldTravelerEffect.setFilter(player, payload.slot(), false);
+                        case CLEAR_FILTER -> WorldTravelerEffect.setFilter(player, payload.slot(), true);
+                        case OPEN_REMOTE -> WorldTravelerEffect.openRemote(player);
+                    }
+                }
         );
         registrar.playToServer(
                 ServerboundPurchaseAbilityPayload.TYPE,

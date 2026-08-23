@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.item.Items;
 import org.junit.jupiter.api.Test;
 
 class RemainingAbilityEffectTest {
@@ -33,5 +34,11 @@ class RemainingAbilityEffectTest {
         assertEquals(4.0F, GolemEnhancementEffect.coldProjectileDamage(600, 0, 1.0D));
         assertEquals(8.0F, GolemEnhancementEffect.coldProjectileDamage(1800, 0, 1.0D));
         assertEquals(4.0F, GolemEnhancementEffect.coldProjectileDamage(400, 200, 0.4D));
+    }
+
+    @Test
+    void worldTravelerMatchesTheRecordedItemType() {
+        assertTrue(WorldTravelerEffect.matches(Items.DIAMOND, new net.minecraft.world.item.ItemStack(Items.DIAMOND)));
+        assertTrue(!WorldTravelerEffect.matches(Items.DIAMOND, new net.minecraft.world.item.ItemStack(Items.EMERALD)));
     }
 }

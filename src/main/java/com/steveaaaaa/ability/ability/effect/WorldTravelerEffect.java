@@ -7,46 +7,162 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.menu.WorldTravelerRemoteMenu;
+import com.steveaaaaa.ability.network.ClientboundWorldTravelerStatePayload;
+import com.steveaaaaa.ability.progress.ModAttachments;
+import com.steveaaaaa.ability.progress.WorldTravelerState;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Registry;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.item.Item;
+import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.LodestoneTracker;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class WorldTravelerEffect {
-    public static final ResourceLocation TYPE = AbilityMod.id("world_traveler");
+    public static final net.minecraft.resources.ResourceLocation TYPE = AbilityMod.id("world_traveler");
+    private static final Map<UUID, int[]> INVENTORY_SNAPSHOTS = new ConcurrentHashMap<>();
     private WorldTravelerEffect() {}
 
-    public static void activate(PlayerInteractEvent.RightClickItem event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || event.getHand() != InteractionHand.MAIN_HAND) return;
-        ItemStack stack = event.getItemStack();
-        ActiveComponent component = activeComponents(player).stream()
-                .filter(value -> stack.is(value.config().item())).findFirst().orElse(null);
-        if (component == null || player.getCooldowns().isOnCooldown(stack.getItem())) return;
-        LodestoneTracker tracker = stack.get(DataComponents.LODESTONE_TRACKER);
-        GlobalPos target = tracker == null ? null : tracker.target().orElse(null);
-        if (target == null || (!component.rank().crossDimension()
-                && !target.dimension().equals(player.level().dimension()))) return;
-        ServerLevel targetLevel = player.getServer().getLevel(target.dimension());
-        if (targetLevel == null || !targetLevel.getBlockState(target.pos()).isSolid()) return;
-        player.teleportTo(targetLevel, target.pos().getX() + 0.5D, target.pos().getY() + 1.0D,
-                target.pos().getZ() + 0.5D, player.getYRot(), player.getXRot());
-        player.getCooldowns().addCooldown(stack.getItem(), component.config().cooldownTicks());
+    public static void bind(PlayerInteractEvent.RightClickBlock event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || event.getHand() != InteractionHand.MAIN_HAND
+                || !player.isShiftKeyDown() || !event.getItemStack().isEmpty()) return;
+        if (activeComponent(player).isEmpty()) return;
+        IItemHandler handler = findHandler((ServerLevel) event.getLevel(), event.getPos());
+        if (handler == null || handler.getSlots() <= 0) return;
+        WorldTravelerState updated = state(player).bind(GlobalPos.of(player.level().dimension(), event.getPos()));
+        player.setData(ModAttachments.WORLD_TRAVELER_STATE, updated);
+        INVENTORY_SNAPSHOTS.remove(player.getUUID());
+        sync(player);
+        player.displayClientMessage(Component.translatable("message.ability.world_traveler.bound",
+                event.getPos().getX(), event.getPos().getY(), event.getPos().getZ()), true);
         event.setCancellationResult(InteractionResult.SUCCESS);
         event.setCanceled(true);
+    }
+
+    public static void routePickup(ItemEntityPickupEvent.Pre event) {
+        if (!(event.getPlayer() instanceof ServerPlayer player)) return;
+        ActiveComponent component = activeComponent(player).orElse(null);
+        if (component == null) return;
+        WorldTravelerState state = state(player);
+        ItemStack picked = event.getItemEntity().getItem();
+        if (picked.isEmpty() || state.boundContainer().isEmpty()
+                || state.filters().stream().noneMatch(entry -> matches(entry.item(), picked))) return;
+        Target target = target(player, state.boundContainer().get(), component.rank().crossDimension()).orElse(null);
+        if (target == null) return;
+        ItemStack remainder = ItemHandlerHelper.insertItemStacked(target.handler(), picked.copy(), false);
+        picked.setCount(remainder.getCount());
+    }
+
+    public static void requestState(ServerPlayer player) {
+        if (activeComponent(player).isPresent()) sync(player);
+    }
+
+    public static void setFilter(ServerPlayer player, int slot, boolean clear) {
+        ActiveComponent component = activeComponent(player).orElse(null);
+        if (component == null || slot < 0 || slot >= Math.min(WorldTravelerState.FILTER_SLOTS,
+                component.config().maxFilterSlots())) return;
+        ItemStack exemplar = clear ? ItemStack.EMPTY : player.containerMenu.getCarried();
+        if (!clear && exemplar.isEmpty()) return;
+        WorldTravelerState updated = state(player).setFilter(slot, exemplar);
+        player.setData(ModAttachments.WORLD_TRAVELER_STATE, updated);
+        INVENTORY_SNAPSHOTS.remove(player.getUUID());
+        sync(player);
+    }
+
+    public static void processInventoryRouting(ServerPlayer player) {
+        ActiveComponent component = activeComponent(player).orElse(null);
+        WorldTravelerState state = state(player);
+        if (component == null || state.boundContainer().isEmpty() || state.filters().isEmpty()) {
+            INVENTORY_SNAPSHOTS.remove(player.getUUID());
+            return;
+        }
+        int[] current = inventoryCounts(player, state);
+        int[] previous = INVENTORY_SNAPSHOTS.put(player.getUUID(), current);
+        if (previous == null) return;
+        ArrayList<PendingRoute> pending = new ArrayList<>();
+        for (WorldTravelerState.FilterEntry entry : state.filters()) {
+            if (state.filters().stream().anyMatch(previousEntry -> previousEntry.slot() < entry.slot()
+                    && previousEntry.item() == entry.item())) continue;
+            int acquired = Math.max(0, current[entry.slot()] - previous[entry.slot()]);
+            if (acquired > 0) pending.add(new PendingRoute(entry.item(), acquired));
+        }
+        if (pending.isEmpty()) return;
+        Target target = target(player, state.boundContainer().get(), component.rank().crossDimension()).orElse(null);
+        if (target == null) return;
+        pending.forEach(route -> routeFromInventory(player, target.handler(), route.item(), route.count()));
+        INVENTORY_SNAPSHOTS.put(player.getUUID(), inventoryCounts(player, state));
+    }
+
+    public static void forget(ServerPlayer player) {
+        INVENTORY_SNAPSHOTS.remove(player.getUUID());
+    }
+
+    public static void openRemote(ServerPlayer player) {
+        ActiveComponent component = activeComponent(player).orElse(null);
+        WorldTravelerState state = state(player);
+        if (component == null || !component.config().remoteAccess() || state.boundContainer().isEmpty()) return;
+        Target target = target(player, state.boundContainer().get(), component.rank().crossDimension()).orElse(null);
+        if (target == null) {
+            player.displayClientMessage(Component.translatable("message.ability.world_traveler.unavailable"), true);
+            return;
+        }
+        int slots = Math.min(54, target.handler().getSlots());
+        player.openMenu(new SimpleMenuProvider(
+                (id, inventory, ignored) -> new WorldTravelerRemoteMenu(id, inventory, target.handler(), slots,
+                        () -> activeComponent(player).isPresent() && target.level().hasChunkAt(target.position())),
+                Component.translatable("menu.ability.world_traveler.remote")
+        ), buffer -> buffer.writeVarInt(slots));
+    }
+
+    public static WorldTravelerState state(ServerPlayer player) {
+        return player.getData(ModAttachments.WORLD_TRAVELER_STATE);
+    }
+
+    static boolean matches(net.minecraft.world.item.Item filter, ItemStack candidate) {
+        return candidate.is(filter);
+    }
+
+    private static int[] inventoryCounts(ServerPlayer player, WorldTravelerState state) {
+        int[] counts = new int[WorldTravelerState.FILTER_SLOTS];
+        for (WorldTravelerState.FilterEntry entry : state.filters()) {
+            counts[entry.slot()] = player.getInventory().items.stream()
+                    .filter(stack -> matches(entry.item(), stack))
+                    .mapToInt(ItemStack::getCount).sum();
+        }
+        return counts;
+    }
+
+    private static void routeFromInventory(ServerPlayer player, IItemHandler handler,
+            net.minecraft.world.item.Item filter, int maximum) {
+        int remaining = maximum;
+        for (ItemStack inventoryStack : player.getInventory().items) {
+            if (remaining <= 0) break;
+            if (!matches(filter, inventoryStack)) continue;
+            int offered = Math.min(remaining, inventoryStack.getCount());
+            ItemStack remainder = ItemHandlerHelper.insertItemStacked(handler,
+                    inventoryStack.copyWithCount(offered), false);
+            int inserted = offered - remainder.getCount();
+            inventoryStack.shrink(inserted);
+            remaining -= inserted;
+            if (inserted == 0) break;
+        }
+        player.getInventory().setChanged();
     }
 
     static List<String> validateDefinition(AbilityDefinition definition) {
@@ -58,9 +174,33 @@ public final class WorldTravelerEffect {
         } catch (RuntimeException exception) { return List.of(exception.getMessage()); }
     }
 
-    private static List<ActiveComponent> activeComponents(ServerPlayer player) {
-        ArrayList<ActiveComponent> result = new ArrayList<>();
+    private static Optional<Target> target(ServerPlayer player, GlobalPos pos, boolean crossDimension) {
+        if (!crossDimension && !player.level().dimension().equals(pos.dimension())) return Optional.empty();
+        ServerLevel level = player.getServer().getLevel(pos.dimension());
+        if (level == null) return Optional.empty();
+        // Load only on an actual routing/open request. No permanent forced-chunk ticket is installed.
+        level.getChunk(pos.pos());
+        IItemHandler handler = findHandler(level, pos.pos());
+        return handler == null ? Optional.empty() : Optional.of(new Target(level, pos.pos(), handler));
+    }
+
+    private static IItemHandler findHandler(ServerLevel level, net.minecraft.core.BlockPos pos) {
+        IItemHandler handler = level.getCapability(Capabilities.ItemHandler.BLOCK, pos, null);
+        if (handler != null) return handler;
+        for (net.minecraft.core.Direction direction : net.minecraft.core.Direction.values()) {
+            handler = level.getCapability(Capabilities.ItemHandler.BLOCK, pos, direction);
+            if (handler != null) return handler;
+        }
+        return null;
+    }
+
+    private static void sync(ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player, ClientboundWorldTravelerStatePayload.from(state(player)));
+    }
+
+    private static Optional<ActiveComponent> activeComponent(ServerPlayer player) {
         Registry<AbilityDefinition> registry = player.registryAccess().registryOrThrow(ModDataRegistries.ABILITIES);
+        ArrayList<ActiveComponent> result = new ArrayList<>();
         registry.entrySet().stream().sorted(Comparator.comparing(e -> e.getKey().location())).forEach(entry -> {
             Optional<AbilityService.ActiveAbility> active = AbilityService.active(player, entry.getKey().location());
             if (active.isEmpty()) return;
@@ -70,7 +210,7 @@ public final class WorldTravelerEffect {
                         parse(Rank.CODEC, projected.unlockedRankValues().getLast(), "rank")));
             }
         });
-        return result;
+        return result.stream().findFirst();
     }
 
     private static <T> T parse(Codec<T> codec, Dynamic<?> input, String path) {
@@ -78,10 +218,12 @@ public final class WorldTravelerEffect {
         Optional<T> result = codec.parse(input).resultOrPartial(error::append);
         return result.orElseThrow(() -> new IllegalArgumentException(path + ": " + error));
     }
-    public record Config(Item item, int cooldownTicks) {
+
+    public record Config(int maxFilterSlots, boolean remoteAccess) {
         public static final Codec<Config> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-                net.minecraft.core.registries.BuiltInRegistries.ITEM.byNameCodec().fieldOf("item").forGetter(Config::item),
-                Codec.intRange(0, 72000).optionalFieldOf("cooldown_ticks", 1200).forGetter(Config::cooldownTicks)
+                Codec.intRange(1, WorldTravelerState.FILTER_SLOTS).optionalFieldOf("max_filter_slots", 36)
+                        .forGetter(Config::maxFilterSlots),
+                Codec.BOOL.optionalFieldOf("remote_access", true).forGetter(Config::remoteAccess)
         ).apply(instance, Config::new));
     }
     public record Rank(boolean crossDimension) {
@@ -90,4 +232,6 @@ public final class WorldTravelerEffect {
         ).apply(instance, Rank::new));
     }
     private record ActiveComponent(Config config, Rank rank) {}
+    private record Target(ServerLevel level, net.minecraft.core.BlockPos position, IItemHandler handler) {}
+    private record PendingRoute(net.minecraft.world.item.Item item, int count) {}
 }
