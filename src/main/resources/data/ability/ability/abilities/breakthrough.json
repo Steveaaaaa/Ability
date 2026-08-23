@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "skill": "ability:agility",
+  "display": {
+    "name": "ability.ability.breakthrough",
+    "description": "ability.ability.breakthrough.description",
+    "icon": "minecraft:rabbit_foot",
+    "sort_order": 40
+  },
+  "purchase": {
+    "skill_level": 22,
+    "skill_points": 8,
+    "requirements": [
+      {
+        "type": "ability:skill_level",
+        "config": { "skill": "ability:combat", "level": 14 }
+      }
+    ]
+  },
+  "ranks": {
+    "unlock_skill_levels": [22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
+    "values": [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}]
+  },
+  "effect": {
+    "type": "ability:composite",
+    "config": {
+      "effects": [
+        {
+          "type": "ability:damage_modifier",
+          "config": {
+            "minimum_target_health_ratio": 0.95,
+            "directness": "any"
+          },
+          "rank_values": [
+            { "flat_damage": 3 },
+            { "flat_damage": 3 },
+            { "flat_damage": 6 },
+            { "flat_damage": 6 },
+            { "flat_damage": 9 },
+            { "flat_damage": 9 },
+            { "flat_damage": 9 },
+            { "flat_damage": 12 },
+            { "flat_damage": 12 },
+            { "flat_damage": 12 }
+          ]
+        },
+        {
+          "type": "ability:damage_response",
+          "config": {
+            "health_ratio_below_key": "health_ratio_below",
+            "effect": "minecraft:speed",
+            "effect_level_key": "effect_level",
+            "duration_ticks": 60,
+            "require_living_attacker": true,
+            "show_particles": false
+          },
+          "rank_values": [
+            { "health_ratio_below": 0.40, "effect_level": 1 },
+            { "health_ratio_below": 0.40, "effect_level": 2 },
+            { "health_ratio_below": 0.40, "effect_level": 2 },
+            { "health_ratio_below": 0.50, "effect_level": 2 },
+            { "health_ratio_below": 0.50, "effect_level": 2 },
+            { "health_ratio_below": 0.60, "effect_level": 2 },
+            { "health_ratio_below": 0.60, "effect_level": 3 },
+            { "health_ratio_below": 0.60, "effect_level": 3 },
+            { "health_ratio_below": 0.70, "effect_level": 3 },
+            { "health_ratio_below": 0.70, "effect_level": 4 }
+          ]
+        }
+      ]
+    }
+  }
+}

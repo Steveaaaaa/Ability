@@ -1,6 +1,7 @@
 package com.steveaaaaa.ability.network;
 
 import com.steveaaaaa.ability.ability.AbilityService;
+import com.steveaaaaa.ability.ability.ActiveAbilityActionService;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -27,6 +28,15 @@ public final class AbilityNetwork {
                     AbilityService.PurchaseResult result = AbilityService.purchase(player, payload.abilityId());
                     PacketDistributor.sendToPlayer(player, ClientboundPurchaseResultPayload.from(result));
                 }
+        );
+        registrar.playToServer(
+                ServerboundActivateAbilityPayload.TYPE,
+                ServerboundActivateAbilityPayload.STREAM_CODEC,
+                (payload, context) -> ActiveAbilityActionService.activate(
+                        (ServerPlayer) context.player(),
+                        payload.abilityId(),
+                        payload.input()
+                )
         );
         registrar.playToClient(
                 ClientboundPurchaseResultPayload.TYPE,

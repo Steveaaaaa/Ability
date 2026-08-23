@@ -242,29 +242,36 @@ public final class LootInjectionEffect {
     private static void process(ServerPlayer player, Context context, LootConsumer consumer) {
         Registry<AbilityDefinition> abilities = player.registryAccess().registryOrThrow(ModDataRegistries.ABILITIES);
         List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> sorted = abilities.entrySet().stream()
-                .filter(entry -> entry.getValue().effect().type().equals(TYPE))
                 .sorted(Comparator.comparing(entry -> entry.getKey().location()))
                 .toList();
         for (Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition> entry : sorted) {
             ResourceLocation abilityId = entry.getKey().location();
             try {
-                Config config = parse(Config.CODEC, entry.getValue().effect().config(), "effect.config");
-                if (config.context() != context) {
+                List<CompositeEffect.ComponentView> components =
+                        CompositeEffect.componentsOfType(entry.getValue(), TYPE);
+                if (components.isEmpty()) {
                     continue;
                 }
                 Optional<AbilityService.ActiveAbility> active = AbilityService.active(player, abilityId);
                 if (active.isEmpty()) {
                     continue;
                 }
-                RankValues merged = new RankValues(Map.of());
-                for (int index = 0; index < active.get().unlockedRankValues().size(); index++) {
-                    merged = merge(merged, parse(
-                            RankValues.CODEC,
-                            active.get().unlockedRankValues().get(index),
-                            "ranks.values[" + index + "]"
-                    ));
+                for (CompositeEffect.ComponentView component : components) {
+                    Config config = parse(Config.CODEC, component.config(), "effect.config");
+                    if (config.context() != context) {
+                        continue;
+                    }
+                    AbilityService.ActiveAbility projected = CompositeEffect.projectActive(active.get(), component);
+                    RankValues merged = new RankValues(Map.of());
+                    for (int index = 0; index < projected.unlockedRankValues().size(); index++) {
+                        merged = merge(merged, parse(
+                                RankValues.CODEC,
+                                projected.unlockedRankValues().get(index),
+                                "ranks.values[" + index + "]"
+                        ));
+                    }
+                    consumer.apply(config, resolve(merged), projected.rank());
                 }
-                consumer.apply(config, resolve(merged), active.get().rank());
             } catch (RuntimeException exception) {
                 logInvalidOnce(abilityId, exception.getMessage());
             }

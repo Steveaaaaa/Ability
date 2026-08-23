@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "skill": "ability:defense",
+  "display": {
+    "name": "ability.ability.survival_skills",
+    "description": "ability.ability.survival_skills.description",
+    "icon": "minecraft:milk_bucket",
+    "sort_order": 30
+  },
+  "purchase": {
+    "skill_level": 26,
+    "skill_points": 6,
+    "requirements": []
+  },
+  "ranks": {
+    "unlock_skill_levels": [26, 27, 28, 29, 30],
+    "values": [
+      { "duration_threshold_seconds": 8 },
+      { "duration_threshold_seconds": 9 },
+      { "duration_threshold_seconds": 10 },
+      { "duration_threshold_seconds": 11 },
+      { "duration_threshold_seconds": 12 }
+    ]
+  },
+  "effect": {
+    "type": "ability:survival_skills",
+    "config": {
+      "check_interval_ticks": 20
+    }
+  }
+}

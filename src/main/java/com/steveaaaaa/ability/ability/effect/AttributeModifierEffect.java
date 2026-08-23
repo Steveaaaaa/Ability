@@ -130,6 +130,15 @@ public final class AttributeModifierEffect {
         return AbilityMod.id("attribute/" + abilityId.getNamespace() + "/" + abilityId.getPath() + "/" + index);
     }
 
+    static ResourceLocation modifierId(ResourceLocation abilityId, int componentIndex, int modifierIndex) {
+        return componentIndex < 0
+                ? modifierId(abilityId, modifierIndex)
+                : AbilityMod.id(
+                        "attribute/" + abilityId.getNamespace() + "/" + abilityId.getPath()
+                                + "/" + componentIndex + "/" + modifierIndex
+                );
+    }
+
     static RankValues merge(RankValues earlier, RankValues later) {
         LinkedHashMap<String, Double> merged = new LinkedHashMap<>(earlier.amounts());
         merged.putAll(later.amounts());
@@ -142,39 +151,45 @@ public final class AttributeModifierEffect {
         for (Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition> entry : abilities.entrySet()) {
             ResourceLocation abilityId = entry.getKey().location();
             AbilityDefinition definition = entry.getValue();
-            if (!definition.effect().type().equals(TYPE)) {
-                continue;
-            }
             try {
+                List<CompositeEffect.ComponentView> components = CompositeEffect.componentsOfType(definition, TYPE);
+                if (components.isEmpty()) {
+                    continue;
+                }
                 Optional<AbilityService.ActiveAbility> active = AbilityService.active(player, abilityId);
                 if (active.isEmpty()) {
                     continue;
                 }
-                Config config = parse(Config.CODEC, definition.effect().config(), "effect.config");
-                RankValues values = null;
-                for (int rank = 0; rank < active.get().unlockedRankValues().size(); rank++) {
-                    RankValues current = parse(
-                            RankValues.CODEC,
-                            active.get().unlockedRankValues().get(rank),
-                            "ranks.values[" + rank + "]"
-                    );
-                    values = values == null ? current : merge(values, current);
-                }
-                if (values == null) {
-                    continue;
-                }
-                for (int index = 0; index < config.modifiers().size(); index++) {
-                    ModifierConfig modifier = config.modifiers().get(index);
-                    Double amount = values.amounts().get(modifier.amountKey());
-                    Holder<Attribute> attribute = BuiltInRegistries.ATTRIBUTE.getHolder(modifier.attribute())
-                            .orElseThrow(() -> new IllegalArgumentException("Unknown attribute: " + modifier.attribute()));
-                    if (amount == null) {
-                        throw new IllegalArgumentException("Missing amount key: " + modifier.amountKey());
+                for (CompositeEffect.ComponentView component : components) {
+                    AbilityService.ActiveAbility projected = CompositeEffect.projectActive(active.get(), component);
+                    Config config = parse(Config.CODEC, component.config(), "effect.config");
+                    RankValues values = null;
+                    for (int rank = 0; rank < projected.unlockedRankValues().size(); rank++) {
+                        RankValues current = parse(
+                                RankValues.CODEC,
+                                projected.unlockedRankValues().get(rank),
+                                "ranks.values[" + rank + "]"
+                        );
+                        values = values == null ? current : merge(values, current);
                     }
-                    desired.put(
-                            modifierId(abilityId, index),
-                            new DesiredModifier(attribute, modifier.operation(), amount)
-                    );
+                    if (values == null) {
+                        continue;
+                    }
+                    for (int index = 0; index < config.modifiers().size(); index++) {
+                        ModifierConfig modifier = config.modifiers().get(index);
+                        Double amount = values.amounts().get(modifier.amountKey());
+                        Holder<Attribute> attribute = BuiltInRegistries.ATTRIBUTE.getHolder(modifier.attribute())
+                                .orElseThrow(() -> new IllegalArgumentException(
+                                        "Unknown attribute: " + modifier.attribute()
+                                ));
+                        if (amount == null) {
+                            throw new IllegalArgumentException("Missing amount key: " + modifier.amountKey());
+                        }
+                        desired.put(
+                                modifierId(abilityId, component.index(), index),
+                                new DesiredModifier(attribute, modifier.operation(), amount)
+                        );
+                    }
                 }
             } catch (RuntimeException exception) {
                 logInvalidOnce(abilityId, exception.getMessage());

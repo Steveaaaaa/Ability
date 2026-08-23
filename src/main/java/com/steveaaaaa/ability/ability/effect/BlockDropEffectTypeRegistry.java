@@ -53,14 +53,21 @@ public final class BlockDropEffectTypeRegistry {
         for (Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition> entry : abilities.entrySet()) {
             ResourceLocation abilityId = entry.getKey().location();
             AbilityDefinition definition = entry.getValue();
-            RegisteredType<?, ?> type = TYPES.get(definition.effect().type());
-            if (type == null) {
-                continue;
-            }
-
             try {
-                AbilityService.active(player, abilityId)
-                        .ifPresent(active -> type.apply(event, active));
+                List<CompositeEffect.ComponentView> components = CompositeEffect.components(definition).stream()
+                        .filter(component -> TYPES.containsKey(component.type()))
+                        .toList();
+                if (components.isEmpty()) {
+                    continue;
+                }
+                Optional<AbilityService.ActiveAbility> active = AbilityService.active(player, abilityId);
+                if (active.isEmpty()) {
+                    continue;
+                }
+                for (CompositeEffect.ComponentView component : components) {
+                    RegisteredType<?, ?> type = TYPES.get(component.type());
+                    type.apply(event, CompositeEffect.projectActive(active.get(), component));
+                }
             } catch (RuntimeException exception) {
                 logInvalidOnce(abilityId, exception.getMessage());
             }

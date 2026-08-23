@@ -1,6 +1,7 @@
 package com.steveaaaaa.ability.ability.effect;
 
 import com.steveaaaaa.ability.AbilityMod;
+import com.steveaaaaa.ability.ability.ActiveAbilityRuntime;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -9,7 +10,10 @@ import net.neoforged.neoforge.event.level.BlockDropsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.event.PlayLevelSoundEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID)
 public final class AbilityEffectEventHandler {
@@ -36,10 +40,83 @@ public final class AbilityEffectEventHandler {
         DamageModifierEffect.process(event);
     }
 
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onHarvestDamage(LivingIncomingDamageEvent event) {
+        HarvestEffect.modifyDamage(event);
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onChargedLeapFallDamage(LivingIncomingDamageEvent event) {
+        ChargedLeapEffect.preventFallDamage(event);
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public static void onCounterSniperDamage(LivingIncomingDamageEvent event) {
+        CounterSniperEffect.modifyOutgoingDamage(event);
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onWeakPointDamage(LivingIncomingDamageEvent event) {
+        StealthEffect.modifyOutgoingDamage(event);
+        WeakPointEffect.process(event);
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onDodgeDamage(LivingIncomingDamageEvent event) {
+        DodgeEffect.reduceIncomingDamage(event);
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onPrimerExplosionDamage(LivingIncomingDamageEvent event) {
+        PrimerEffect.modifyExplosionDamage(event);
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onDangerousChargeDamage(LivingIncomingDamageEvent event) {
+        DangerousChargeEffect.modifyFireworkDamage(event);
+    }
+
+    @SubscribeEvent
+    public static void onEntityJoinLevel(EntityJoinLevelEvent event) {
+        DangerousChargeEffect.trackCrossbowRocket(event);
+    }
+
+    @SubscribeEvent
+    public static void onFinalDamage(LivingDamageEvent.Post event) {
+        DamageResponseEffect.process(event);
+        CounterSniperEffect.processFinalDamage(event);
+        StealthEffect.processFinalDamage(event);
+        ChargedLeapEffect.processImpact(event);
+        ExhaustionEffect.process(event);
+        HarvestEffect.consumeFood(event);
+    }
+
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
-        if (event.getEntity() instanceof ServerPlayer player && player.tickCount % 20 == 0) {
-            AttributeModifierEffect.reconcile(player);
+        if (event.getEntity() instanceof ServerPlayer player) {
+            FrugalityEffect.refundNaturalHealingCost(player);
+            SurvivalSkillsEffect.processTick(player);
+            RetaliatoryFlameEffect.processTick(player);
+            if (player.tickCount % 5 == 0) {
+                StealthEffect.processTick(player);
+            }
+            if (player.tickCount % 10 == 0) {
+                ConditionalMobEffect.process(player);
+            }
+            if (player.tickCount % 20 == 0) {
+                AttributeModifierEffect.reconcile(player);
+            }
+            if (player.tickCount % 100 == 0) {
+                PrimerStateTracker.cleanup(player.level().getGameTime());
+                DangerousChargeTracker.cleanup(player.level().getGameTime());
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerTickBefore(PlayerTickEvent.Pre event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            FrugalityEffect.captureBeforeTick(player);
         }
     }
 
@@ -47,6 +124,43 @@ public final class AbilityEffectEventHandler {
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             AttributeModifierEffect.forget(player);
+            InactivityTracker.forget(player.getUUID());
+            ActiveAbilityRuntime.forget(player.getUUID());
+            ChargedLeapStateTracker.forget(player.getUUID());
+            PrimerStateTracker.forgetPlayer(player.getUUID());
+            FrugalityEffect.forget(player.getUUID());
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerRespawned(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            InactivityTracker.recordActivity(player);
+            ActiveAbilityRuntime.forget(player.getUUID());
+            ChargedLeapStateTracker.forget(player.getUUID());
+            PrimerStateTracker.forgetPlayer(player.getUUID());
+            FrugalityEffect.forget(player.getUUID());
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            InactivityTracker.recordActivity(player);
+            ActiveAbilityRuntime.forget(player.getUUID());
+            ChargedLeapStateTracker.forget(player.getUUID());
+            PrimerStateTracker.forgetPlayer(player.getUUID());
+            FrugalityEffect.forget(player.getUUID());
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerSound(PlayLevelSoundEvent.AtEntity event) {
+        if (!event.isCanceled()
+                && event.getOriginalVolume() > 0.0F
+                && event.getSound() != null
+                && event.getEntity() instanceof ServerPlayer player) {
+            InactivityTracker.recordActivity(player);
         }
     }
 }

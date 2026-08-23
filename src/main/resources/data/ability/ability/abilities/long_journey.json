@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "skill": "ability:agility",
+  "display": {
+    "name": "ability.ability.long_journey",
+    "description": "ability.ability.long_journey.description",
+    "icon": "minecraft:leather_boots",
+    "sort_order": 10
+  },
+  "purchase": {
+    "skill_level": 12,
+    "skill_points": 4,
+    "requirements": []
+  },
+  "ranks": {
+    "unlock_skill_levels": [12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
+    "values": [
+      { "upper_y": 283, "lower_y": -53 },
+      { "upper_y": 276, "lower_y": -51 },
+      { "upper_y": 268, "lower_y": -49 },
+      { "upper_y": 257, "lower_y": -44 },
+      { "upper_y": 247, "lower_y": -41 },
+      { "upper_y": 236, "lower_y": -38 },
+      { "upper_y": 222, "lower_y": -32 },
+      { "upper_y": 209, "lower_y": -28 },
+      { "upper_y": 195, "lower_y": -24 },
+      { "upper_y": 178, "lower_y": -17 }
+    ]
+  },
+  "effect": {
+    "type": "ability:conditional_mob_effect",
+    "config": {
+      "conditions": [
+        {
+          "type": "y_outside_range",
+          "lower_bound_key": "lower_y",
+          "upper_bound_key": "upper_y"
+        }
+      ],
+      "effects": [
+        {
+          "effect": "minecraft:speed",
+          "amplifier": 0,
+          "duration_ticks": 30,
+          "show_particles": false
+        }
+      ]
+    }
+  }
+}

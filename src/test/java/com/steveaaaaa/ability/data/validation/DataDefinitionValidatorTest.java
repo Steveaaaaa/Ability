@@ -99,7 +99,11 @@ class DataDefinitionValidatorTest {
     private static Map<ResourceLocation, AbilityDefinition> builtInAbilities() throws Exception {
         HashMap<ResourceLocation, AbilityDefinition> abilities = new HashMap<>();
         for (String name : new String[]{
-                "associated_ore", "gravel_panning", "rapid_thrust", "survivor"
+                "associated_ore", "gravel_panning", "rapid_thrust", "survivor",
+                "long_journey", "energetic", "ambush", "breakthrough", "weak_point",
+                "counter_sniper", "stealth", "dodge", "charged_leap", "primer",
+                "dangerous_charge", "exhaustion", "harvest", "frugality",
+                "survival_skills", "retaliatory_flame"
         }) {
             abilities.put(id(name), load(
                     AbilityDefinition.CODEC,

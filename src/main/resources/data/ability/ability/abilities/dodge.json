@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "skill": "ability:agility",
+  "display": {
+    "name": "ability.ability.dodge",
+    "description": "ability.ability.dodge.description",
+    "icon": "minecraft:rabbit_foot",
+    "sort_order": 10
+  },
+  "purchase": {
+    "skill_level": 8,
+    "skill_points": 4,
+    "requirements": []
+  },
+  "ranks": {
+    "unlock_skill_levels": [8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+    "values": [
+      { "damage_reduction": 0.20 },
+      { "damage_reduction": 0.30 },
+      { "damage_reduction": 0.40 },
+      { "damage_reduction": 0.50 },
+      { "damage_reduction": 0.60 },
+      { "damage_reduction": 0.70 },
+      { "damage_reduction": 0.75 },
+      { "damage_reduction": 0.80 },
+      { "damage_reduction": 0.85 },
+      { "damage_reduction": 0.90 }
+    ]
+  },
+  "effect": {
+    "type": "ability:dodge",
+    "config": {
+      "cooldown_ticks": 12,
+      "duration_ticks": 4,
+      "horizontal_speed": 0.9,
+      "minimum_backward_speed": 0.01,
+      "require_on_ground": true
+    }
+  }
+}

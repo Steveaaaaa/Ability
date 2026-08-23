@@ -43,6 +43,13 @@ class DamageModifierEffectTest {
     }
 
     @Test
+    void calculatesTargetHealthRatioForThresholdFilters() {
+        assertEquals(0.95D, DamageModifierEffect.healthRatio(19.0F, 20.0F), 0.000001D);
+        assertEquals(0.0D, DamageModifierEffect.healthRatio(10.0F, 0.0F));
+        assertEquals(1.0D, DamageModifierEffect.healthRatio(25.0F, 20.0F));
+    }
+
+    @Test
     void validatesDamageFiltersAndRankValues() {
         AbilityDefinition definition = parseDefinition("ability:damage_modifier", """
                 { "damage_multiplier": 1.1, "flat_damage": 1.0 }
@@ -50,7 +57,8 @@ class DamageModifierEffectTest {
                 {
                   "damage_type_tags": ["minecraft:is_projectile"],
                   "target_entity_type_tags": ["minecraft:raiders"],
-                  "directness": "indirect"
+                  "directness": "indirect",
+                  "target_state": "mob_without_target"
                 }
                 """);
 

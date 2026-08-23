@@ -18,6 +18,21 @@ public final class AbilityEffectTypeRegistry {
         register(DamageModifierEffect.DAMAGE_MODIFIER, DamageModifierEffect::validateDefinition);
         register(DamageModifierEffect.DAMAGE_REDUCTION, DamageModifierEffect::validateDefinition);
         register(LootInjectionEffect.TYPE, LootInjectionEffect::validateDefinition);
+        register(ConditionalMobEffect.TYPE, ConditionalMobEffect::validateDefinition);
+        register(DamageResponseEffect.TYPE, DamageResponseEffect::validateDefinition);
+        register(WeakPointEffect.TYPE, WeakPointEffect::validateDefinition);
+        register(CounterSniperEffect.TYPE, CounterSniperEffect::validateDefinition);
+        register(StealthEffect.TYPE, StealthEffect::validateDefinition);
+        register(DodgeEffect.TYPE, DodgeEffect::validateDefinition);
+        register(ChargedLeapEffect.TYPE, ChargedLeapEffect::validateDefinition);
+        register(PrimerEffect.TYPE, PrimerEffect::validateDefinition);
+        register(DangerousChargeEffect.TYPE, DangerousChargeEffect::validateDefinition);
+        register(ExhaustionEffect.TYPE, ExhaustionEffect::validateDefinition);
+        register(HarvestEffect.TYPE, HarvestEffect::validateDefinition);
+        register(FrugalityEffect.TYPE, FrugalityEffect::validateDefinition);
+        register(SurvivalSkillsEffect.TYPE, SurvivalSkillsEffect::validateDefinition);
+        register(RetaliatoryFlameEffect.TYPE, RetaliatoryFlameEffect::validateDefinition);
+        register(CompositeEffect.TYPE, CompositeEffect::validateDefinition);
     }
 
     private AbilityEffectTypeRegistry() {

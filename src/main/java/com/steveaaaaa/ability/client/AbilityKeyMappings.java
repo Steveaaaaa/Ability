@@ -1,0 +1,28 @@
+package com.steveaaaaa.ability.client;
+
+import com.mojang.blaze3d.platform.InputConstants;
+import com.steveaaaaa.ability.AbilityMod;
+import net.minecraft.client.KeyMapping;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import org.lwjgl.glfw.GLFW;
+
+@EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+public final class AbilityKeyMappings {
+    public static final KeyMapping CHARGED_LEAP = new KeyMapping(
+            "key.ability.charged_leap",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_V,
+            "key.categories.ability"
+    );
+
+    private AbilityKeyMappings() {
+    }
+
+    @SubscribeEvent
+    public static void register(RegisterKeyMappingsEvent event) {
+        event.register(CHARGED_LEAP);
+    }
+}

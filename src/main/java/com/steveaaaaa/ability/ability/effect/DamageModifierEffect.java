@@ -28,6 +28,7 @@ import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 public final class DamageModifierEffect {
@@ -115,34 +116,43 @@ public final class DamageModifierEffect {
         double flatAmount = 0.0D;
         Registry<AbilityDefinition> abilities = owner.registryAccess().registryOrThrow(ModDataRegistries.ABILITIES);
         List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> sorted = abilities.entrySet().stream()
-                .filter(entry -> entry.getValue().effect().type().equals(effectType))
                 .sorted(Comparator.comparing(entry -> entry.getKey().location()))
                 .toList();
         for (Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition> entry : sorted) {
             ResourceLocation abilityId = entry.getKey().location();
             try {
+                List<CompositeEffect.ComponentView> components =
+                        CompositeEffect.componentsOfType(entry.getValue(), effectType);
+                if (components.isEmpty()) {
+                    continue;
+                }
                 Optional<AbilityService.ActiveAbility> active = AbilityService.active(owner, abilityId);
                 if (active.isEmpty()) {
                     continue;
                 }
-                Config config = parse(Config.CODEC, entry.getValue().effect().config(), "effect.config");
-                if (!matches(config, target, source)) {
-                    continue;
+                for (CompositeEffect.ComponentView component : components) {
+                    AbilityService.ActiveAbility projected = CompositeEffect.projectActive(active.get(), component);
+                    Config config = parse(Config.CODEC, component.config(), "effect.config");
+                    if (!matches(config, target, source)) {
+                        continue;
+                    }
+                    RankValues values = mergeRanks(projected);
+                    double abilityMultiplier = values.values().getOrDefault("damage_multiplier", 1.0D);
+                    String flatKey = effectType.equals(DAMAGE_MODIFIER) ? "flat_damage" : "flat_reduction";
+                    double abilityFlatAmount = values.values().getOrDefault(flatKey, 0.0D);
+                    if (!Double.isFinite(abilityMultiplier)
+                            || abilityMultiplier < 0.0D
+                            || abilityMultiplier > 100.0D) {
+                        throw new IllegalArgumentException("damage_multiplier must be finite and between 0 and 100");
+                    }
+                    if (!Double.isFinite(abilityFlatAmount)
+                            || abilityFlatAmount < 0.0D
+                            || abilityFlatAmount > 1_000_000.0D) {
+                        throw new IllegalArgumentException(flatKey + " must be finite and between 0 and 1000000");
+                    }
+                    multiplier *= abilityMultiplier;
+                    flatAmount += abilityFlatAmount;
                 }
-                RankValues values = mergeRanks(active.get());
-                double abilityMultiplier = values.values().getOrDefault("damage_multiplier", 1.0D);
-                String flatKey = effectType.equals(DAMAGE_MODIFIER) ? "flat_damage" : "flat_reduction";
-                double abilityFlatAmount = values.values().getOrDefault(flatKey, 0.0D);
-                if (!Double.isFinite(abilityMultiplier) || abilityMultiplier < 0.0D || abilityMultiplier > 100.0D) {
-                    throw new IllegalArgumentException("damage_multiplier must be finite and between 0 and 100");
-                }
-                if (!Double.isFinite(abilityFlatAmount)
-                        || abilityFlatAmount < 0.0D
-                        || abilityFlatAmount > 1_000_000.0D) {
-                    throw new IllegalArgumentException(flatKey + " must be finite and between 0 and 1000000");
-                }
-                multiplier *= abilityMultiplier;
-                flatAmount += abilityFlatAmount;
             } catch (RuntimeException exception) {
                 logInvalidOnce(abilityId, exception.getMessage());
             }
@@ -180,8 +190,25 @@ public final class DamageModifierEffect {
                 attacker.getType().is(TagKey.create(Registries.ENTITY_TYPE, tag))))) {
             return false;
         }
-        return config.targetEntityTypeTags().isEmpty() || config.targetEntityTypeTags().stream().anyMatch(tag ->
-                target.getType().is(TagKey.create(Registries.ENTITY_TYPE, tag)));
+        if (!config.targetEntityTypeTags().isEmpty() && config.targetEntityTypeTags().stream().noneMatch(tag ->
+                target.getType().is(TagKey.create(Registries.ENTITY_TYPE, tag)))) {
+            return false;
+        }
+        if (healthRatio(target.getHealth(), target.getMaxHealth()) < config.minimumTargetHealthRatio()) {
+            return false;
+        }
+        return matchesTargetState(config.targetState(), target);
+    }
+
+    static double healthRatio(float health, float maximumHealth) {
+        return maximumHealth <= 0.0F ? 0.0D : Math.clamp((double) health / maximumHealth, 0.0D, 1.0D);
+    }
+
+    static boolean matchesTargetState(TargetState targetState, LivingEntity target) {
+        return switch (targetState) {
+            case ANY -> true;
+            case MOB_WITHOUT_TARGET -> target instanceof Mob mob && mob.getTarget() == null;
+        };
     }
 
     private static void validateMergedValues(
@@ -238,7 +265,9 @@ public final class DamageModifierEffect {
             List<ResourceLocation> damageTypeTags,
             List<ResourceLocation> attackerEntityTypeTags,
             List<ResourceLocation> targetEntityTypeTags,
-            Directness directness
+            Directness directness,
+            TargetState targetState,
+            double minimumTargetHealthRatio
     ) {
         public static final Codec<Config> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 ResourceLocation.CODEC.listOf().optionalFieldOf("damage_type_tags", List.of())
@@ -247,7 +276,10 @@ public final class DamageModifierEffect {
                         .forGetter(Config::attackerEntityTypeTags),
                 ResourceLocation.CODEC.listOf().optionalFieldOf("target_entity_type_tags", List.of())
                         .forGetter(Config::targetEntityTypeTags),
-                Directness.CODEC.optionalFieldOf("directness", Directness.ANY).forGetter(Config::directness)
+                Directness.CODEC.optionalFieldOf("directness", Directness.ANY).forGetter(Config::directness),
+                TargetState.CODEC.optionalFieldOf("target_state", TargetState.ANY).forGetter(Config::targetState),
+                Codec.doubleRange(0.0D, 1.0D).optionalFieldOf("minimum_target_health_ratio", 0.0D)
+                        .forGetter(Config::minimumTargetHealthRatio)
         ).apply(instance, Config::new));
 
         public Config {
@@ -266,6 +298,23 @@ public final class DamageModifierEffect {
         private final String serializedName;
 
         Directness(String serializedName) {
+            this.serializedName = serializedName;
+        }
+
+        @Override
+        public String getSerializedName() {
+            return serializedName;
+        }
+    }
+
+    public enum TargetState implements StringRepresentable {
+        ANY("any"),
+        MOB_WITHOUT_TARGET("mob_without_target");
+
+        public static final Codec<TargetState> CODEC = StringRepresentable.fromEnum(TargetState::values);
+        private final String serializedName;
+
+        TargetState(String serializedName) {
             this.serializedName = serializedName;
         }
 

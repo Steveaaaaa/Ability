@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "skill": "ability:farming",
+  "display": {
+    "name": "ability.ability.frugality",
+    "description": "ability.ability.frugality.description",
+    "icon": "minecraft:golden_carrot",
+    "sort_order": 20
+  },
+  "purchase": {
+    "skill_level": 12,
+    "skill_points": 8,
+    "requirements": []
+  },
+  "ranks": {
+    "unlock_skill_levels": [12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
+    "values": [
+      { "healing_hunger_reduction_percent": 7.5, "ability_hunger_reduction_percent": 15 },
+      { "healing_hunger_reduction_percent": 10, "ability_hunger_reduction_percent": 20 },
+      { "healing_hunger_reduction_percent": 12.5, "ability_hunger_reduction_percent": 25 },
+      { "healing_hunger_reduction_percent": 15, "ability_hunger_reduction_percent": 30 },
+      { "healing_hunger_reduction_percent": 17.5, "ability_hunger_reduction_percent": 35 },
+      { "healing_hunger_reduction_percent": 20, "ability_hunger_reduction_percent": 40 },
+      { "healing_hunger_reduction_percent": 22.5, "ability_hunger_reduction_percent": 45 },
+      { "healing_hunger_reduction_percent": 25, "ability_hunger_reduction_percent": 50 },
+      { "healing_hunger_reduction_percent": 27.5, "ability_hunger_reduction_percent": 55 },
+      { "healing_hunger_reduction_percent": 30, "ability_hunger_reduction_percent": 60 }
+    ]
+  },
+  "effect": {
+    "type": "ability:frugality",
+    "config": {
+      "exhaustion_cycle": 4.0,
+      "healing_exhaustion_per_health": 6.0
+    }
+  }
+}
