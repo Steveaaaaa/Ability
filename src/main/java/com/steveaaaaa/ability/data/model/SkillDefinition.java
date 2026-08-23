@@ -54,4 +54,8 @@ public record SkillDefinition(
         }
         return level;
     }
+
+    public int maximumSkillPoints() {
+        return Math.multiplyExact(maxLevel, skillPointsPerLevel);
+    }
 }

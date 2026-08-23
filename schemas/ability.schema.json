@@ -22,12 +22,16 @@
     "ranks": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["unlock_skill_levels", "values"],
+      "required": ["unlock_skill_levels", "skill_point_costs", "values"],
       "properties": {
         "unlock_skill_levels": {
           "type": "array",
           "minItems": 1,
-          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "skill_point_costs": {
+          "type": "array",
+          "minItems": 1,
           "items": { "type": "integer", "minimum": 0 }
         },
         "values": {

@@ -108,15 +108,26 @@ public final class AbilityScreen extends Screen {
             }
             ResourceLocation abilityId = abilities.get(index).getKey().location();
             AbilityDefinition definition = abilities.get(index).getValue();
-            boolean purchased = lastSnapshot.purchasedAbilities().contains(abilityId);
+            int purchasedRank = lastSnapshot.abilityRank(abilityId);
+            int maxRank = definition.ranks().values().size();
+            boolean maxed = purchasedRank >= maxRank;
+            int nextRankIndex = Math.min(purchasedRank, maxRank - 1);
             PlayerProgressSnapshot.SkillSnapshot skill = lastSnapshot.skills().getOrDefault(
                     definition.skill(),
                     PlayerProgressSnapshot.SkillSnapshot.EMPTY
             );
-            boolean meetsBasicRequirements = skill.level() >= definition.purchase().skillLevel()
-                    && lastSnapshot.availableSkillPoints(definition.skill()) >= definition.purchase().skillPoints();
-            Component label = purchased
-                    ? Component.translatable("gui.ability.purchased")
+            int requiredLevel = Math.max(
+                    definition.purchase().skillLevel(),
+                    definition.ranks().unlockSkillLevels().get(nextRankIndex)
+            );
+            int pointCost = definition.ranks().skillPointCosts().get(nextRankIndex);
+            boolean meetsBasicRequirements = !maxed
+                    && skill.level() >= requiredLevel
+                    && lastSnapshot.availableSkillPoints(definition.skill()) >= pointCost;
+            Component label = maxed
+                    ? Component.translatable("gui.ability.max_rank")
+                    : purchasedRank > 0
+                            ? Component.translatable("gui.ability.upgrade")
                     : meetsBasicRequirements
                             ? Component.translatable("gui.ability.purchase")
                             : Component.translatable("gui.ability.locked");
@@ -129,8 +140,7 @@ public final class AbilityScreen extends Screen {
                     )
                     .tooltip(Tooltip.create(Component.translatable(definition.display().description())))
                     .build();
-            purchase.active = !purchased
-                    && meetsBasicRequirements
+            purchase.active = meetsBasicRequirements
                     && ClientProgressCache.pendingPurchase() == null;
             addRenderableWidget(purchase);
         }
@@ -292,29 +302,31 @@ public final class AbilityScreen extends Screen {
             int y = rowY + visibleIndex * ABILITY_ROW_HEIGHT;
             graphics.fill(abilityX, y, abilityX + abilityWidth, y + ABILITY_ROW_HEIGHT - 4, 0xB820202A);
             graphics.drawString(font, Component.translatable(definition.display().name()), abilityX + 6, y + 6, 0xFFFFFF);
-            if (lastSnapshot.purchasedAbilities().contains(abilityId)) {
-                int skillLevel = lastSnapshot.skills().getOrDefault(
-                        definition.skill(),
-                        PlayerProgressSnapshot.SkillSnapshot.EMPTY
-                ).level();
+            int purchasedRank = lastSnapshot.abilityRank(abilityId);
+            int maxRank = definition.ranks().values().size();
+            if (purchasedRank > 0) {
                 graphics.drawString(
                         font,
                         Component.translatable(
                                 "gui.ability.rank",
-                                definition.ranks().rankForSkillLevel(skillLevel),
-                                definition.ranks().values().size()
+                                Math.min(purchasedRank, maxRank),
+                                maxRank
                         ),
                         abilityX + abilityWidth - 66,
                         y + 7,
                         0x80D8FF
                 );
             }
+            int displayedRankIndex = Math.min(purchasedRank, maxRank - 1);
             graphics.drawString(
                     font,
                     Component.translatable(
                             "gui.ability.purchase_requirement",
-                            definition.purchase().skillLevel(),
-                            definition.purchase().skillPoints()
+                            Math.max(
+                                    definition.purchase().skillLevel(),
+                                    definition.ranks().unlockSkillLevels().get(displayedRankIndex)
+                            ),
+                            definition.ranks().skillPointCosts().get(displayedRankIndex)
                     ),
                     abilityX + 6,
                     y + 21,

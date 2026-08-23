@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 class AbilityDefinitionTest {
     private final AbilityDefinition.Ranks ranks = new AbilityDefinition.Ranks(
             List.of(12, 15, 18, 21, 24),
+            List.of(6, 1, 1, 1, 1),
             List.of(value(), value(), value(), value(), value())
     );
 

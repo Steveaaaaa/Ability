@@ -16,6 +16,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
+    "skill_point_costs": [6, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     "values": [
       { "total_healing_percent": 60 },
       { "total_healing_percent": 70 },

@@ -14,6 +14,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [1, 5, 10],
+    "skill_point_costs": [1, 1, 1],
     "values": [
       {
         "break_speed_bonus": 0.1,

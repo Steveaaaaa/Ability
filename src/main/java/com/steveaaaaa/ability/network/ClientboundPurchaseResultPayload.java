@@ -84,6 +84,7 @@ public record ClientboundPurchaseResultPayload(
         SUCCESS,
         UNKNOWN_ABILITY,
         ALREADY_PURCHASED,
+        MAX_RANK,
         SKILL_LEVEL_TOO_LOW,
         NOT_ENOUGH_SKILL_POINTS,
         REQUIREMENT_NOT_MET,

@@ -14,7 +14,7 @@
       { "type": "ability:skill_level", "config": { "skill": "ability:husbandry", "level": 8 } }
     ]
   },
-  "ranks": { "unlock_skill_levels": [12], "values": [{}] },
+  "ranks": { "unlock_skill_levels": [12], "skill_point_costs":[6],"values": [{}] },
   "effect": {
     "type": "ability:companion_gift",
     "config": {

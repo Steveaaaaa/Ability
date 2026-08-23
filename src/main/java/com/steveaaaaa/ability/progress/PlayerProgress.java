@@ -12,14 +12,14 @@ import net.minecraft.resources.ResourceLocation;
 public record PlayerProgress(
         int dataVersion,
         Map<ResourceLocation, SkillProgress> skills,
-        Set<ResourceLocation> purchasedAbilities,
+        Map<ResourceLocation, Integer> abilityRanks,
         int legacyUnassignedSkillPoints
 ) {
-    public static final int CURRENT_DATA_VERSION = 2;
+    public static final int CURRENT_DATA_VERSION = 3;
     public static final PlayerProgress EMPTY = new PlayerProgress(
             CURRENT_DATA_VERSION,
             Map.of(),
-            Set.of(),
+            Map.of(),
             0
     );
 
@@ -33,6 +33,9 @@ public record PlayerProgress(
                     .forGetter(SerializedProgress::skills),
             RESOURCE_LOCATION_SET_CODEC.optionalFieldOf("purchased_abilities", Set.of())
                     .forGetter(SerializedProgress::purchasedAbilities),
+            Codec.unboundedMap(ResourceLocation.CODEC, Codec.intRange(1, 10_000))
+                    .optionalFieldOf("ability_ranks", Map.of())
+                    .forGetter(SerializedProgress::abilityRanks),
             Codec.INT.optionalFieldOf("legacy_unassigned_skill_points", 0)
                     .forGetter(SerializedProgress::legacyUnassignedSkillPoints),
             Codec.INT.optionalFieldOf("granted_skill_points", 0)
@@ -48,10 +51,21 @@ public record PlayerProgress(
 
     public PlayerProgress {
         skills = Map.copyOf(skills);
-        purchasedAbilities = Set.copyOf(purchasedAbilities);
+        abilityRanks = Map.copyOf(abilityRanks);
+        if (abilityRanks.values().stream().anyMatch(rank -> rank == null || rank <= 0)) {
+            throw new IllegalArgumentException("Purchased ability ranks must be positive");
+        }
         if (legacyUnassignedSkillPoints < 0) {
             throw new IllegalArgumentException("Legacy skill point balance must be non-negative");
         }
+    }
+
+    public int abilityRank(ResourceLocation abilityId) {
+        return abilityRanks.getOrDefault(abilityId, 0);
+    }
+
+    public Set<ResourceLocation> purchasedAbilities() {
+        return abilityRanks.keySet();
     }
 
     public SkillProgress skill(ResourceLocation skillId) {
@@ -60,6 +74,18 @@ public record PlayerProgress(
 
     public int availableSkillPoints(ResourceLocation skillId) {
         return Math.addExact(skill(skillId).availableSkillPoints(), legacyUnassignedSkillPoints);
+    }
+
+    public int availableSkillPoints(ResourceLocation skillId, int maximumGrantedSkillPoints) {
+        if (maximumGrantedSkillPoints < 0) {
+            throw new IllegalArgumentException("Maximum granted skill points must be non-negative");
+        }
+        SkillProgress progress = skill(skillId);
+        int cappedBalance = Math.max(
+                0,
+                Math.min(progress.grantedSkillPoints(), maximumGrantedSkillPoints) - progress.spentSkillPoints()
+        );
+        return Math.addExact(cappedBalance, legacyUnassignedSkillPoints);
     }
 
     public PlayerProgress withSkill(ResourceLocation skillId, SkillProgress progress, int newlyGrantedPoints) {
@@ -71,32 +97,29 @@ public record PlayerProgress(
         return new PlayerProgress(
                 CURRENT_DATA_VERSION,
                 updatedSkills,
-                purchasedAbilities,
+                abilityRanks,
                 legacyUnassignedSkillPoints
         );
     }
 
-    public PlayerProgress purchase(ResourceLocation abilityId, ResourceLocation skillId, int skillPointCost) {
+    public PlayerProgress purchaseRank(ResourceLocation abilityId, ResourceLocation skillId, int skillPointCost) {
         if (skillPointCost < 0) {
             throw new IllegalArgumentException("Skill point cost must be non-negative");
         }
-        if (purchasedAbilities.contains(abilityId)) {
-            throw new IllegalStateException("Ability is already purchased: " + abilityId);
-        }
         if (skillPointCost > availableSkillPoints(skillId)) {
-            throw new IllegalStateException("Not enough skill points to purchase: " + abilityId);
+            throw new IllegalStateException("Not enough skill points to upgrade: " + abilityId);
         }
 
         int spentFromLegacy = Math.min(skillPointCost, legacyUnassignedSkillPoints);
         int spentFromSkill = skillPointCost - spentFromLegacy;
         HashMap<ResourceLocation, SkillProgress> updatedSkills = new HashMap<>(skills);
         updatedSkills.put(skillId, skill(skillId).spend(spentFromSkill));
-        HashSet<ResourceLocation> updatedAbilities = new HashSet<>(purchasedAbilities);
-        updatedAbilities.add(abilityId);
+        HashMap<ResourceLocation, Integer> updatedRanks = new HashMap<>(abilityRanks);
+        updatedRanks.put(abilityId, Math.addExact(abilityRank(abilityId), 1));
         return new PlayerProgress(
                 CURRENT_DATA_VERSION,
                 updatedSkills,
-                updatedAbilities,
+                updatedRanks,
                 legacyUnassignedSkillPoints - spentFromLegacy
         );
     }
@@ -105,7 +128,8 @@ public record PlayerProgress(
         return new SerializedProgress(
                 CURRENT_DATA_VERSION,
                 skills,
-                purchasedAbilities,
+                Set.of(),
+                abilityRanks,
                 legacyUnassignedSkillPoints,
                 0,
                 0
@@ -116,6 +140,7 @@ public record PlayerProgress(
             int dataVersion,
             Map<ResourceLocation, SkillProgress> skills,
             Set<ResourceLocation> purchasedAbilities,
+            Map<ResourceLocation, Integer> abilityRanks,
             int legacyUnassignedSkillPoints,
             int legacyGrantedSkillPoints,
             int legacySpentSkillPoints
@@ -124,10 +149,12 @@ public record PlayerProgress(
             int legacyBalance = dataVersion <= 1
                     ? Math.max(0, legacyGrantedSkillPoints - legacySpentSkillPoints)
                     : Math.max(0, legacyUnassignedSkillPoints);
+            HashMap<ResourceLocation, Integer> migratedRanks = new HashMap<>(abilityRanks);
+            purchasedAbilities.forEach(abilityId -> migratedRanks.putIfAbsent(abilityId, 1));
             return new PlayerProgress(
                     CURRENT_DATA_VERSION,
                     skills,
-                    purchasedAbilities,
+                    migratedRanks,
                     legacyBalance
             );
         }

@@ -4,7 +4,6 @@ import com.steveaaaaa.ability.AbilityMod;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.EncoderException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -30,8 +29,8 @@ public record ClientboundProgressPayload(PlayerProgressSnapshot snapshot) implem
         if (snapshot.skills().size() > MAX_SKILLS) {
             throw new EncoderException("Too many skill snapshots: " + snapshot.skills().size());
         }
-        if (snapshot.purchasedAbilities().size() > MAX_PURCHASED_ABILITIES) {
-            throw new EncoderException("Too many purchased abilities: " + snapshot.purchasedAbilities().size());
+        if (snapshot.abilityRanks().size() > MAX_PURCHASED_ABILITIES) {
+            throw new EncoderException("Too many purchased abilities: " + snapshot.abilityRanks().size());
         }
 
         buffer.writeVarInt(snapshot.schemaVersion());
@@ -51,9 +50,14 @@ public record ClientboundProgressPayload(PlayerProgressSnapshot snapshot) implem
             buffer.writeVarInt(skill.spentSkillPoints());
         }
 
-        List<ResourceLocation> purchased = snapshot.purchasedAbilities().stream().sorted().toList();
+        List<Map.Entry<ResourceLocation, Integer>> purchased = snapshot.abilityRanks().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .toList();
         buffer.writeVarInt(purchased.size());
-        purchased.forEach(id -> ResourceLocation.STREAM_CODEC.encode(buffer, id));
+        for (Map.Entry<ResourceLocation, Integer> entry : purchased) {
+            ResourceLocation.STREAM_CODEC.encode(buffer, entry.getKey());
+            buffer.writeVarInt(entry.getValue());
+        }
     }
 
     private static ClientboundProgressPayload decode(RegistryFriendlyByteBuf buffer) {
@@ -81,10 +85,14 @@ public record ClientboundProgressPayload(PlayerProgressSnapshot snapshot) implem
         }
 
         int purchasedCount = readBoundedCount(buffer, "purchased abilities", MAX_PURCHASED_ABILITIES);
-        HashSet<ResourceLocation> purchased = new HashSet<>(purchasedCount);
+        HashMap<ResourceLocation, Integer> purchased = new HashMap<>(purchasedCount);
         for (int index = 0; index < purchasedCount; index++) {
             ResourceLocation abilityId = ResourceLocation.STREAM_CODEC.decode(buffer);
-            if (!purchased.add(abilityId)) {
+            int rank = readNonNegative(buffer, "ability rank");
+            if (rank == 0) {
+                throw new DecoderException("Zero purchased ability rank: " + abilityId);
+            }
+            if (purchased.put(abilityId, rank) != null) {
                 throw new DecoderException("Duplicate purchased ability: " + abilityId);
             }
         }

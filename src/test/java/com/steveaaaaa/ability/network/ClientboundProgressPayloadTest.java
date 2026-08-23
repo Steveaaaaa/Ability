@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.DecoderException;
 import java.util.Map;
-import java.util.Set;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -27,7 +26,7 @@ class ClientboundProgressPayloadTest {
                         MINING, new PlayerProgressSnapshot.SkillSnapshot(3_675L, 12, 12, 6),
                         FARMING, new PlayerProgressSnapshot.SkillSnapshot(500L, 4, 4, 1)
                 ),
-                Set.of(ASSOCIATED_ORE),
+                Map.of(ASSOCIATED_ORE, 3),
                 2
         );
         ClientboundProgressPayload original = new ClientboundProgressPayload(snapshot);
@@ -39,6 +38,7 @@ class ClientboundProgressPayloadTest {
             assertEquals(original, decoded);
             assertEquals(8, decoded.snapshot().availableSkillPoints(MINING));
             assertEquals(5, decoded.snapshot().availableSkillPoints(FARMING));
+            assertEquals(3, decoded.snapshot().abilityRank(ASSOCIATED_ORE));
             assertEquals(0, buffer.readableBytes());
         } finally {
             buffer.release();

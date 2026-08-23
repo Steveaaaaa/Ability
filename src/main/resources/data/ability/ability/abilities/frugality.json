@@ -14,6 +14,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
+    "skill_point_costs": [8, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     "values": [
       { "healing_hunger_reduction_percent": 7.5, "ability_hunger_reduction_percent": 15 },
       { "healing_hunger_reduction_percent": 10, "ability_hunger_reduction_percent": 20 },

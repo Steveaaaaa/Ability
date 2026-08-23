@@ -8,7 +8,6 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonElement;
 import com.mojang.serialization.JsonOps;
 import java.util.Map;
-import java.util.Set;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 
@@ -20,15 +19,16 @@ class PlayerProgressTest {
     @Test
     void purchasingAbilitySpendsPointsAndRecordsPurchase() {
         PlayerProgress before = new PlayerProgress(
-                2,
+                3,
                 Map.of(MINING, new SkillProgress(0L, 10, 2)),
-                Set.of(),
+                Map.of(),
                 0
         );
 
-        PlayerProgress after = before.purchase(ABILITY, MINING, 6);
+        PlayerProgress after = before.purchaseRank(ABILITY, MINING, 6);
 
         assertTrue(after.purchasedAbilities().contains(ABILITY));
+        assertEquals(1, after.abilityRank(ABILITY));
         assertEquals(8, after.skill(MINING).spentSkillPoints());
         assertEquals(2, after.availableSkillPoints(MINING));
         assertTrue(before.purchasedAbilities().isEmpty());
@@ -37,28 +37,31 @@ class PlayerProgressTest {
     @Test
     void doesNotBorrowPointsFromAnotherSkill() {
         PlayerProgress progress = new PlayerProgress(
-                2,
+                3,
                 Map.of(
                         MINING, new SkillProgress(0L, 5, 2),
                         FARMING, new SkillProgress(0L, 100, 0)
                 ),
-                Set.of(),
+                Map.of(),
                 0
         );
 
-        assertThrows(IllegalStateException.class, () -> progress.purchase(ABILITY, MINING, 4));
+        assertThrows(IllegalStateException.class, () -> progress.purchaseRank(ABILITY, MINING, 4));
     }
 
     @Test
-    void rejectsDuplicatePurchase() {
+    void purchasingAgainSpendsPointsAndRaisesOnlyOneRank() {
         PlayerProgress purchased = new PlayerProgress(
-                2,
+                3,
                 Map.of(MINING, new SkillProgress(0L, 10, 6)),
-                Set.of(ABILITY),
+                Map.of(ABILITY, 1),
                 0
         );
 
-        assertThrows(IllegalStateException.class, () -> purchased.purchase(ABILITY, MINING, 1));
+        PlayerProgress upgraded = purchased.purchaseRank(ABILITY, MINING, 1);
+
+        assertEquals(2, upgraded.abilityRank(ABILITY));
+        assertEquals(7, upgraded.skill(MINING).spentSkillPoints());
     }
 
     @Test
@@ -69,6 +72,18 @@ class PlayerProgressTest {
 
         assertEquals(3, after.availableSkillPoints(MINING));
         assertEquals(0, after.availableSkillPoints(FARMING));
+    }
+
+    @Test
+    void capsLegacyGrantedPointsAtTheCurrentSkillMaximum() {
+        PlayerProgress progress = new PlayerProgress(
+                3,
+                Map.of(MINING, new SkillProgress(100L, 31, 5)),
+                Map.of(),
+                0
+        );
+
+        assertEquals(25, progress.availableSkillPoints(MINING, 30));
     }
 
     @Test
@@ -84,23 +99,23 @@ class PlayerProgressTest {
                 """);
 
         PlayerProgress migrated = PlayerProgress.CODEC.parse(JsonOps.INSTANCE, json).result().orElseThrow();
-        PlayerProgress afterPurchase = migrated.purchase(ABILITY, MINING, 5);
+        PlayerProgress afterPurchase = migrated.purchaseRank(ABILITY, MINING, 5);
 
-        assertEquals(2, migrated.dataVersion());
+        assertEquals(3, migrated.dataVersion());
         assertEquals(7, migrated.legacyUnassignedSkillPoints());
         assertEquals(2, afterPurchase.legacyUnassignedSkillPoints());
         assertEquals(2, afterPurchase.availableSkillPoints(FARMING));
     }
 
     @Test
-    void versionTwoCodecPreservesPerSkillPointBalances() {
+    void versionThreeCodecPreservesPerSkillPointBalancesAndRanks() {
         PlayerProgress before = new PlayerProgress(
-                2,
+                3,
                 Map.of(
                         MINING, new SkillProgress(1200L, 10, 6),
                         FARMING, new SkillProgress(500L, 4, 1)
                 ),
-                Set.of(ABILITY),
+                Map.of(ABILITY, 4),
                 0
         );
 
@@ -110,5 +125,22 @@ class PlayerProgressTest {
         assertEquals(before, decoded);
         assertEquals(4, decoded.availableSkillPoints(MINING));
         assertEquals(3, decoded.availableSkillPoints(FARMING));
+        assertEquals(4, decoded.abilityRank(ABILITY));
+    }
+
+    @Test
+    void migratesVersionTwoPurchasedAbilitiesToRankOne() {
+        var json = JsonParser.parseString("""
+                {
+                  "data_version": 2,
+                  "skills": {},
+                  "purchased_abilities": ["ability:test"]
+                }
+                """);
+
+        PlayerProgress migrated = PlayerProgress.CODEC.parse(JsonOps.INSTANCE, json).result().orElseThrow();
+
+        assertEquals(3, migrated.dataVersion());
+        assertEquals(1, migrated.abilityRank(ABILITY));
     }
 }

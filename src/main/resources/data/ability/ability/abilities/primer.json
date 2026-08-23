@@ -19,6 +19,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+    "skill_point_costs": [4, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     "values": [
       { "charge_seconds": 2.0, "explosion_damage_bonus": 25 },
       { "charge_seconds": 2.0, "explosion_damage_bonus": 28 },

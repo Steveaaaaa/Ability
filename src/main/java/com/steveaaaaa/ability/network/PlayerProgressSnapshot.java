@@ -15,23 +15,31 @@ import net.minecraft.server.level.ServerPlayer;
 public record PlayerProgressSnapshot(
         int schemaVersion,
         Map<ResourceLocation, SkillSnapshot> skills,
-        Set<ResourceLocation> purchasedAbilities,
+        Map<ResourceLocation, Integer> abilityRanks,
         int legacyUnassignedSkillPoints
 ) {
-    public static final int CURRENT_SCHEMA_VERSION = 1;
+    public static final int CURRENT_SCHEMA_VERSION = 2;
     public static final PlayerProgressSnapshot EMPTY = new PlayerProgressSnapshot(
             CURRENT_SCHEMA_VERSION,
             Map.of(),
-            Set.of(),
+            Map.of(),
             0
     );
 
     public PlayerProgressSnapshot {
         skills = Map.copyOf(skills);
-        purchasedAbilities = Set.copyOf(purchasedAbilities);
+        abilityRanks = Map.copyOf(abilityRanks);
         if (schemaVersion < 0 || legacyUnassignedSkillPoints < 0) {
             throw new IllegalArgumentException("Snapshot counters must be non-negative");
         }
+    }
+
+    public int abilityRank(ResourceLocation abilityId) {
+        return abilityRanks.getOrDefault(abilityId, 0);
+    }
+
+    public Set<ResourceLocation> purchasedAbilities() {
+        return abilityRanks.keySet();
     }
 
     public static PlayerProgressSnapshot from(ServerPlayer player) {
@@ -45,14 +53,14 @@ public record PlayerProgressSnapshot(
             skills.put(skillId, new SkillSnapshot(
                     skillProgress.totalXp(),
                     definition.levelForExperience(skillProgress.totalXp()),
-                    skillProgress.grantedSkillPoints(),
+                    Math.min(skillProgress.grantedSkillPoints(), definition.maximumSkillPoints()),
                     skillProgress.spentSkillPoints()
             ));
         });
         return new PlayerProgressSnapshot(
                 CURRENT_SCHEMA_VERSION,
                 skills,
-                progress.purchasedAbilities(),
+                progress.abilityRanks(),
                 progress.legacyUnassignedSkillPoints()
         );
     }

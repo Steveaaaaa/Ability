@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
-import java.util.Set;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -24,14 +23,14 @@ class ClientProgressCacheTest {
         PlayerProgressSnapshot supported = new PlayerProgressSnapshot(
                 PlayerProgressSnapshot.CURRENT_SCHEMA_VERSION,
                 Map.of(MINING, new PlayerProgressSnapshot.SkillSnapshot(100L, 1, 1, 0)),
-                Set.of(),
+                Map.of(),
                 0
         );
         ClientProgressCache.accept(supported);
 
         assertEquals(supported, ClientProgressCache.snapshot());
 
-        ClientProgressCache.accept(new PlayerProgressSnapshot(99, Map.of(), Set.of(), 0));
+        ClientProgressCache.accept(new PlayerProgressSnapshot(99, Map.of(), Map.of(), 0));
 
         assertEquals(PlayerProgressSnapshot.EMPTY, ClientProgressCache.snapshot());
     }

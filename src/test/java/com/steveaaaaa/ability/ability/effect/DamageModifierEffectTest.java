@@ -93,7 +93,7 @@ class DamageModifierEffectTest {
                     "sort_order": 1
                   },
                   "purchase": { "skill_level": 1, "skill_points": 1, "requirements": [] },
-                  "ranks": { "unlock_skill_levels": [1], "values": [%s] },
+                  "ranks": { "unlock_skill_levels": [1], "skill_point_costs": [1], "values": [%s] },
                   "effect": { "type": "%s", "config": %s }
                 }
                 """.formatted(rank, type, config);

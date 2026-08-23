@@ -14,6 +14,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [22, 24, 26, 28, 29, 30],
+    "skill_point_costs": [6, 1, 1, 1, 1, 1],
     "values": [
       { "damage_multiplier": 0.88 },
       { "damage_multiplier": 0.85 },

@@ -33,8 +33,9 @@ public final class AbilityService {
         }
 
         PlayerProgress progress = player.getData(ModAttachments.PLAYER_PROGRESS);
-        if (progress.purchasedAbilities().contains(abilityId)) {
-            return PurchaseResult.failure(PurchaseStatus.ALREADY_PURCHASED, abilityId, "Already purchased");
+        int purchasedRank = progress.abilityRank(abilityId);
+        if (purchasedRank >= definition.ranks().values().size()) {
+            return PurchaseResult.failure(PurchaseStatus.MAX_RANK, abilityId, "Already at maximum rank");
         }
 
         SkillDefinition skill = player.registryAccess().registryOrThrow(ModDataRegistries.SKILLS)
@@ -49,22 +50,28 @@ public final class AbilityService {
         }
 
         int skillLevel = skill.levelForExperience(progress.skill(definition.skill()).totalXp());
-        if (skillLevel < definition.purchase().skillLevel()) {
+        int nextRankIndex = purchasedRank;
+        int requiredSkillLevel = Math.max(
+                definition.purchase().skillLevel(),
+                definition.ranks().unlockSkillLevels().get(nextRankIndex)
+        );
+        if (skillLevel < requiredSkillLevel) {
             return new PurchaseResult(
                     PurchaseStatus.SKILL_LEVEL_TOO_LOW,
                     abilityId,
-                    definition.purchase().skillLevel(),
+                    requiredSkillLevel,
                     skillLevel,
-                    "Requires owning skill level " + definition.purchase().skillLevel()
+                    "Requires owning skill level " + requiredSkillLevel
             );
         }
 
-        int availableSkillPoints = progress.availableSkillPoints(definition.skill());
-        if (availableSkillPoints < definition.purchase().skillPoints()) {
+        int skillPointCost = definition.ranks().skillPointCosts().get(nextRankIndex);
+        int availableSkillPoints = progress.availableSkillPoints(definition.skill(), skill.maximumSkillPoints());
+        if (availableSkillPoints < skillPointCost) {
             return new PurchaseResult(
                     PurchaseStatus.NOT_ENOUGH_SKILL_POINTS,
                     abilityId,
-                    definition.purchase().skillPoints(),
+                    skillPointCost,
                     availableSkillPoints,
                     "Not enough skill points"
             );
@@ -78,15 +85,15 @@ public final class AbilityService {
             return PurchaseResult.failure(status, abilityId, requirements.detail());
         }
 
-        PlayerProgress updated = progress.purchase(abilityId, definition.skill(), definition.purchase().skillPoints());
+        PlayerProgress updated = progress.purchaseRank(abilityId, definition.skill(), skillPointCost);
         player.setData(ModAttachments.PLAYER_PROGRESS, updated);
         AttributeModifierEffect.reconcile(player);
         PlayerProgressSynchronizer.send(player);
         return new PurchaseResult(
                 PurchaseStatus.SUCCESS,
                 abilityId,
-                definition.purchase().skillPoints(),
-                updated.availableSkillPoints(definition.skill()),
+                skillPointCost,
+                updated.availableSkillPoints(definition.skill(), skill.maximumSkillPoints()),
                 ""
         );
     }
@@ -99,12 +106,15 @@ public final class AbilityService {
                 .getOptional(definition.skill())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown owning skill: " + definition.skill()));
         int skillLevel = skill.levelForExperience(progress.skill(definition.skill()).totalXp());
-        boolean purchased = progress.purchasedAbilities().contains(abilityId);
+        int purchasedRank = progress.abilityRank(abilityId);
+        boolean purchased = purchasedRank > 0;
         ConditionEvaluation requirements = evaluateRequirements(player, definition);
         boolean active = purchased
                 && skillLevel >= definition.purchase().skillLevel()
                 && requirements.isSatisfied();
-        int rank = active ? definition.ranks().rankForSkillLevel(skillLevel) : 0;
+        int rank = active
+                ? Math.min(purchasedRank, definition.ranks().rankForSkillLevel(skillLevel))
+                : 0;
         return new RankView(
                 abilityId,
                 purchased,
@@ -147,6 +157,7 @@ public final class AbilityService {
         SUCCESS,
         UNKNOWN_ABILITY,
         ALREADY_PURCHASED,
+        MAX_RANK,
         SKILL_LEVEL_TOO_LOW,
         NOT_ENOUGH_SKILL_POINTS,
         REQUIREMENT_NOT_MET,

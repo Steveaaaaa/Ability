@@ -106,6 +106,7 @@ class LootInjectionEffectTest {
                   "purchase": { "skill_level": 1, "skill_points": 1, "requirements": [] },
                   "ranks": {
                     "unlock_skill_levels": [1, 2],
+                    "skill_point_costs": [1, 1],
                     "values": [
                       { "chance": 0.25, "rolls": 1, "min_count": 1, "max_count": 2 },
                       { "chance": 0.5, "rolls": 2 }

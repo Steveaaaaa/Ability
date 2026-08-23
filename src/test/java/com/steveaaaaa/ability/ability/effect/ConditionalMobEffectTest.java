@@ -51,6 +51,7 @@ class ConditionalMobEffectTest {
                   "purchase": { "skill_level": 1, "skill_points": 1, "requirements": [] },
                   "ranks": {
                     "unlock_skill_levels": [1, 2],
+                    "skill_point_costs": [1, 1],
                     "values": [
                       { "lower_y": -50, "upper_y": 280 },
                       { "lower_y": -40, "upper_y": 260 }

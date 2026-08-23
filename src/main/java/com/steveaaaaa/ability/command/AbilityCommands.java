@@ -121,6 +121,10 @@ public final class AbilityCommands {
                     "command.ability.purchase.already_purchased",
                     abilityId.toString()
             ));
+            case MAX_RANK -> source.sendFailure(Component.translatable(
+                    "command.ability.purchase.max_rank",
+                    abilityId.toString()
+            ));
             case SKILL_LEVEL_TOO_LOW -> source.sendFailure(Component.translatable(
                     "command.ability.purchase.skill_level_too_low",
                     result.required(),

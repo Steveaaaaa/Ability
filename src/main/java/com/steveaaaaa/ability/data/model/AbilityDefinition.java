@@ -33,7 +33,12 @@ public record AbilityDefinition(
         if (definition.schemaVersion != 1) {
             return DataResult.error(() -> "Unsupported ability schema_version: " + definition.schemaVersion);
         }
-        return definition.ranks.validate().map(ignored -> definition);
+        return definition.ranks.validate().flatMap(ignored -> {
+            if (definition.ranks.skillPointCosts().getFirst() != definition.purchase.skillPoints()) {
+                return DataResult.error(() -> "The first rank skill point cost must equal purchase.skill_points");
+            }
+            return DataResult.success(definition);
+        });
     }
 
     public record Purchase(int skillLevel, int skillPoints, List<TypedConfig> requirements) {
@@ -48,14 +53,20 @@ public record AbilityDefinition(
         }
     }
 
-    public record Ranks(List<Integer> unlockSkillLevels, List<Dynamic<?>> values) {
+    public record Ranks(
+            List<Integer> unlockSkillLevels,
+            List<Integer> skillPointCosts,
+            List<Dynamic<?>> values
+    ) {
         public static final Codec<Ranks> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 Codec.INT.listOf().fieldOf("unlock_skill_levels").forGetter(Ranks::unlockSkillLevels),
+                Codec.intRange(0, 1_000_000).listOf().fieldOf("skill_point_costs").forGetter(Ranks::skillPointCosts),
                 Codec.PASSTHROUGH.listOf().fieldOf("values").forGetter(Ranks::values)
         ).apply(instance, Ranks::new));
 
         public Ranks {
             unlockSkillLevels = List.copyOf(unlockSkillLevels);
+            skillPointCosts = List.copyOf(skillPointCosts);
             values = List.copyOf(values);
         }
 
@@ -66,9 +77,12 @@ public record AbilityDefinition(
             if (unlockSkillLevels.size() != values.size()) {
                 return DataResult.error(() -> "unlock_skill_levels and values must have equal lengths");
             }
+            if (skillPointCosts.size() != values.size()) {
+                return DataResult.error(() -> "skill_point_costs and values must have equal lengths");
+            }
             for (int index = 1; index < unlockSkillLevels.size(); index++) {
-                if (unlockSkillLevels.get(index) <= unlockSkillLevels.get(index - 1)) {
-                    return DataResult.error(() -> "unlock_skill_levels must be strictly increasing");
+                if (unlockSkillLevels.get(index) < unlockSkillLevels.get(index - 1)) {
+                    return DataResult.error(() -> "unlock_skill_levels must be non-decreasing");
                 }
             }
             return DataResult.success(this);

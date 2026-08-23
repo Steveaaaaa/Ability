@@ -14,6 +14,7 @@ final class PurchaseFeedback {
             case UNKNOWN_ABILITY -> Component.translatable("gui.ability.purchase.unknown", abilityId);
             case ALREADY_PURCHASED -> Component.translatable(
                     "command.ability.purchase.already_purchased", abilityId);
+            case MAX_RANK -> Component.translatable("command.ability.purchase.max_rank", abilityId);
             case SKILL_LEVEL_TOO_LOW -> Component.translatable(
                     "command.ability.purchase.skill_level_too_low", result.required(), result.actual());
             case NOT_ENOUGH_SKILL_POINTS -> Component.translatable(

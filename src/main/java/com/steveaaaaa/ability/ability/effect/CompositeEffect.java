@@ -47,7 +47,11 @@ public final class CompositeEffect {
                 definition.skill(),
                 definition.display(),
                 definition.purchase(),
-                new AbilityDefinition.Ranks(definition.ranks().unlockSkillLevels(), component.rankValues()),
+                new AbilityDefinition.Ranks(
+                        definition.ranks().unlockSkillLevels(),
+                        definition.ranks().skillPointCosts(),
+                        component.rankValues()
+                ),
                 new TypedConfig(component.type(), component.config())
         );
     }

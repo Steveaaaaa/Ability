@@ -39,6 +39,7 @@ class FineFeedEffectTest {
                   "purchase": { "skill_level": 8, "skill_points": 4, "requirements": [] },
                   "ranks": {
                     "unlock_skill_levels": [8],
+                    "skill_point_costs": [4],
                     "values": [{
                       "maximum_movement_speed": 0.25,
                       "maximum_jump_strength": 0.75

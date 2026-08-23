@@ -13,7 +13,8 @@
     "requirements": []
   },
   "ranks": {
-    "unlock_skill_levels": [22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
+    "unlock_skill_levels": [22, 23, 24, 25, 26, 27, 28, 29, 30, 30],
+    "skill_point_costs": [8, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     "values": [
       { "mark_threshold": 4, "damage_multiplier": 1.90, "stun_ticks": 100 },
       { "mark_threshold": 4, "damage_multiplier": 2.00, "stun_ticks": 100 },

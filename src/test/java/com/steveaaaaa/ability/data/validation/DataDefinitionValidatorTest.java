@@ -153,6 +153,7 @@ class DataDefinitionValidatorTest {
                   },
                   "ranks": {
                     "unlock_skill_levels": [1],
+                    "skill_point_costs": [0],
                     "values": [{ "coal_bonus_chance": 0.25 }]
                   },
                   "effect": {

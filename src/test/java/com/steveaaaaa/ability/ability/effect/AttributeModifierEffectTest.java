@@ -58,6 +58,7 @@ class AttributeModifierEffectTest {
                   "purchase": { "skill_level": 1, "skill_points": 1, "requirements": [] },
                   "ranks": {
                     "unlock_skill_levels": [1, 2],
+                    "skill_point_costs": [1, 1],
                     "values": [
                       { "break_speed": 0.1, "movement_speed": 0.05 },
                       { "break_speed": 0.2 }

@@ -48,7 +48,7 @@ public final class ExperienceService {
                 skillId,
                 definition.levelForExperience(progress.totalXp()),
                 progress.totalXp(),
-                playerProgress.availableSkillPoints(skillId)
+                playerProgress.availableSkillPoints(skillId, definition.maximumSkillPoints())
         );
     }
 
