@@ -349,37 +349,7 @@ public final class AbilityScreen extends Screen {
         if (result == null) {
             return;
         }
-        Component message = switch (result.status()) {
-            case SUCCESS -> Component.translatable(
-                    "command.ability.purchase.success",
-                    result.abilityId(),
-                    result.required(),
-                    result.actual()
-            );
-            case UNKNOWN_ABILITY -> Component.translatable("gui.ability.purchase.unknown", result.abilityId());
-            case ALREADY_PURCHASED -> Component.translatable(
-                    "command.ability.purchase.already_purchased",
-                    result.abilityId()
-            );
-            case SKILL_LEVEL_TOO_LOW -> Component.translatable(
-                    "command.ability.purchase.skill_level_too_low",
-                    result.required(),
-                    result.actual()
-            );
-            case NOT_ENOUGH_SKILL_POINTS -> Component.translatable(
-                    "command.ability.purchase.not_enough_points",
-                    result.required(),
-                    result.actual()
-            );
-            case REQUIREMENT_NOT_MET -> Component.translatable(
-                    "command.ability.purchase.requirement_not_met",
-                    result.detail()
-            );
-            case INVALID_DEFINITION -> Component.translatable(
-                    "command.ability.purchase.invalid_definition",
-                    result.detail()
-            );
-        };
+        Component message = PurchaseFeedback.message(result);
         int color = result.status() == ClientboundPurchaseResultPayload.Status.SUCCESS ? 0x70E070 : 0xFF7070;
         graphics.drawCenteredString(font, message, panelX + panelWidth / 2, panelY + panelHeight - 13, color);
     }
