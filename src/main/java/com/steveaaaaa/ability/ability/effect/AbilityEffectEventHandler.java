@@ -60,6 +60,10 @@ public final class AbilityEffectEventHandler {
 
     @SubscribeEvent
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        CeilingWireEffect.releaseDripstone(event);
+        if (event.isCanceled()) {
+            return;
+        }
         WorldTravelerEffect.bind(event);
         if (!event.isCanceled()) {
             ChorusTransmutationEffect.transmute(event);

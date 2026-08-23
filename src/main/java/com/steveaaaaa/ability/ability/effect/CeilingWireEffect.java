@@ -25,7 +25,9 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.PointedDripstoneBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
@@ -53,14 +55,21 @@ public final class CeilingWireEffect {
         }
         BlockPos ceiling = player.blockPosition().above(2);
         BlockState state = player.level().getBlockState(ceiling);
-        if (!state.isFaceSturdy(player.level(), ceiling, Direction.DOWN)) {
+        if (ceilingSupport(state, player.level(), ceiling) != CeilingSupport.SOLID) {
             return ActiveAbilityActionService.ActivationResult.INVALID_STATE;
         }
         CompositeEffect.ComponentView component = CompositeEffect.componentsOfType(active.definition(), TYPE).getFirst();
         AbilityService.ActiveAbility projected = CompositeEffect.projectActive(active, component);
         ResolvedRank rank = resolve(projected);
         Config config = parse(Config.CODEC, component.config(), "effect.config");
-        CLINGING.put(player.getUUID(), new State(ceiling, rank, config.releaseIntervalTicks(), Long.MIN_VALUE));
+        CLINGING.put(player.getUUID(), new State(
+                ceiling,
+                rank,
+                config.releaseIntervalTicks(),
+                Long.MIN_VALUE,
+                player.getX(),
+                player.getZ()
+        ));
         player.setNoGravity(true);
         player.setDeltaMovement(player.getDeltaMovement().x, 0.0D, player.getDeltaMovement().z);
         return ActiveAbilityActionService.ActivationResult.SUCCESS;
@@ -69,35 +78,93 @@ public final class CeilingWireEffect {
     public static void processTick(ServerPlayer player) {
         State state = CLINGING.get(player.getUUID());
         if (state == null) return;
-        BlockState ceiling = player.level().getBlockState(state.ceiling());
-        if (!player.isAlive() || player.distanceToSqr(state.ceiling().getCenter()) > 16.0D
-                || !ceiling.isFaceSturdy(player.level(), state.ceiling(), Direction.DOWN)) {
+        if (!player.isAlive()) {
             detach(player);
             return;
         }
+
+        BlockPos overhead = player.blockPosition().above(2);
+        BlockState ceiling = player.level().getBlockState(overhead);
+        CeilingSupport support = ceilingSupport(ceiling, player.level(), overhead);
+        if (support == CeilingSupport.AIR) {
+            if (overhead.equals(state.ceiling())) {
+                detach(player);
+                return;
+            }
+            player.teleportTo(state.safeX(), player.getY(), state.safeZ());
+            player.setDeltaMovement(0.0D, 0.0D, 0.0D);
+            player.hurtMarked = true;
+        } else if (support == CeilingSupport.NON_SOLID) {
+            detach(player);
+            return;
+        } else {
+            state = new State(
+                    overhead,
+                    state.rank(),
+                    state.releaseIntervalTicks(),
+                    state.lastRelease(),
+                    player.getX(),
+                    player.getZ()
+            );
+            CLINGING.put(player.getUUID(), state);
+            player.setDeltaMovement(player.getDeltaMovement().x, 0.0D, player.getDeltaMovement().z);
+        }
         player.setNoGravity(true);
         player.fallDistance = 0.0F;
-        player.setDeltaMovement(player.getDeltaMovement().x, Math.min(0.0D, player.getDeltaMovement().y),
-                player.getDeltaMovement().z);
     }
 
     public static void releaseDripstone(PlayerInteractEvent.RightClickItem event) {
+        if (tryReleaseDripstone(event)) {
+            event.setCancellationResult(net.minecraft.world.InteractionResult.SUCCESS);
+            event.setCanceled(true);
+        }
+    }
+
+    public static void releaseDripstone(PlayerInteractEvent.RightClickBlock event) {
+        if (tryReleaseDripstone(event)) {
+            event.setCancellationResult(net.minecraft.world.InteractionResult.SUCCESS);
+            event.setCanceled(true);
+        }
+    }
+
+    private static boolean tryReleaseDripstone(PlayerInteractEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player) || event.getHand() != InteractionHand.OFF_HAND
-                || !event.getItemStack().is(Items.POINTED_DRIPSTONE)) return;
+                || !event.getItemStack().is(Items.POINTED_DRIPSTONE)) return false;
         State state = CLINGING.get(player.getUUID());
-        if (state == null || player.level().getGameTime() - state.lastRelease() < state.releaseIntervalTicks()) return;
+        long gameTime = player.level().getGameTime();
+        if (state == null || !isReleaseReady(gameTime, state.lastRelease(), state.releaseIntervalTicks())) return false;
         BlockPos origin = player.blockPosition().below();
-        if (!player.level().getBlockState(origin).canBeReplaced()) return;
-        player.level().setBlock(origin, Blocks.POINTED_DRIPSTONE.defaultBlockState(), 3);
-        FallingBlockEntity falling = FallingBlockEntity.fall((ServerLevel) player.level(), origin,
-                Blocks.POINTED_DRIPSTONE.defaultBlockState());
+        if (!player.level().getBlockState(origin).canBeReplaced()) return false;
+        BlockState dripstone = Blocks.POINTED_DRIPSTONE.defaultBlockState()
+                .setValue(PointedDripstoneBlock.TIP_DIRECTION, Direction.DOWN);
+        player.level().setBlock(origin, dripstone, 3);
+        FallingBlockEntity falling = FallingBlockEntity.fall((ServerLevel) player.level(), origin, dripstone);
+        falling.setHurtsEntities(1.0F, 40);
         FALLING_ATTACKS.put(falling.getUUID(), new FallingAttack(player.getUUID(), state.rank(),
-                player.level().getGameTime() + 200));
-        CLINGING.put(player.getUUID(), new State(state.ceiling(), state.rank(), state.releaseIntervalTicks(),
-                player.level().getGameTime()));
+                gameTime + 200));
+        CLINGING.put(player.getUUID(), new State(
+                state.ceiling(),
+                state.rank(),
+                state.releaseIntervalTicks(),
+                gameTime,
+                state.safeX(),
+                state.safeZ()
+        ));
         if (!player.getAbilities().instabuild) event.getItemStack().shrink(1);
-        event.setCancellationResult(net.minecraft.world.InteractionResult.SUCCESS);
-        event.setCanceled(true);
+        return true;
+    }
+
+    static boolean isReleaseReady(long gameTime, long lastRelease, int intervalTicks) {
+        return lastRelease == Long.MIN_VALUE || gameTime - lastRelease >= intervalTicks;
+    }
+
+    static CeilingSupport ceilingSupport(BlockState state, BlockGetter level, BlockPos pos) {
+        if (state.isAir()) {
+            return CeilingSupport.AIR;
+        }
+        return state.isFaceSturdy(level, pos, Direction.DOWN)
+                ? CeilingSupport.SOLID
+                : CeilingSupport.NON_SOLID;
     }
 
     public static void modifyFallingDripstoneDamage(LivingIncomingDamageEvent event) {
@@ -178,6 +245,14 @@ public final class CeilingWireEffect {
                 .xmap(RankValues::new, RankValues::values);
     }
     record ResolvedRank(double damageMultiplier, int stunTicks, double detachChance) {}
-    private record State(BlockPos ceiling, ResolvedRank rank, int releaseIntervalTicks, long lastRelease) {}
+    enum CeilingSupport { AIR, SOLID, NON_SOLID }
+    private record State(
+            BlockPos ceiling,
+            ResolvedRank rank,
+            int releaseIntervalTicks,
+            long lastRelease,
+            double safeX,
+            double safeZ
+    ) {}
     private record FallingAttack(UUID owner, ResolvedRank rank, long expiresAt) {}
 }
