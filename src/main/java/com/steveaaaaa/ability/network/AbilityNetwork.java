@@ -10,13 +10,18 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class AbilityNetwork {
-    private static final String NETWORK_VERSION = "2";
+    private static final String NETWORK_VERSION = "3";
 
     private AbilityNetwork() {
     }
 
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar(NETWORK_VERSION);
+        registrar.playToClient(
+                ClientboundAbilityCuePayload.TYPE,
+                ClientboundAbilityCuePayload.STREAM_CODEC,
+                (payload, context) -> ClientAbilityCueQueue.accept(payload)
+        );
         registrar.playToClient(
                 ClientboundDodgeAnimationPayload.TYPE,
                 ClientboundDodgeAnimationPayload.STREAM_CODEC,

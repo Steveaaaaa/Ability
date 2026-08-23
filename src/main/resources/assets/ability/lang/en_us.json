@@ -12,6 +12,7 @@
   "command.ability.validate.success": "Ability data validation passed with no errors",
   "command.ability.validate.failure": "Ability data validation failed with %s error(s)",
   "command.ability.validate.truncated": "%s additional error(s) not shown",
+  "command.ability.presentation_preview": "Previewed presentation cue %1$s / %2$s",
   "gui.ability.title": "Abilities",
   "gui.ability.tab": "Open the Ability screen",
   "gui.ability.tab.short": "A",

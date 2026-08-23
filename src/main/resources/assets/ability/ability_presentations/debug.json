@@ -1,0 +1,23 @@
+{
+  "cues": {
+    "ability:test": {
+      "particles": [
+        {
+          "type": "minecraft:end_rod",
+          "anchor": "source",
+          "count": 12,
+          "spread": [0.5, 0.8, 0.5],
+          "velocity": [0.0, 0.02, 0.0],
+          "force": false
+        }
+      ],
+      "sound": {
+        "event": "minecraft:block.note_block.pling",
+        "anchor": "source",
+        "volume": 0.6,
+        "pitch": 1.0,
+        "pitch_random": 0.1
+      }
+    }
+  }
+}

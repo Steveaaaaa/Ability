@@ -8,6 +8,8 @@ import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.validation.DataDefinitionValidator;
 import com.steveaaaaa.ability.data.validation.DataValidationReport;
 import com.steveaaaaa.ability.progress.ExperienceService;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.Collection;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -64,7 +66,16 @@ public final class AbilityCommands {
                                 ))))
                 .then(Commands.literal("validate")
                         .requires(source -> source.hasPermission(2))
-                        .executes(context -> validateData(context.getSource()))));
+                        .executes(context -> validateData(context.getSource())))
+                .then(Commands.literal("presentation_preview")
+                        .requires(source -> source.hasPermission(2))
+                        .then(Commands.argument("ability", ResourceLocationArgument.id())
+                                .then(Commands.argument("cue", ResourceLocationArgument.id())
+                                        .executes(context -> previewPresentation(
+                                                context.getSource(),
+                                                ResourceLocationArgument.getId(context, "ability"),
+                                                ResourceLocationArgument.getId(context, "cue")
+                                        ))))));
     }
 
     private static int showProgress(CommandSourceStack source, ResourceLocation skillId)
@@ -185,5 +196,29 @@ public final class AbilityCommands {
             source.sendFailure(Component.translatable("command.ability.validate.truncated", omitted));
         }
         return 0;
+    }
+
+    private static int previewPresentation(
+            CommandSourceStack source,
+            ResourceLocation abilityId,
+            ResourceLocation cueId
+    ) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        AbilityPresentationService.sendToPlayer(player, AbilityCue.pulse(
+                abilityId,
+                cueId,
+                player.getId(),
+                -1,
+                player.position().add(0.0D, player.getBbHeight() * 0.5D, 0.0D),
+                player.getLookAngle(),
+                0,
+                player.getRandom().nextLong()
+        ));
+        source.sendSuccess(() -> Component.translatable(
+                "command.ability.presentation_preview",
+                abilityId.toString(),
+                cueId.toString()
+        ), false);
+        return 1;
     }
 }
