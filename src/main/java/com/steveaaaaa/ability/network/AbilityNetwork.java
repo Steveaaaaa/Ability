@@ -10,7 +10,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class AbilityNetwork {
-    private static final String NETWORK_VERSION = "1";
+    private static final String NETWORK_VERSION = "2";
 
     private AbilityNetwork() {
     }
@@ -66,9 +66,14 @@ public final class AbilityNetwork {
                     );
                     if (result == ActiveAbilityActionService.ActivationResult.SUCCESS
                             && payload.abilityId().equals(AbilityMod.id("dodge"))) {
+                        var motion = player.getDeltaMovement();
                         PacketDistributor.sendToPlayersTrackingEntityAndSelf(
                                 player,
-                                new ClientboundDodgeAnimationPayload(player.getId(), payload.input())
+                                new ClientboundDodgeAnimationPayload(
+                                        player.getId(),
+                                        (float) motion.x,
+                                        (float) motion.z
+                                )
                         );
                     }
                 }

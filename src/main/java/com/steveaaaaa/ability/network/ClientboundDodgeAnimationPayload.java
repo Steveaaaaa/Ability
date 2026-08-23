@@ -1,14 +1,14 @@
 package com.steveaaaaa.ability.network;
 
 import com.steveaaaaa.ability.AbilityMod;
-import com.steveaaaaa.ability.ability.ActiveAbilityInput;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 public record ClientboundDodgeAnimationPayload(
         int playerEntityId,
-        ActiveAbilityInput direction
+        float motionX,
+        float motionZ
 ) implements CustomPacketPayload {
     public static final Type<ClientboundDodgeAnimationPayload> TYPE =
             new Type<>(AbilityMod.id("dodge_animation"));
@@ -16,8 +16,9 @@ public record ClientboundDodgeAnimationPayload(
             StreamCodec.ofMember(ClientboundDodgeAnimationPayload::encode, ClientboundDodgeAnimationPayload::decode);
 
     public ClientboundDodgeAnimationPayload {
-        if (!isDirection(direction)) {
-            throw new IllegalArgumentException("Dodge animation requires a directional input");
+        if (!Float.isFinite(motionX) || !Float.isFinite(motionZ)
+                || (double) motionX * motionX + (double) motionZ * motionZ < 1.0E-8D) {
+            throw new IllegalArgumentException("Dodge animation requires finite horizontal motion");
         }
     }
 
@@ -28,24 +29,15 @@ public record ClientboundDodgeAnimationPayload(
 
     private void encode(RegistryFriendlyByteBuf buffer) {
         buffer.writeVarInt(playerEntityId);
-        buffer.writeByte(direction.networkId());
+        buffer.writeFloat(motionX);
+        buffer.writeFloat(motionZ);
     }
 
     private static ClientboundDodgeAnimationPayload decode(RegistryFriendlyByteBuf buffer) {
         return new ClientboundDodgeAnimationPayload(
                 buffer.readVarInt(),
-                ActiveAbilityInput.fromNetworkId(buffer.readUnsignedByte())
+                buffer.readFloat(),
+                buffer.readFloat()
         );
-    }
-
-    private static boolean isDirection(ActiveAbilityInput input) {
-        return input == ActiveAbilityInput.FORWARD
-                || input == ActiveAbilityInput.BACKWARD
-                || input == ActiveAbilityInput.LEFT
-                || input == ActiveAbilityInput.RIGHT
-                || input == ActiveAbilityInput.FORWARD_LEFT
-                || input == ActiveAbilityInput.FORWARD_RIGHT
-                || input == ActiveAbilityInput.BACKWARD_LEFT
-                || input == ActiveAbilityInput.BACKWARD_RIGHT;
     }
 }
