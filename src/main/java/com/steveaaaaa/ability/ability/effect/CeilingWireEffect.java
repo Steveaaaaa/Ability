@@ -36,6 +36,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.level.BlockEvent;
 
 public final class CeilingWireEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("ceiling_wire");
@@ -162,6 +163,7 @@ public final class CeilingWireEffect {
         player.level().setBlock(origin, dripstone, 3);
         FallingBlockEntity falling = FallingBlockEntity.fall((ServerLevel) player.level(), origin, dripstone);
         falling.setHurtsEntities(1.0F, 40);
+        falling.dropItem = false;
         player.swing(InteractionHand.OFF_HAND, true);
         player.level().playSound(
                 null,
@@ -210,7 +212,10 @@ public final class CeilingWireEffect {
         FallingAttack attack = FALLING_ATTACKS.remove(direct.getUUID());
         if (attack == null || !(direct.level() instanceof ServerLevel level)) return;
         ServerPlayer owner = level.getServer().getPlayerList().getPlayer(attack.owner());
-        if (owner == null) return;
+        if (owner == null) {
+            direct.discard();
+            return;
+        }
         float damage = (float) (owner.getAttributeValue(Attributes.ATTACK_DAMAGE) * attack.rank().damageMultiplier());
         event.setAmount(Math.max(event.getAmount(), damage));
         CombatStatusTracker.stun(event.getEntity(), attack.rank().stunTicks());
@@ -233,7 +238,15 @@ public final class CeilingWireEffect {
                 1.2F,
                 0.9F
         );
+        direct.discard();
         if (owner.getRandom().nextDouble() < attack.rank().detachChance()) detach(owner);
+    }
+
+    public static void preventFallingDripstonePlacement(BlockEvent.EntityPlaceEvent event) {
+        if (event.getEntity() instanceof FallingBlockEntity falling
+                && FALLING_ATTACKS.remove(falling.getUUID()) != null) {
+            event.setCanceled(true);
+        }
     }
 
     public static void forget(ServerPlayer player) { detach(player); }

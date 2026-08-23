@@ -7,6 +7,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.level.BlockDropsEvent;
+import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
@@ -32,6 +33,11 @@ public final class AbilityEffectEventHandler {
             BlockDropEffectTypeRegistry.process(event, player);
             LootInjectionEffect.processBlock(event, player);
         }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onEntityPlaceBlock(BlockEvent.EntityPlaceEvent event) {
+        CeilingWireEffect.preventFallingDripstonePlacement(event);
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
