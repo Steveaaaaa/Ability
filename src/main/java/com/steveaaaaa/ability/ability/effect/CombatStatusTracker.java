@@ -5,10 +5,12 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.phys.Vec3;
 
 public final class CombatStatusTracker {
     private static final Map<MarkKey, MarkState> MARKS = new HashMap<>();
-    private static final Map<UUID, Long> STUNNED_UNTIL = new HashMap<>();
+    private static final Map<UUID, StunState> STUNS = new HashMap<>();
 
     private CombatStatusTracker() {
     }
@@ -56,24 +58,49 @@ public final class CombatStatusTracker {
             return;
         }
         long expiresAt = target.level().getGameTime() + durationTicks;
-        STUNNED_UNTIL.merge(target.getUUID(), expiresAt, Math::max);
+        STUNS.compute(target.getUUID(), (id, previous) -> {
+            if (previous != null && target.level().getGameTime() < previous.expiresAt()) {
+                return previous.withExpiresAt(Math.max(previous.expiresAt(), expiresAt));
+            }
+            return new StunState(
+                    expiresAt,
+                    target.getYRot(),
+                    target.getXRot(),
+                    target.yBodyRot,
+                    target.yHeadRot
+            );
+        });
     }
 
     public static boolean isStunned(LivingEntity entity) {
-        Long expiresAt = STUNNED_UNTIL.get(entity.getUUID());
-        if (expiresAt == null) {
+        return activeStun(entity) != null;
+    }
+
+    public static boolean maintainStun(LivingEntity entity) {
+        StunState state = activeStun(entity);
+        if (state == null) {
             return false;
         }
-        if (entity.level().getGameTime() >= expiresAt) {
-            STUNNED_UNTIL.remove(entity.getUUID());
-            return false;
+        Vec3 movement = entity.getDeltaMovement();
+        entity.setDeltaMovement(0.0D, movement.y, 0.0D);
+        entity.setYRot(state.yRot());
+        entity.setXRot(state.xRot());
+        entity.setYBodyRot(state.bodyYRot());
+        entity.setYHeadRot(state.headYRot());
+        entity.yRotO = state.yRot();
+        entity.xRotO = state.xRot();
+        entity.yBodyRotO = state.bodyYRot();
+        entity.yHeadRotO = state.headYRot();
+        entity.hurtMarked = true;
+        if (entity instanceof Mob mob) {
+            mob.getNavigation().stop();
         }
         return true;
     }
 
     public static void forgetTarget(UUID target) {
         MARKS.keySet().removeIf(key -> key.target().equals(target));
-        STUNNED_UNTIL.remove(target);
+        STUNS.remove(target);
     }
 
     public static void forgetOwner(UUID owner) {
@@ -82,7 +109,19 @@ public final class CombatStatusTracker {
 
     static void resetForTests() {
         MARKS.clear();
-        STUNNED_UNTIL.clear();
+        STUNS.clear();
+    }
+
+    private static StunState activeStun(LivingEntity entity) {
+        StunState state = STUNS.get(entity.getUUID());
+        if (state == null) {
+            return null;
+        }
+        if (entity.level().getGameTime() >= state.expiresAt()) {
+            STUNS.remove(entity.getUUID());
+            return null;
+        }
+        return state;
     }
 
     public record MarkResult(int remainingCount, boolean triggered) {
@@ -92,5 +131,11 @@ public final class CombatStatusTracker {
     }
 
     private record MarkState(int count, boolean glowing) {
+    }
+
+    private record StunState(long expiresAt, float yRot, float xRot, float bodyYRot, float headYRot) {
+        private StunState withExpiresAt(long updatedExpiresAt) {
+            return new StunState(updatedExpiresAt, yRot, xRot, bodyYRot, headYRot);
+        }
     }
 }

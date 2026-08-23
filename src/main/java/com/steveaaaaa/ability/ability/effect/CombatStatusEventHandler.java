@@ -4,7 +4,6 @@ import com.steveaaaaa.ability.AbilityMod;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.neoforged.bus.api.EventPriority;
@@ -46,15 +45,15 @@ public final class CombatStatusEventHandler {
         if (living.tickCount % 10 == 0 && CombatStatusTracker.hasGlowingMark(living.getUUID())) {
             living.addEffect(new MobEffectInstance(MobEffects.GLOWING, 30, 0, false, false, true));
         }
-        if (!CombatStatusTracker.isStunned(living)) {
-            return;
+        CombatStatusTracker.maintainStun(living);
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onEntityTickAfter(EntityTickEvent.Post event) {
+        if (event.getEntity().level() instanceof ServerLevel
+                && event.getEntity() instanceof LivingEntity living) {
+            CombatStatusTracker.maintainStun(living);
         }
-        living.setDeltaMovement(0.0D, 0.0D, 0.0D);
-        living.hurtMarked = true;
-        if (living instanceof Mob mob) {
-            mob.getNavigation().stop();
-        }
-        event.setCanceled(true);
     }
 
     @SubscribeEvent
