@@ -40,10 +40,10 @@ class CeilingWireEffectTest {
     }
 
     @Test
-    void dripstoneStartsBelowPlayerAtPlacementHorizontalCoordinates() {
+    void dripstoneStartsAtTheCompletePlacementPosition() {
         assertEquals(
-                new BlockPos(12, 63, -8),
-                CeilingWireEffect.releaseOrigin(new BlockPos(2, 64, 3), new BlockPos(12, 20, -8))
+                new BlockPos(12, 20, -8),
+                CeilingWireEffect.releaseOrigin(new BlockPos(12, 20, -8))
         );
     }
 }

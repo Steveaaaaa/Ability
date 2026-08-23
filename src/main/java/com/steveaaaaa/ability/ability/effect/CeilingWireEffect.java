@@ -119,7 +119,7 @@ public final class CeilingWireEffect {
     }
 
     public static void releaseDripstone(PlayerInteractEvent.RightClickItem event) {
-        if (tryReleaseDripstone(event, event.getEntity().blockPosition())) {
+        if (tryReleaseDripstone(event, event.getEntity().blockPosition().below())) {
             event.setCancellationResult(net.minecraft.world.InteractionResult.SUCCESS);
             event.setCanceled(true);
         }
@@ -138,13 +138,13 @@ public final class CeilingWireEffect {
         }
     }
 
-    private static boolean tryReleaseDripstone(PlayerInteractEvent event, BlockPos horizontalTarget) {
+    private static boolean tryReleaseDripstone(PlayerInteractEvent event, BlockPos releaseTarget) {
         if (!(event.getEntity() instanceof ServerPlayer player) || event.getHand() != InteractionHand.OFF_HAND
                 || !event.getItemStack().is(Items.POINTED_DRIPSTONE)) return false;
         State state = CLINGING.get(player.getUUID());
         long gameTime = player.level().getGameTime();
         if (state == null || !isReleaseReady(gameTime, state.lastRelease(), state.releaseIntervalTicks())) return false;
-        BlockPos origin = releaseOrigin(player.blockPosition(), horizontalTarget);
+        BlockPos origin = releaseOrigin(releaseTarget);
         if (!player.level().getBlockState(origin).canBeReplaced()) return false;
         BlockState dripstone = Blocks.POINTED_DRIPSTONE.defaultBlockState()
                 .setValue(PointedDripstoneBlock.TIP_DIRECTION, Direction.DOWN);
@@ -176,8 +176,8 @@ public final class CeilingWireEffect {
         return true;
     }
 
-    static BlockPos releaseOrigin(BlockPos playerPosition, BlockPos horizontalTarget) {
-        return new BlockPos(horizontalTarget.getX(), playerPosition.getY() - 1, horizontalTarget.getZ());
+    static BlockPos releaseOrigin(BlockPos releaseTarget) {
+        return releaseTarget.immutable();
     }
 
     static boolean isReleaseReady(long gameTime, long lastRelease, int intervalTicks) {
