@@ -39,7 +39,7 @@ public final class SupportAuraEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("support_aura");
     private static final Set<String> RANK_KEYS = Set.of("total_healing_percent");
     private static final Set<String> LOGGED_INVALID_DEFINITIONS = ConcurrentHashMap.newKeySet();
-    private static final Map<UUID, List<HealingSession>> SESSIONS = new ConcurrentHashMap<>();
+    private static final Map<UUID, Map<ResourceLocation, HealingSession>> SESSIONS = new ConcurrentHashMap<>();
 
     private SupportAuraEffect() {
     }
@@ -59,15 +59,16 @@ public final class SupportAuraEffect {
     }
 
     public static void processTick(ServerPlayer player) {
-        List<HealingSession> sessions = SESSIONS.get(player.getUUID());
+        Map<ResourceLocation, HealingSession> sessions = SESSIONS.get(player.getUUID());
         if (sessions == null || sessions.isEmpty()) {
             return;
         }
         long now = player.level().getGameTime();
-        ArrayList<HealingSession> remaining = new ArrayList<>();
-        for (HealingSession session : sessions) {
+        LinkedHashMap<ResourceLocation, HealingSession> remaining = new LinkedHashMap<>();
+        for (Map.Entry<ResourceLocation, HealingSession> entry : sessions.entrySet()) {
+            HealingSession session = entry.getValue();
             if (now < session.nextPulseAt()) {
-                remaining.add(session);
+                remaining.put(entry.getKey(), session);
                 continue;
             }
             for (UUID targetId : session.targets()) {
@@ -77,7 +78,7 @@ public final class SupportAuraEffect {
                 }
             }
             if (session.pulsesRemaining() > 1) {
-                remaining.add(new HealingSession(
+                remaining.put(entry.getKey(), new HealingSession(
                         session.targets(),
                         session.healingPerPulse(),
                         now + session.pulseIntervalTicks(),
@@ -89,7 +90,7 @@ public final class SupportAuraEffect {
         if (remaining.isEmpty()) {
             SESSIONS.remove(player.getUUID());
         } else {
-            SESSIONS.put(player.getUUID(), List.copyOf(remaining));
+            SESSIONS.put(player.getUUID(), Map.copyOf(remaining));
         }
     }
 
@@ -157,6 +158,10 @@ public final class SupportAuraEffect {
         Activation activation = selected.get();
         ActiveComponent component = activation.component();
         Trigger trigger = activation.trigger();
+        Map<ResourceLocation, HealingSession> activeSessions = SESSIONS.getOrDefault(player.getUUID(), Map.of());
+        if (!canStartSession(activeSessions.keySet(), trigger.targetEntityTypeTag())) {
+            return false;
+        }
         TagKey<EntityType<?>> targetTag = TagKey.create(Registries.ENTITY_TYPE, trigger.targetEntityTypeTag());
         List<UUID> targets = player.level().getEntitiesOfClass(
                         LivingEntity.class,
@@ -208,12 +213,14 @@ public final class SupportAuraEffect {
                 component.config().pulseIntervalTicks(),
                 component.config().pulseCount()
         );
-        ArrayList<HealingSession> updated = new ArrayList<>(
-                SESSIONS.getOrDefault(player.getUUID(), List.of())
-        );
-        updated.add(session);
-        SESSIONS.put(player.getUUID(), List.copyOf(updated));
+        LinkedHashMap<ResourceLocation, HealingSession> updated = new LinkedHashMap<>(activeSessions);
+        updated.put(trigger.targetEntityTypeTag(), session);
+        SESSIONS.put(player.getUUID(), Map.copyOf(updated));
         return true;
+    }
+
+    static boolean canStartSession(Set<ResourceLocation> activeSessionKeys, ResourceLocation requestedKey) {
+        return !activeSessionKeys.contains(requestedKey);
     }
 
     private static List<ActiveComponent> activeComponents(ServerPlayer player) {
