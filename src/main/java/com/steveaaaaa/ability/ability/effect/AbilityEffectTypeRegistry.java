@@ -32,6 +32,21 @@ public final class AbilityEffectTypeRegistry {
         register(FrugalityEffect.TYPE, FrugalityEffect::validateDefinition);
         register(SurvivalSkillsEffect.TYPE, SurvivalSkillsEffect::validateDefinition);
         register(RetaliatoryFlameEffect.TYPE, RetaliatoryFlameEffect::validateDefinition);
+        register(WellPreparedEffect.TYPE, WellPreparedEffect::validateDefinition);
+        register(FineFeedEffect.TYPE, FineFeedEffect::validateDefinition);
+        register(GreedEffect.TYPE, GreedEffect::validateDefinition);
+        register(BlastExcavationEffect.TYPE, BlastExcavationEffect::validateDefinition);
+        register(IronCavalryEffect.TYPE, IronCavalryEffect::validateDefinition);
+        register(SupportAuraEffect.TYPE, SupportAuraEffect::validateDefinition);
+        register(WolfPackEffect.TYPE, WolfPackEffect::validateDefinition);
+        register(CompanionGiftEffect.TYPE, CompanionGiftEffect::validateDefinition);
+        register(ChorusTransmutationEffect.TYPE, ChorusTransmutationEffect::validateDefinition);
+        register(CeilingWireEffect.TYPE, CeilingWireEffect::validateDefinition);
+        register(WorldTravelerEffect.TYPE, WorldTravelerEffect::validateDefinition);
+        register(GolemEnhancementEffect.CRUSHING_BLOW, GolemEnhancementEffect::validateCrushingDefinition);
+        register(GolemEnhancementEffect.OBSIDIAN_REINFORCEMENT, GolemEnhancementEffect::validateObsidianDefinition);
+        register(GolemEnhancementEffect.COLD_CURRENT, GolemEnhancementEffect::validateColdDefinition);
+        register(EnchantedEdgeEffect.TYPE, EnchantedEdgeEffect::validateDefinition);
         register(CompositeEffect.TYPE, CompositeEffect::validateDefinition);
     }
 

@@ -103,7 +103,11 @@ class DataDefinitionValidatorTest {
                 "long_journey", "energetic", "ambush", "breakthrough", "weak_point",
                 "counter_sniper", "stealth", "dodge", "charged_leap", "primer",
                 "dangerous_charge", "exhaustion", "harvest", "frugality",
-                "survival_skills", "retaliatory_flame"
+                "survival_skills", "retaliatory_flame", "well_prepared", "fine_feed",
+                "support_aura", "wolf_pack", "iron_cavalry", "blast_excavation", "greed",
+                "sniffer_treasure", "lucky_cat", "chorus_transmutation", "ceiling_wire",
+                "world_traveler", "crushing_blow", "enchanted_edge",
+                "obsidian_reinforcement", "cold_current"
         }) {
             abilities.put(id(name), load(
                     AbilityDefinition.CODEC,

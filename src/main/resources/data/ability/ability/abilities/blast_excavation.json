@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "skill": "ability:mining",
+  "display": {
+    "name": "ability.ability.blast_excavation",
+    "description": "ability.ability.blast_excavation.description",
+    "icon": "minecraft:tnt",
+    "sort_order": 10
+  },
+  "purchase": {
+    "skill_level": 22,
+    "skill_points": 10,
+    "requirements": [
+      { "type": "ability:skill_level", "config": { "skill": "ability:combat", "level": 18 } }
+    ]
+  },
+  "ranks": {
+    "unlock_skill_levels": [22, 24, 26, 28, 30],
+    "values": [
+      { "self_damage_reduction_percent": 40 },
+      { "self_damage_reduction_percent": 45 },
+      { "self_damage_reduction_percent": 50 },
+      { "self_damage_reduction_percent": 55 },
+      { "self_damage_reduction_percent": 65 }
+    ]
+  },
+  "effect": {
+    "type": "ability:blast_excavation",
+    "config": {
+      "required_main_hand_tool_tag": "minecraft:pickaxes",
+      "explosive_item": "minecraft:tnt",
+      "fuse_ticks": 0
+    }
+  }
+}

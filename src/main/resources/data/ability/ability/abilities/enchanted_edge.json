@@ -1,0 +1,11 @@
+{
+  "schema_version":1,
+  "skill":"ability:magic",
+  "display":{"name":"ability.ability.enchanted_edge","description":"ability.ability.enchanted_edge.description","icon":"minecraft:enchanted_book","sort_order":20},
+  "purchase":{"skill_level":10,"skill_points":4},
+  "ranks":{"unlock_skill_levels":[10,12,14,16,18,20,22,24,26,28],"values":[
+    {"magic_damage_percent":20},{"magic_damage_percent":22},{"magic_damage_percent":24},{"magic_damage_percent":26},{"magic_damage_percent":28},
+    {"magic_damage_percent":31},{"magic_damage_percent":33},{"magic_damage_percent":35},{"magic_damage_percent":37},{"magic_damage_percent":40}
+  ]},
+  "effect":{"type":"ability:enchanted_edge","config":{}}
+}

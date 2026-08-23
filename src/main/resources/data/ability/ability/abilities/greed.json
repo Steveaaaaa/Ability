@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "skill": "ability:mining",
+  "display": {
+    "name": "ability.ability.greed",
+    "description": "ability.ability.greed.description",
+    "icon": "minecraft:diamond_pickaxe",
+    "sort_order": 20
+  },
+  "purchase": {
+    "skill_level": 16,
+    "skill_points": 8,
+    "requirements": [
+      { "type": "ability:skill_level", "config": { "skill": "ability:building", "level": 12 } }
+    ]
+  },
+  "ranks": {
+    "unlock_skill_levels": [16, 18, 20, 22, 24],
+    "values": [{}, {}, {}, {}, {}]
+  },
+  "effect": {
+    "type": "ability:greed",
+    "config": {
+      "attribute": "minecraft:player.block_interaction_range",
+      "amount": 3,
+      "tool_tiers": [
+        { "minimum_rank": 1, "item_tag": "ability:greed_axes" },
+        { "minimum_rank": 2, "item_tag": "ability:greed_shears" },
+        { "minimum_rank": 3, "item_tag": "ability:greed_hoes" },
+        { "minimum_rank": 4, "item_tag": "ability:greed_shovels" },
+        { "minimum_rank": 5, "item_tag": "ability:greed_pickaxes" }
+      ]
+    }
+  }
+}

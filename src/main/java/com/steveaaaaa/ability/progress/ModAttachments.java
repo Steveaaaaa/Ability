@@ -26,6 +26,14 @@ public final class ModAttachments {
                     .build()
     );
 
+    public static final Supplier<AttachmentType<AbilityDailyState>> ABILITY_DAILY_STATE = ATTACHMENT_TYPES.register(
+            "ability_daily_state",
+            () -> AttachmentType.builder(() -> AbilityDailyState.EMPTY)
+                    .serialize(AbilityDailyState.CODEC)
+                    .copyOnDeath()
+                    .build()
+    );
+
     private ModAttachments() {
     }
 }

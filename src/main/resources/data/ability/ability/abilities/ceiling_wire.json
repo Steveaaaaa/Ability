@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "skill": "ability:building",
+  "display": { "name": "ability.ability.ceiling_wire", "description": "ability.ability.ceiling_wire.description", "icon": "minecraft:pointed_dripstone", "sort_order": 20 },
+  "purchase": { "skill_level": 12, "skill_points": 6, "requirements": [
+    { "type": "ability:skill_level", "config": { "skill": "ability:agility", "level": 8 } }
+  ]},
+  "ranks": {
+    "unlock_skill_levels": [12,14,16,18,20,22,24,26,28,30],
+    "values": [
+      {"damage_percent":180,"stun_ticks":10,"detach_chance_percent":50},
+      {"damage_percent":190,"stun_ticks":10,"detach_chance_percent":50},
+      {"damage_percent":200,"stun_ticks":15,"detach_chance_percent":50},
+      {"damage_percent":220,"stun_ticks":15,"detach_chance_percent":50},
+      {"damage_percent":230,"stun_ticks":20,"detach_chance_percent":50},
+      {"damage_percent":240,"stun_ticks":20,"detach_chance_percent":33.3333333333333},
+      {"damage_percent":260,"stun_ticks":25,"detach_chance_percent":33.3333333333333},
+      {"damage_percent":270,"stun_ticks":25,"detach_chance_percent":33.3333333333333},
+      {"damage_percent":280,"stun_ticks":30,"detach_chance_percent":33.3333333333333},
+      {"damage_percent":300,"stun_ticks":30,"detach_chance_percent":33.3333333333333}
+    ]
+  },
+  "effect": { "type": "ability:ceiling_wire", "config": { "release_interval_ticks": 10 } }
+}

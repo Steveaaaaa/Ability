@@ -3,6 +3,7 @@ package com.steveaaaaa.ability.ability;
 import com.steveaaaaa.ability.ability.effect.DodgeEffect;
 import com.steveaaaaa.ability.ability.effect.ChargedLeapEffect;
 import com.steveaaaaa.ability.ability.effect.PrimerEffect;
+import com.steveaaaaa.ability.ability.effect.CeilingWireEffect;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -28,6 +29,9 @@ public final class ActiveAbilityActionService {
             }
             if (PrimerEffect.supports(active.definition())) {
                 return PrimerEffect.activate(player, active, input);
+            }
+            if (CeilingWireEffect.supports(active.definition())) {
+                return CeilingWireEffect.activate(player, active, input);
             }
         } catch (RuntimeException exception) {
             return ActivationResult.INVALID_DEFINITION;
