@@ -11,6 +11,12 @@ import org.lwjgl.glfw.GLFW;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 public final class AbilityKeyMappings {
+    public static final KeyMapping DODGE = new KeyMapping(
+            "key.ability.dodge",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_LEFT_ALT,
+            "key.categories.ability"
+    );
     public static final KeyMapping CHARGED_LEAP = new KeyMapping(
             "key.ability.charged_leap",
             InputConstants.Type.KEYSYM,
@@ -23,6 +29,7 @@ public final class AbilityKeyMappings {
 
     @SubscribeEvent
     public static void register(RegisterKeyMappingsEvent event) {
+        event.register(DODGE);
         event.register(CHARGED_LEAP);
     }
 }

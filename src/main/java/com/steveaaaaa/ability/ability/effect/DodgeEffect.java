@@ -37,7 +37,7 @@ public final class DodgeEffect {
             ActiveAbilityInput input
     ) {
         try {
-            if (input != ActiveAbilityInput.LEFT && input != ActiveAbilityInput.RIGHT) {
+            if (!isDodgeDirection(input)) {
                 return ActiveAbilityActionService.ActivationResult.UNSUPPORTED_ACTION;
             }
             List<CompositeEffect.ComponentView> components =
@@ -65,7 +65,7 @@ public final class DodgeEffect {
                 return ActiveAbilityActionService.ActivationResult.COOLDOWN;
             }
 
-            Vec3 motion = lateralMotion(player.getLookAngle(), input, config.horizontalSpeed());
+            Vec3 motion = directionalMotion(player.getLookAngle(), input, config.horizontalSpeed());
             player.setDeltaMovement(motion.x, player.getDeltaMovement().y, motion.z);
             player.hurtMarked = true;
             return ActiveAbilityActionService.ActivationResult.SUCCESS;
@@ -88,19 +88,27 @@ public final class DodgeEffect {
         event.setAmount(safeDamage((double) event.getAmount() * multiplier));
     }
 
-    static boolean isMovingBackward(Vec3 look, Vec3 movement, double minimumBackwardSpeed) {
-        Vec3 horizontalLook = new Vec3(look.x, 0.0D, look.z);
-        Vec3 horizontalMovement = new Vec3(movement.x, 0.0D, movement.z);
-        if (horizontalLook.lengthSqr() < 1.0E-8D || horizontalMovement.lengthSqr() < 1.0E-8D) {
-            return false;
-        }
-        return horizontalMovement.dot(horizontalLook.normalize()) <= -minimumBackwardSpeed;
+    static boolean isDodgeDirection(ActiveAbilityInput input) {
+        return input == ActiveAbilityInput.FORWARD
+                || input == ActiveAbilityInput.BACKWARD
+                || input == ActiveAbilityInput.LEFT
+                || input == ActiveAbilityInput.RIGHT;
     }
 
-    static Vec3 lateralMotion(Vec3 look, ActiveAbilityInput input, double speed) {
-        Vec3 horizontalLook = new Vec3(look.x, 0.0D, look.z).normalize();
-        Vec3 right = new Vec3(-horizontalLook.z, 0.0D, horizontalLook.x);
-        return input == ActiveAbilityInput.RIGHT ? right.scale(speed) : right.scale(-speed);
+    static Vec3 directionalMotion(Vec3 look, ActiveAbilityInput input, double speed) {
+        Vec3 forward = new Vec3(look.x, 0.0D, look.z);
+        if (forward.lengthSqr() < 1.0E-8D || !isDodgeDirection(input)) {
+            return Vec3.ZERO;
+        }
+        forward = forward.normalize();
+        Vec3 right = new Vec3(-forward.z, 0.0D, forward.x);
+        return switch (input) {
+            case FORWARD -> forward.scale(speed);
+            case BACKWARD -> forward.scale(-speed);
+            case LEFT -> right.scale(-speed);
+            case RIGHT -> right.scale(speed);
+            default -> Vec3.ZERO;
+        };
     }
 
     static RankValues merge(RankValues earlier, RankValues later) {
@@ -155,8 +163,8 @@ public final class DodgeEffect {
         return player.isAlive()
                 && !player.isSpectator()
                 && !CombatStatusTracker.isStunned(player)
-                && (!config.requireOnGround() || player.onGround())
-                && isMovingBackward(player.getLookAngle(), player.getDeltaMovement(), config.minimumBackwardSpeed());
+                && !player.isPassenger()
+                && (!config.requireOnGround() || player.onGround());
     }
 
     private static RankValues mergeRanks(AbilityService.ActiveAbility active) {
@@ -190,7 +198,6 @@ public final class DodgeEffect {
             int cooldownTicks,
             int durationTicks,
             double horizontalSpeed,
-            double minimumBackwardSpeed,
             boolean requireOnGround
     ) {
         public static final Codec<Config> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -198,8 +205,6 @@ public final class DodgeEffect {
                 Codec.intRange(1, 100).optionalFieldOf("duration_ticks", 4).forGetter(Config::durationTicks),
                 Codec.doubleRange(0.0D, 4.0D).optionalFieldOf("horizontal_speed", 0.9D)
                         .forGetter(Config::horizontalSpeed),
-                Codec.doubleRange(0.0D, 1.0D).optionalFieldOf("minimum_backward_speed", 0.01D)
-                        .forGetter(Config::minimumBackwardSpeed),
                 Codec.BOOL.optionalFieldOf("require_on_ground", true).forGetter(Config::requireOnGround)
         ).apply(instance, Config::new));
     }

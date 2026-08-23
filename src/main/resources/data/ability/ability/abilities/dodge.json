@@ -31,9 +31,8 @@
     "type": "ability:dodge",
     "config": {
       "cooldown_ticks": 12,
-      "duration_ticks": 4,
+      "duration_ticks": 8,
       "horizontal_speed": 0.9,
-      "minimum_backward_speed": 0.01,
       "require_on_ground": true
     }
   }

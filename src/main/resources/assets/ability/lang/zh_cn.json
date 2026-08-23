@@ -81,7 +81,7 @@
   "ability.ability.stealth": "潜匿",
   "ability.ability.stealth.description": "一段时间未发声、未承伤且未造成伤害后进入隐身；下一次有效伤害获得增幅并解除潜匿。",
   "ability.ability.dodge": "闪避",
-  "ability.ability.dodge.description": "按住疾跑与后退时按左移或右移进行侧向闪避；闪避期间降低受到的伤害。",
+  "ability.ability.dodge.description": "按闪避键向当前移动方向翻滚，无方向输入时向后翻滚；翻滚期间降低受到的伤害。",
   "ability.ability.charged_leap": "跃斩",
   "ability.ability.charged_leap.description": "按住跃斩键蓄力，松开后高高跃起；空中命中会对目标周围造成伤害与眩晕，并抵消落地伤害。",
   "ability.ability.primer": "底火",
@@ -131,6 +131,7 @@
   "ability.ability.cold_current": "寒流",
   "ability.ability.cold_current.description": "用蓝冰强化雪傀儡；存活越久，依次获得攻击、生命、护甲与最终伤害强化。",
   "key.categories.ability": "Ability",
+  "key.ability.dodge": "闪避翻滚",
   "key.ability.charged_leap": "跃斩蓄力／二段跳",
   "item.ability.copper_nugget": "铜粒"
 }

@@ -16,18 +16,18 @@ import org.junit.jupiter.api.Test;
 
 class DodgeEffectTest {
     @Test
-    void resolvesReductionAndComputesLateralMotion() {
+    void resolvesReductionAndComputesDirectionalMotion() {
         DodgeEffect.ResolvedRank rank = DodgeEffect.resolve(new DodgeEffect.RankValues(Map.of(
                 "damage_reduction", 0.9D
         )));
 
         assertEquals(0.9D, rank.damageReduction());
-        Vec3 right = DodgeEffect.lateralMotion(
+        Vec3 right = DodgeEffect.directionalMotion(
                 new Vec3(0.0D, 0.0D, 1.0D),
                 ActiveAbilityInput.RIGHT,
                 0.9D
         );
-        Vec3 left = DodgeEffect.lateralMotion(
+        Vec3 left = DodgeEffect.directionalMotion(
                 new Vec3(0.0D, 0.0D, 1.0D),
                 ActiveAbilityInput.LEFT,
                 0.9D
@@ -36,15 +36,27 @@ class DodgeEffectTest {
         assertEquals(0.0D, right.z, 1.0E-9D);
         assertEquals(0.9D, left.x, 1.0E-9D);
         assertEquals(0.0D, left.z, 1.0E-9D);
+        Vec3 forward = DodgeEffect.directionalMotion(
+                new Vec3(0.0D, 0.0D, 1.0D),
+                ActiveAbilityInput.FORWARD,
+                0.9D
+        );
+        Vec3 backward = DodgeEffect.directionalMotion(
+                new Vec3(0.0D, 0.0D, 1.0D),
+                ActiveAbilityInput.BACKWARD,
+                0.9D
+        );
+        assertEquals(0.9D, forward.z, 1.0E-9D);
+        assertEquals(-0.9D, backward.z, 1.0E-9D);
     }
 
     @Test
-    void requiresActualBackwardServerMovement() {
-        Vec3 look = new Vec3(0.0D, 0.0D, 1.0D);
-
-        assertTrue(DodgeEffect.isMovingBackward(look, new Vec3(0.1D, 0.0D, -0.1D), 0.01D));
-        assertFalse(DodgeEffect.isMovingBackward(look, new Vec3(0.0D, 0.0D, 0.1D), 0.01D));
-        assertFalse(DodgeEffect.isMovingBackward(look, Vec3.ZERO, 0.01D));
+    void acceptsOnlyDedicatedDodgeDirections() {
+        assertTrue(DodgeEffect.isDodgeDirection(ActiveAbilityInput.FORWARD));
+        assertTrue(DodgeEffect.isDodgeDirection(ActiveAbilityInput.BACKWARD));
+        assertTrue(DodgeEffect.isDodgeDirection(ActiveAbilityInput.LEFT));
+        assertTrue(DodgeEffect.isDodgeDirection(ActiveAbilityInput.RIGHT));
+        assertFalse(DodgeEffect.isDodgeDirection(ActiveAbilityInput.CHARGE_START));
     }
 
     @Test

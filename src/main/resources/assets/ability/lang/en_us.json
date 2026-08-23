@@ -81,7 +81,7 @@
   "ability.ability.stealth": "Stealth",
   "ability.ability.stealth.description": "Become invisible after a period without sound, taking damage, or dealing damage; the next damaging hit is amplified and ends Stealth.",
   "ability.ability.dodge": "Dodge",
-  "ability.ability.dodge.description": "Hold Sprint and Back, then press Left or Right to dodge sideways and reduce incoming damage briefly.",
+  "ability.ability.dodge.description": "Press the Dodge key to roll in the current movement direction, or backward without directional input, reducing incoming damage briefly.",
   "ability.ability.charged_leap": "Charged Leap",
   "ability.ability.charged_leap.description": "Hold the Charged Leap key, then release to leap upward; an airborne hit damages and stuns nearby enemies and negates landing damage.",
   "ability.ability.primer": "Primer",
@@ -131,6 +131,7 @@
   "ability.ability.cold_current": "Cold Current",
   "ability.ability.cold_current.description": "Strengthen a snow golem with blue ice; surviving progressively grants attack, health, armor, and final damage bonuses.",
   "key.categories.ability": "Ability",
+  "key.ability.dodge": "Dodge Roll",
   "key.ability.charged_leap": "Charge Leap / Double Jump",
   "item.ability.copper_nugget": "Copper Nugget"
 }

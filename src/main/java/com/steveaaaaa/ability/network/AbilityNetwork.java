@@ -3,6 +3,7 @@ package com.steveaaaaa.ability.network;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.ability.ActiveAbilityActionService;
 import com.steveaaaaa.ability.ability.effect.WorldTravelerEffect;
+import com.steveaaaaa.ability.AbilityMod;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -16,6 +17,11 @@ public final class AbilityNetwork {
 
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar(NETWORK_VERSION);
+        registrar.playToClient(
+                ClientboundDodgeAnimationPayload.TYPE,
+                ClientboundDodgeAnimationPayload.STREAM_CODEC,
+                (payload, context) -> ClientDodgeAnimationQueue.accept(payload)
+        );
         registrar.playToClient(
                 ClientboundProgressPayload.TYPE,
                 ClientboundProgressPayload.STREAM_CODEC,
@@ -51,11 +57,21 @@ public final class AbilityNetwork {
         registrar.playToServer(
                 ServerboundActivateAbilityPayload.TYPE,
                 ServerboundActivateAbilityPayload.STREAM_CODEC,
-                (payload, context) -> ActiveAbilityActionService.activate(
-                        (ServerPlayer) context.player(),
-                        payload.abilityId(),
-                        payload.input()
-                )
+                (payload, context) -> {
+                    ServerPlayer player = (ServerPlayer) context.player();
+                    ActiveAbilityActionService.ActivationResult result = ActiveAbilityActionService.activate(
+                            player,
+                            payload.abilityId(),
+                            payload.input()
+                    );
+                    if (result == ActiveAbilityActionService.ActivationResult.SUCCESS
+                            && payload.abilityId().equals(AbilityMod.id("dodge"))) {
+                        PacketDistributor.sendToPlayersTrackingEntityAndSelf(
+                                player,
+                                new ClientboundDodgeAnimationPayload(player.getId(), payload.input())
+                        );
+                    }
+                }
         );
         registrar.playToClient(
                 ClientboundPurchaseResultPayload.TYPE,
