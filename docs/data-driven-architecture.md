@@ -129,7 +129,8 @@
 操作完成后不安装永久强加载票；远程菜单是最多54槽的通用能力视图，不尝试复刻模组机器的私有菜单。
 傀儡强化把已经解析的阶级快照写入目标实体的持久数据，避免数据包
 定义之外的运行时状态丢失；物品列表、消耗数量、阈值、倍率、护盾数量和阶段缩短值仍由能力 JSON 提供。
-`enchanted_edge` 使用独立伤害类型承载魔法/真实伤害，其中真实伤害的防御绕过规则由原版伤害类型标签定义。
+`enchanted_edge` 使用原版 `minecraft:magic` 承载魔法伤害，并使用独立的 `ability:true_damage` 承载真实伤害；
+真实伤害的防御绕过规则由原版伤害类型标签定义。
 
 通用被动属性效果 `ability:attribute_modifier` 也已实现。`effect.config.modifiers` 中的每一项声明
 `attribute`、`operation` 和用于读取阶级数值的 `amount_key`；`ranks.values` 使用对应键提供数值。

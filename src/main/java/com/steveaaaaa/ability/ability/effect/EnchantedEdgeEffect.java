@@ -18,13 +18,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 public final class EnchantedEdgeEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("enchanted_edge");
-    private static final ResourceKey<DamageType> MAGIC = ResourceKey.create(Registries.DAMAGE_TYPE,
-            AbilityMod.id("enchanted_magic"));
+    private static final ResourceKey<DamageType> MAGIC = DamageTypes.MAGIC;
     private static final ResourceKey<DamageType> TRUE = ResourceKey.create(Registries.DAMAGE_TYPE,
             AbilityMod.id("true_damage"));
     private static final ThreadLocal<Boolean> APPLYING = ThreadLocal.withInitial(() -> false);
