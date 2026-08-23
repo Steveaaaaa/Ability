@@ -119,23 +119,34 @@ public final class CeilingWireEffect {
     }
 
     public static void releaseDripstone(PlayerInteractEvent.RightClickItem event) {
-        if (tryReleaseDripstone(event, event.getEntity().blockPosition().below())) {
-            event.setCancellationResult(net.minecraft.world.InteractionResult.SUCCESS);
-            event.setCanceled(true);
-        }
+        if (!interceptsDripstoneUse(event)) return;
+        boolean released = tryReleaseDripstone(event, event.getEntity().blockPosition().below());
+        event.setCancellationResult(released
+                ? net.minecraft.world.InteractionResult.SUCCESS
+                : net.minecraft.world.InteractionResult.FAIL);
+        event.setCanceled(true);
     }
 
     public static void releaseDripstone(PlayerInteractEvent.RightClickBlock event) {
+        if (!interceptsDripstoneUse(event)) return;
         BlockPlaceContext placement = new BlockPlaceContext(
                 event.getEntity(),
                 event.getHand(),
                 event.getItemStack(),
                 event.getHitVec()
         );
-        if (tryReleaseDripstone(event, placement.getClickedPos())) {
-            event.setCancellationResult(net.minecraft.world.InteractionResult.SUCCESS);
-            event.setCanceled(true);
-        }
+        boolean released = tryReleaseDripstone(event, placement.getClickedPos());
+        event.setCancellationResult(released
+                ? net.minecraft.world.InteractionResult.SUCCESS
+                : net.minecraft.world.InteractionResult.FAIL);
+        event.setCanceled(true);
+    }
+
+    private static boolean interceptsDripstoneUse(PlayerInteractEvent event) {
+        return event.getEntity() instanceof ServerPlayer player
+                && event.getHand() == InteractionHand.OFF_HAND
+                && event.getItemStack().is(Items.POINTED_DRIPSTONE)
+                && CLINGING.containsKey(player.getUUID());
     }
 
     private static boolean tryReleaseDripstone(PlayerInteractEvent event, BlockPos releaseTarget) {
