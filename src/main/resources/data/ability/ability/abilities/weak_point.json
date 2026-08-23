@@ -15,16 +15,16 @@
   "ranks": {
     "unlock_skill_levels": [22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
     "values": [
-      { "mark_threshold": 4, "damage_multiplier": 1.90, "stun_ticks": 3 },
-      { "mark_threshold": 4, "damage_multiplier": 2.00, "stun_ticks": 3 },
-      { "mark_threshold": 4, "damage_multiplier": 2.10, "stun_ticks": 4 },
-      { "mark_threshold": 3, "damage_multiplier": 2.20, "stun_ticks": 4 },
-      { "mark_threshold": 3, "damage_multiplier": 2.35, "stun_ticks": 5 },
-      { "mark_threshold": 3, "damage_multiplier": 2.45, "stun_ticks": 5 },
-      { "mark_threshold": 3, "damage_multiplier": 2.55, "stun_ticks": 6 },
-      { "mark_threshold": 3, "damage_multiplier": 2.65, "stun_ticks": 6 },
-      { "mark_threshold": 3, "damage_multiplier": 2.75, "stun_ticks": 7 },
-      { "mark_threshold": 2, "damage_multiplier": 2.90, "stun_ticks": 7 }
+      { "mark_threshold": 4, "damage_multiplier": 1.90, "stun_ticks": 100 },
+      { "mark_threshold": 4, "damage_multiplier": 2.00, "stun_ticks": 100 },
+      { "mark_threshold": 4, "damage_multiplier": 2.10, "stun_ticks": 100 },
+      { "mark_threshold": 3, "damage_multiplier": 2.20, "stun_ticks": 100 },
+      { "mark_threshold": 3, "damage_multiplier": 2.35, "stun_ticks": 100 },
+      { "mark_threshold": 3, "damage_multiplier": 2.45, "stun_ticks": 100 },
+      { "mark_threshold": 3, "damage_multiplier": 2.55, "stun_ticks": 100 },
+      { "mark_threshold": 3, "damage_multiplier": 2.65, "stun_ticks": 100 },
+      { "mark_threshold": 3, "damage_multiplier": 2.75, "stun_ticks": 100 },
+      { "mark_threshold": 2, "damage_multiplier": 2.90, "stun_ticks": 100 }
     ]
   },
   "effect": {
