@@ -3,6 +3,7 @@ package com.steveaaaaa.ability;
 import com.mojang.logging.LogUtils;
 import com.steveaaaaa.ability.command.AbilityCommands;
 import com.steveaaaaa.ability.data.ModDataRegistries;
+import com.steveaaaaa.ability.network.AbilityNetwork;
 import com.steveaaaaa.ability.progress.ModAttachments;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
@@ -18,6 +19,7 @@ public final class AbilityMod {
     public AbilityMod(IEventBus modBus) {
         ModAttachments.ATTACHMENT_TYPES.register(modBus);
         modBus.addListener(ModDataRegistries::registerDatapackRegistries);
+        modBus.addListener(AbilityNetwork::registerPayloads);
         NeoForge.EVENT_BUS.addListener(AbilityCommands::register);
     }
 

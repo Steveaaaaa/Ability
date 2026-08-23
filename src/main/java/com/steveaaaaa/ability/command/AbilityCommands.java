@@ -5,6 +5,8 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.steveaaaaa.ability.ability.AbilityService;
+import com.steveaaaaa.ability.data.validation.DataDefinitionValidator;
+import com.steveaaaaa.ability.data.validation.DataValidationReport;
 import com.steveaaaaa.ability.progress.ExperienceService;
 import java.util.Collection;
 import net.minecraft.commands.CommandSourceStack;
@@ -17,6 +19,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 public final class AbilityCommands {
+    private static final int MAX_VALIDATION_DIAGNOSTICS = 20;
     private static final DynamicCommandExceptionType UNKNOWN_SKILL = new DynamicCommandExceptionType(
             skill -> Component.literal("Unknown skill: " + skill)
     );
@@ -58,7 +61,10 @@ public final class AbilityCommands {
                                 .executes(context -> showRank(
                                         context.getSource(),
                                         ResourceLocationArgument.getId(context, "ability")
-                                )))));
+                                ))))
+                .then(Commands.literal("validate")
+                        .requires(source -> source.hasPermission(2))
+                        .executes(context -> validateData(context.getSource()))));
     }
 
     private static int showProgress(CommandSourceStack source, ResourceLocation skillId)
@@ -154,5 +160,26 @@ public final class AbilityCommands {
                 view.active()
         ), false);
         return view.rank();
+    }
+
+    private static int validateData(CommandSourceStack source) {
+        DataValidationReport report = DataDefinitionValidator.validate(source.getServer());
+        if (report.valid()) {
+            source.sendSuccess(() -> Component.translatable("command.ability.validate.success"), false);
+            return 1;
+        }
+
+        source.sendFailure(Component.translatable(
+                "command.ability.validate.failure",
+                report.errorCount()
+        ));
+        report.diagnostics().stream().limit(MAX_VALIDATION_DIAGNOSTICS).forEach(diagnostic ->
+                source.sendFailure(Component.literal("- " + diagnostic.displayText()))
+        );
+        int omitted = report.errorCount() - MAX_VALIDATION_DIAGNOSTICS;
+        if (omitted > 0) {
+            source.sendFailure(Component.translatable("command.ability.validate.truncated", omitted));
+        }
+        return 0;
     }
 }

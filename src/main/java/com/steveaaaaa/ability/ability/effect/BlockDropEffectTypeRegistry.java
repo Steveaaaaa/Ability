@@ -6,7 +6,9 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -69,6 +71,14 @@ public final class BlockDropEffectTypeRegistry {
         return TYPES.containsKey(id);
     }
 
+    public static List<String> validateDefinition(AbilityDefinition definition) {
+        RegisteredType<?, ?> type = TYPES.get(definition.effect().type());
+        if (type == null) {
+            return List.of("effect.type: unknown ability effect type " + definition.effect().type());
+        }
+        return type.validate(definition);
+    }
+
     private static void logInvalidOnce(ResourceLocation abilityId, String detail) {
         String message = detail == null ? "Unknown ability effect error" : detail;
         if (LOGGED_INVALID_DEFINITIONS.add(abilityId + "|" + message)) {
@@ -92,6 +102,23 @@ public final class BlockDropEffectTypeRegistry {
             RankMerger<R> rankMerger,
             BlockDropEffect<C, R> effect
     ) {
+        private List<String> validate(AbilityDefinition definition) {
+            ArrayList<String> errors = new ArrayList<>();
+            try {
+                parse(configCodec, definition.effect().config(), "effect.config");
+            } catch (IllegalArgumentException exception) {
+                errors.add(exception.getMessage());
+            }
+            for (int index = 0; index < definition.ranks().values().size(); index++) {
+                try {
+                    parse(rankCodec, definition.ranks().values().get(index), "ranks.values[" + index + "]");
+                } catch (IllegalArgumentException exception) {
+                    errors.add(exception.getMessage());
+                }
+            }
+            return List.copyOf(errors);
+        }
+
         private void apply(BlockDropsEvent event, AbilityService.ActiveAbility active) {
             C config = parse(configCodec, active.definition().effect().config(), "effect.config");
             R merged = null;

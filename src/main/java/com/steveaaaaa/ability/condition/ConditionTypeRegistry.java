@@ -6,6 +6,7 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.data.model.TypedConfig;
 import com.steveaaaaa.ability.progress.ExperienceService;
 import com.steveaaaaa.ability.progress.ModAttachments;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,6 +94,56 @@ public final class ConditionTypeRegistry {
 
     public static boolean isRegistered(ResourceLocation id) {
         return TYPES.containsKey(id);
+    }
+
+    public static List<String> validateConfiguration(TypedConfig condition) {
+        return validateConfiguration(condition, "condition");
+    }
+
+    public static List<String> validateConfiguration(TypedConfig condition, String path) {
+        ArrayList<String> errors = new ArrayList<>();
+        validateConfiguration(condition, path, 0, errors);
+        return List.copyOf(errors);
+    }
+
+    private static void validateConfiguration(
+            TypedConfig condition,
+            String path,
+            int depth,
+            List<String> errors
+    ) {
+        if (depth >= MAX_NESTING_DEPTH) {
+            errors.add(path + ": nesting exceeds " + MAX_NESTING_DEPTH + " levels");
+            return;
+        }
+        RegisteredType<?> type = TYPES.get(condition.type());
+        if (type == null) {
+            errors.add(path + ": unknown condition type " + condition.type());
+            return;
+        }
+        Optional<String> parseError = type.validationError(condition);
+        if (parseError.isPresent()) {
+            errors.add(path + ": " + parseError.get());
+            return;
+        }
+
+        if (condition.type().equals(ALL_OF) || condition.type().equals(ANY_OF)) {
+            CompositeConfig composite = CompositeConfig.CODEC.parse(condition.config()).result().orElseThrow();
+            if (composite.conditions().isEmpty()) {
+                errors.add(path + ".config.conditions: must contain at least one condition");
+            }
+            for (int index = 0; index < composite.conditions().size(); index++) {
+                validateConfiguration(
+                        composite.conditions().get(index),
+                        path + ".config.conditions[" + index + "]",
+                        depth + 1,
+                        errors
+                );
+            }
+        } else if (condition.type().equals(NOT)) {
+            NotConfig not = NotConfig.CODEC.parse(condition.config()).result().orElseThrow();
+            validateConfiguration(not.condition(), path + ".config.condition", depth + 1, errors);
+        }
     }
 
     @FunctionalInterface
@@ -221,6 +272,19 @@ public final class ConditionTypeRegistry {
     }
 
     private record RegisteredType<C>(Codec<C> codec, ConditionEvaluator<C> evaluator) {
+        private Optional<String> validationError(TypedConfig condition) {
+            StringBuilder error = new StringBuilder();
+            Optional<C> parsed = codec.parse(condition.config()).resultOrPartial(message -> {
+                if (!error.isEmpty()) {
+                    error.append("; ");
+                }
+                error.append(message);
+            });
+            return parsed.isPresent()
+                    ? Optional.empty()
+                    : Optional.of("invalid config for " + condition.type() + ": " + error);
+        }
+
         private ConditionEvaluation evaluate(EvaluationContext context, TypedConfig condition) {
             StringBuilder error = new StringBuilder();
             Optional<C> parsed = codec.parse(condition.config()).resultOrPartial(message -> {

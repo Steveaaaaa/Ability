@@ -1,5 +1,6 @@
 package com.steveaaaaa.ability.ability;
 
+import com.steveaaaaa.ability.ability.effect.AttributeModifierEffect;
 import com.steveaaaaa.ability.condition.ConditionEvaluation;
 import com.steveaaaaa.ability.condition.ConditionTypeRegistry;
 import com.steveaaaaa.ability.data.ModDataRegistries;
@@ -8,6 +9,7 @@ import com.steveaaaaa.ability.data.model.SkillDefinition;
 import com.steveaaaaa.ability.data.model.TypedConfig;
 import com.steveaaaaa.ability.progress.ModAttachments;
 import com.steveaaaaa.ability.progress.PlayerProgress;
+import com.steveaaaaa.ability.network.PlayerProgressSynchronizer;
 import java.util.Optional;
 import java.util.List;
 import com.mojang.serialization.Dynamic;
@@ -78,6 +80,8 @@ public final class AbilityService {
 
         PlayerProgress updated = progress.purchase(abilityId, definition.skill(), definition.purchase().skillPoints());
         player.setData(ModAttachments.PLAYER_PROGRESS, updated);
+        AttributeModifierEffect.reconcile(player);
+        PlayerProgressSynchronizer.send(player);
         return new PurchaseResult(
                 PurchaseStatus.SUCCESS,
                 abilityId,

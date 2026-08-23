@@ -23,25 +23,33 @@ assert.equal(skill.xp_to_next.length, skill.max_level, "skill XP curve length mu
 assert(skill.xp_to_next.every((value) => Number.isInteger(value) && value > 0));
 assert.match(skill.display.icon, resourceLocation);
 
-const ability = await readJson("examples/datapack/data/ability/ability/abilities/associated_ore.json");
-assert.equal(ability.schema_version, 1);
-assert.match(ability.skill, resourceLocation);
-assert.equal(
-  ability.ranks.unlock_skill_levels.length,
-  ability.ranks.values.length,
-  "ability rank unlock and value counts must match",
-);
-assert(
-  ability.ranks.unlock_skill_levels.every((level, index, levels) => index === 0 || level > levels[index - 1]),
-  "ability rank unlock levels must be strictly increasing",
-);
-for (const [index, values] of ability.ranks.values.entries()) {
-  for (const key of Object.keys(values)) {
-    assert.match(key, semanticParameter, `rank ${index + 1} parameter must use a semantic snake_case name`);
+const abilityPaths = [
+  "examples/datapack/data/ability/ability/abilities/associated_ore.json",
+  "examples/datapack/data/ability/ability/abilities/efficient_mining_example.json",
+  "examples/datapack/data/ability/ability/abilities/projectile_damage_example.json",
+  "examples/datapack/data/ability/ability/abilities/damage_reduction_example.json",
+];
+for (const abilityPath of abilityPaths) {
+  const ability = await readJson(abilityPath);
+  assert.equal(ability.schema_version, 1);
+  assert.match(ability.skill, resourceLocation);
+  assert.equal(
+    ability.ranks.unlock_skill_levels.length,
+    ability.ranks.values.length,
+    "ability rank unlock and value counts must match",
+  );
+  assert(
+    ability.ranks.unlock_skill_levels.every((level, index, levels) => index === 0 || level > levels[index - 1]),
+    "ability rank unlock levels must be strictly increasing",
+  );
+  for (const [index, values] of ability.ranks.values.entries()) {
+    for (const key of Object.keys(values)) {
+      assert.match(key, semanticParameter, `rank ${index + 1} parameter must use a semantic snake_case name`);
+    }
   }
+  ability.purchase.requirements.forEach((condition, index) => assertTypedConfig(condition, `requirement ${index}`));
+  assertTypedConfig(ability.effect, "effect");
 }
-ability.purchase.requirements.forEach((condition, index) => assertTypedConfig(condition, `requirement ${index}`));
-assertTypedConfig(ability.effect, "effect");
 
 const source = await readJson("examples/datapack/data/ability/ability/experience_sources/mine_ores.json");
 assert.equal(source.schema_version, 1);
@@ -51,4 +59,4 @@ assertTypedConfig(source.trigger, "trigger");
 source.conditions.forEach((condition, index) => assertTypedConfig(condition, `experience condition ${index}`));
 assert(source.anti_abuse.target_cooldown_ticks >= 0);
 
-console.log("Validated 3 data definitions and their cross-field constraints.");
+console.log("Validated 6 data definitions and their cross-field constraints.");

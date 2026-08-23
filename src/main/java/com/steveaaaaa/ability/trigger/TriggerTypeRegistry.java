@@ -57,6 +57,13 @@ public final class TriggerTypeRegistry {
         return TYPES.containsKey(id);
     }
 
+    public static Optional<String> validationError(TypedConfig trigger) {
+        RegisteredType<?> type = TYPES.get(trigger.type());
+        return type == null
+                ? Optional.of("Unknown experience trigger type: " + trigger.type())
+                : type.validationError(trigger);
+    }
+
     private static TriggerMatch matchBlockBreak(ExperienceContext context, BreakBlockConfig config) {
         if (!(context instanceof ExperienceContext.BlockBreak blockBreak)) {
             return TriggerMatch.notMatched();
@@ -168,6 +175,19 @@ public final class TriggerTypeRegistry {
     }
 
     private record RegisteredType<C>(Codec<C> codec, TriggerMatcher<C> matcher) {
+        private Optional<String> validationError(TypedConfig trigger) {
+            StringBuilder error = new StringBuilder();
+            Optional<C> parsed = codec.parse(trigger.config()).resultOrPartial(message -> {
+                if (!error.isEmpty()) {
+                    error.append("; ");
+                }
+                error.append(message);
+            });
+            return parsed.isPresent()
+                    ? Optional.empty()
+                    : Optional.of("Invalid config for trigger " + trigger.type() + ": " + error);
+        }
+
         private TriggerMatch match(ExperienceContext context, TypedConfig trigger) {
             StringBuilder error = new StringBuilder();
             Optional<C> parsed = codec.parse(trigger.config()).resultOrPartial(message -> {

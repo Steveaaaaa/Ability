@@ -1,7 +1,9 @@
 package com.steveaaaaa.ability.progress;
 
+import com.steveaaaaa.ability.ability.effect.AttributeModifierEffect;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.SkillDefinition;
+import com.steveaaaaa.ability.network.PlayerProgressSynchronizer;
 import java.util.Optional;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
@@ -31,6 +33,8 @@ public final class ExperienceService {
         int grantedPoints = Math.max(0, newLevel - oldLevel) * definition.skillPointsPerLevel();
         PlayerProgress after = before.withSkill(skillId, experienceUpdated, grantedPoints);
         player.setData(ModAttachments.PLAYER_PROGRESS, after);
+        AttributeModifierEffect.reconcile(player);
+        PlayerProgressSynchronizer.send(player);
 
         return new AwardResult(skillId, amount, oldLevel, newLevel, experienceUpdated.totalXp(), grantedPoints);
     }

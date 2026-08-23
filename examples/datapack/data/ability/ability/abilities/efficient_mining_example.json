@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "skill": "ability:mining",
+  "display": {
+    "name": "ability.example.efficient_mining",
+    "description": "ability.example.efficient_mining.description",
+    "icon": "minecraft:iron_pickaxe",
+    "sort_order": 900
+  },
+  "purchase": {
+    "skill_level": 1,
+    "skill_points": 1,
+    "requirements": []
+  },
+  "ranks": {
+    "unlock_skill_levels": [1, 5, 10],
+    "values": [
+      {
+        "break_speed_bonus": 0.1,
+        "movement_speed_bonus": 0.02
+      },
+      {
+        "break_speed_bonus": 0.2
+      },
+      {
+        "break_speed_bonus": 0.35,
+        "movement_speed_bonus": 0.05
+      }
+    ]
+  },
+  "effect": {
+    "type": "ability:attribute_modifier",
+    "config": {
+      "modifiers": [
+        {
+          "attribute": "minecraft:player.block_break_speed",
+          "operation": "add_multiplied_total",
+          "amount_key": "break_speed_bonus"
+        },
+        {
+          "attribute": "minecraft:generic.movement_speed",
+          "operation": "add_multiplied_total",
+          "amount_key": "movement_speed_bonus"
+        }
+      ]
+    }
+  }
+}
