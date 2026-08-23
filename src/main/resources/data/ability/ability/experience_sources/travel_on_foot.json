@@ -1,19 +1,23 @@
 {
   "schema_version": 1,
-  "skill": "ability:combat",
-  "base_xp": 10,
+  "skill": "ability:agility",
+  "base_xp": 2,
   "trigger": {
-    "type": "ability:kill_entity",
+    "type": "ability:travel",
     "config": {
-      "hostile_only": true,
-      "exclude_players": true,
-      "excluded_damage_type_tag": "minecraft:is_projectile"
+      "modes": ["on_foot", "swimming"],
+      "minimum_distance": 2.0,
+      "maximum_distance": 12.0
     }
   },
   "conditions": [
     {
       "type": "ability:not_game_mode",
       "config": { "game_mode": "minecraft:creative" }
+    },
+    {
+      "type": "ability:not_game_mode",
+      "config": { "game_mode": "minecraft:spectator" }
     }
   ],
   "anti_abuse": {

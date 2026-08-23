@@ -22,26 +22,8 @@ class DataDefinitionValidatorTest {
     @Test
     void acceptsAllBuiltInDefinitions() throws Exception {
         Map<ResourceLocation, SkillDefinition> skills = builtInSkills();
-        Map<ResourceLocation, AbilityDefinition> abilities = Map.of(
-                id("associated_ore"), load(
-                        AbilityDefinition.CODEC,
-                        "/data/ability/ability/abilities/associated_ore.json"
-                )
-        );
-        Map<ResourceLocation, ExperienceSourceDefinition> sources = Map.of(
-                id("mine_ores"), load(
-                        ExperienceSourceDefinition.CODEC,
-                        "/data/ability/ability/experience_sources/mine_ores.json"
-                ),
-                id("kill_hostile_mobs"), load(
-                        ExperienceSourceDefinition.CODEC,
-                        "/data/ability/ability/experience_sources/kill_hostile_mobs.json"
-                ),
-                id("harvest_mature_crops"), load(
-                        ExperienceSourceDefinition.CODEC,
-                        "/data/ability/ability/experience_sources/harvest_mature_crops.json"
-                )
-        );
+        Map<ResourceLocation, AbilityDefinition> abilities = builtInAbilities();
+        Map<ResourceLocation, ExperienceSourceDefinition> sources = builtInSources();
 
         DataValidationReport report = DataDefinitionValidator.validateCatalog(
                 skills,
@@ -102,13 +84,44 @@ class DataDefinitionValidatorTest {
 
     private static Map<ResourceLocation, SkillDefinition> builtInSkills() throws Exception {
         HashMap<ResourceLocation, SkillDefinition> skills = new HashMap<>();
-        for (String name : new String[]{"mining", "gathering", "combat", "farming"}) {
+        for (String name : new String[]{
+                "husbandry", "mining", "gathering", "combat", "defense",
+                "building", "farming", "agility", "magic", "archery"
+        }) {
             skills.put(id(name), load(
                     SkillDefinition.CODEC,
                     "/data/ability/ability/skills/" + name + ".json"
             ));
         }
         return skills;
+    }
+
+    private static Map<ResourceLocation, AbilityDefinition> builtInAbilities() throws Exception {
+        HashMap<ResourceLocation, AbilityDefinition> abilities = new HashMap<>();
+        for (String name : new String[]{
+                "associated_ore", "gravel_panning", "rapid_thrust", "survivor"
+        }) {
+            abilities.put(id(name), load(
+                    AbilityDefinition.CODEC,
+                    "/data/ability/ability/abilities/" + name + ".json"
+            ));
+        }
+        return abilities;
+    }
+
+    private static Map<ResourceLocation, ExperienceSourceDefinition> builtInSources() throws Exception {
+        HashMap<ResourceLocation, ExperienceSourceDefinition> sources = new HashMap<>();
+        for (String name : new String[]{
+                "mine_ores", "kill_hostile_mobs", "harvest_mature_crops", "breed_animals",
+                "place_building_blocks", "travel_on_foot", "ranged_kill_hostile_mobs",
+                "take_final_damage", "enchant_items"
+        }) {
+            sources.put(id(name), load(
+                    ExperienceSourceDefinition.CODEC,
+                    "/data/ability/ability/experience_sources/" + name + ".json"
+            ));
+        }
+        return sources;
     }
 
     private static AbilityDefinition cyclicAbility(ResourceLocation prerequisite) {

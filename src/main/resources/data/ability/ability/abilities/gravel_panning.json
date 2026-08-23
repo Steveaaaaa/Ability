@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "skill": "ability:gathering",
+  "display": {
+    "name": "ability.ability.gravel_panning",
+    "description": "ability.ability.gravel_panning.description",
+    "icon": "minecraft:flint",
+    "sort_order": 30
+  },
+  "purchase": {
+    "skill_level": 12,
+    "skill_points": 4,
+    "requirements": [
+      {
+        "type": "ability:skill_level",
+        "config": { "skill": "ability:mining", "level": 8 }
+      }
+    ]
+  },
+  "ranks": {
+    "unlock_skill_levels": [12, 14, 16],
+    "values": [
+      { "chance": 0.2, "rolls": 1, "min_count": 1, "max_count": 1 },
+      { "chance": 0.2 },
+      { "chance": 0.2 }
+    ]
+  },
+  "effect": {
+    "type": "ability:loot_injection",
+    "config": {
+      "context": "block_drops",
+      "block_tags": ["ability:gravel_panning_blocks"],
+      "required_drop": "minecraft:flint",
+      "consume_required_drop": true,
+      "entries": [
+        { "item": "ability:copper_nugget", "weight": 1, "minimum_rank": 1 },
+        { "item": "minecraft:iron_nugget", "weight": 1, "minimum_rank": 2 },
+        { "item": "minecraft:gold_nugget", "weight": 1, "minimum_rank": 3 }
+      ]
+    }
+  }
+}

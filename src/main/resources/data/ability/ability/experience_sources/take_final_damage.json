@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "skill": "ability:defense",
+  "base_xp": 4,
+  "trigger": {
+    "type": "ability:take_damage",
+    "config": {
+      "minimum_damage": 1.0,
+      "damage_per_multiplier": 4.0,
+      "maximum_counted_damage": 20.0,
+      "exclude_player_attackers": true,
+      "excluded_damage_type_tags": []
+    }
+  },
+  "conditions": [
+    {
+      "type": "ability:not_game_mode",
+      "config": { "game_mode": "minecraft:creative" }
+    },
+    {
+      "type": "ability:not_game_mode",
+      "config": { "game_mode": "minecraft:spectator" }
+    }
+  ],
+  "anti_abuse": {
+    "reject_player_placed": false,
+    "target_cooldown_ticks": 20,
+    "daily_soft_cap": 5000,
+    "xp_after_soft_cap_multiplier": 0.1
+  }
+}

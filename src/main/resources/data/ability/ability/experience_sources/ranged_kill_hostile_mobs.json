@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "skill": "ability:combat",
-  "base_xp": 10,
+  "skill": "ability:archery",
+  "base_xp": 12,
   "trigger": {
-    "type": "ability:kill_entity",
+    "type": "ability:ranged_kill",
     "config": {
+      "damage_type_tag": "minecraft:is_projectile",
       "hostile_only": true,
-      "exclude_players": true,
-      "excluded_damage_type_tag": "minecraft:is_projectile"
+      "exclude_players": true
     }
   },
   "conditions": [

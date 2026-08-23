@@ -17,6 +17,7 @@ public final class AbilityEffectTypeRegistry {
         register(AttributeModifierEffect.TYPE, AttributeModifierEffect::validateDefinition);
         register(DamageModifierEffect.DAMAGE_MODIFIER, DamageModifierEffect::validateDefinition);
         register(DamageModifierEffect.DAMAGE_REDUCTION, DamageModifierEffect::validateDefinition);
+        register(LootInjectionEffect.TYPE, LootInjectionEffect::validateDefinition);
     }
 
     private AbilityEffectTypeRegistry() {

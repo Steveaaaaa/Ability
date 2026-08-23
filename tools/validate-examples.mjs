@@ -28,6 +28,8 @@ const abilityPaths = [
   "examples/datapack/data/ability/ability/abilities/efficient_mining_example.json",
   "examples/datapack/data/ability/ability/abilities/projectile_damage_example.json",
   "examples/datapack/data/ability/ability/abilities/damage_reduction_example.json",
+  "examples/datapack/data/ability/ability/abilities/block_loot_example.json",
+  "examples/datapack/data/ability/ability/abilities/entity_loot_example.json",
 ];
 for (const abilityPath of abilityPaths) {
   const ability = await readJson(abilityPath);
@@ -59,4 +61,4 @@ assertTypedConfig(source.trigger, "trigger");
 source.conditions.forEach((condition, index) => assertTypedConfig(condition, `experience condition ${index}`));
 assert(source.anti_abuse.target_cooldown_ticks >= 0);
 
-console.log("Validated 6 data definitions and their cross-field constraints.");
+console.log("Validated 8 data definitions and their cross-field constraints.");

@@ -8,6 +8,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.level.BlockDropsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID)
@@ -19,6 +20,14 @@ public final class AbilityEffectEventHandler {
     public static void onBlockDrops(BlockDropsEvent event) {
         if (event.getBreaker() instanceof ServerPlayer player) {
             BlockDropEffectTypeRegistry.process(event, player);
+            LootInjectionEffect.processBlock(event, player);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onLivingDrops(LivingDropsEvent event) {
+        if (event.getSource().getEntity() instanceof ServerPlayer player) {
+            LootInjectionEffect.processEntity(event, player);
         }
     }
 

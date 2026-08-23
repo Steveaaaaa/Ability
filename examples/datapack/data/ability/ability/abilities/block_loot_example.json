@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "skill": "ability:gathering",
+  "display": {
+    "name": "ability.example.block_loot",
+    "description": "ability.example.block_loot.description",
+    "icon": "minecraft:apple",
+    "sort_order": 903
+  },
+  "purchase": {
+    "skill_level": 1,
+    "skill_points": 1,
+    "requirements": []
+  },
+  "ranks": {
+    "unlock_skill_levels": [1, 10, 20],
+    "values": [
+      {
+        "chance": 0.1,
+        "rolls": 1,
+        "min_count": 1,
+        "max_count": 1
+      },
+      {
+        "chance": 0.2
+      },
+      {
+        "chance": 0.3,
+        "rolls": 2
+      }
+    ]
+  },
+  "effect": {
+    "type": "ability:loot_injection",
+    "config": {
+      "context": "block_drops",
+      "block_tags": ["minecraft:logs"],
+      "tool_tags": ["minecraft:axes"],
+      "entries": [
+        {
+          "item": "minecraft:stick",
+          "weight": 4
+        },
+        {
+          "item": "minecraft:apple",
+          "weight": 1
+        }
+      ]
+    }
+  }
+}

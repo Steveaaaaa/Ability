@@ -1,13 +1,12 @@
 {
   "schema_version": 1,
-  "skill": "ability:combat",
-  "base_xp": 10,
+  "skill": "ability:building",
+  "base_xp": 2,
   "trigger": {
-    "type": "ability:kill_entity",
+    "type": "ability:place_block",
     "config": {
-      "hostile_only": true,
-      "exclude_players": true,
-      "excluded_damage_type_tag": "minecraft:is_projectile"
+      "minimum_destroy_time": 0.5,
+      "scale_by_destroy_time": false
     }
   },
   "conditions": [
@@ -18,7 +17,7 @@
   ],
   "anti_abuse": {
     "reject_player_placed": false,
-    "target_cooldown_ticks": 0,
+    "target_cooldown_ticks": 1200,
     "daily_soft_cap": 5000,
     "xp_after_soft_cap_multiplier": 0.1
   }

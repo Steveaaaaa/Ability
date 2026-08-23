@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "skill": "ability:combat",
+  "display": {
+    "name": "ability.ability.rapid_thrust",
+    "description": "ability.ability.rapid_thrust.description",
+    "icon": "minecraft:iron_sword",
+    "sort_order": 20
+  },
+  "purchase": {
+    "skill_level": 12,
+    "skill_points": 4,
+    "requirements": []
+  },
+  "ranks": {
+    "unlock_skill_levels": [12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
+    "values": [
+      { "attack_speed_bonus": 0.10, "attack_damage_penalty": -0.08 },
+      { "attack_speed_bonus": 0.20, "attack_damage_penalty": -0.16 },
+      { "attack_speed_bonus": 0.30, "attack_damage_penalty": -0.24 },
+      { "attack_speed_bonus": 0.40, "attack_damage_penalty": -0.32 },
+      { "attack_speed_bonus": 0.50, "attack_damage_penalty": -0.38 },
+      { "attack_speed_bonus": 0.56, "attack_damage_penalty": -0.35 },
+      { "attack_speed_bonus": 0.62, "attack_damage_penalty": -0.33 },
+      { "attack_speed_bonus": 0.68, "attack_damage_penalty": -0.30 },
+      { "attack_speed_bonus": 0.74, "attack_damage_penalty": -0.27 },
+      { "attack_speed_bonus": 0.80, "attack_damage_penalty": -0.24 }
+    ]
+  },
+  "effect": {
+    "type": "ability:attribute_modifier",
+    "config": {
+      "modifiers": [
+        {
+          "attribute": "minecraft:generic.attack_speed",
+          "operation": "add_multiplied_base",
+          "amount_key": "attack_speed_bonus"
+        },
+        {
+          "attribute": "minecraft:generic.attack_damage",
+          "operation": "add_multiplied_base",
+          "amount_key": "attack_damage_penalty"
+        }
+      ]
+    }
+  }
+}

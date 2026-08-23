@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "skill": "ability:combat",
+  "display": {
+    "name": "ability.example.entity_loot",
+    "description": "ability.example.entity_loot.description",
+    "icon": "minecraft:emerald",
+    "sort_order": 904
+  },
+  "purchase": {
+    "skill_level": 1,
+    "skill_points": 1,
+    "requirements": []
+  },
+  "ranks": {
+    "unlock_skill_levels": [1, 10, 20],
+    "values": [
+      {
+        "chance": 0.05,
+        "rolls": 1,
+        "min_count": 1,
+        "max_count": 1
+      },
+      {
+        "chance": 0.1
+      },
+      {
+        "chance": 0.15,
+        "max_count": 2
+      }
+    ]
+  },
+  "effect": {
+    "type": "ability:loot_injection",
+    "config": {
+      "context": "entity_drops",
+      "entity_type_tags": ["minecraft:raiders"],
+      "entries": [
+        {
+          "item": "minecraft:iron_nugget",
+          "weight": 3
+        },
+        {
+          "item": "minecraft:emerald",
+          "weight": 1
+        }
+      ]
+    }
+  }
+}
