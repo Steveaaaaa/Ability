@@ -33,8 +33,8 @@ class OrbitingSpriteRendererTest {
         assertEquals(3, OrbitingSpriteRenderer.spriteCount(0.6F, definition));
         assertEquals(4, OrbitingSpriteRenderer.spriteCount(1.4F, definition));
         assertEquals(5, OrbitingSpriteRenderer.spriteCount(2.0F, definition));
-        assertEquals(0.62D, OrbitingSpriteRenderer.orbitRadius(0.6F, definition), 0.0001D);
-        assertEquals(1.25D, OrbitingSpriteRenderer.orbitRadius(2.0F, definition), 0.0001D);
+        assertEquals(0.38D, OrbitingSpriteRenderer.orbitRadius(0.6F, definition), 0.0001D);
+        assertEquals(0.8D, OrbitingSpriteRenderer.orbitRadius(2.0F, definition), 0.0001D);
     }
 
     private static AbilityPresentationDefinition.OrbitingSprite definition() {
@@ -45,12 +45,12 @@ class OrbitingSpriteRendererTest {
                 5,
                 2.0F,
                 1.5F,
-                0.45F,
-                1.35F,
-                0.35F,
-                0.45F,
+                0.32F,
+                0.9F,
+                0.2F,
                 0.3F,
-                0.22F,
+                0.3F,
+                0.34F,
                 0.6F,
                 0.04F,
                 1.2F,
