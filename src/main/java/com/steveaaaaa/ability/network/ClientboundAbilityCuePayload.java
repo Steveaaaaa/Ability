@@ -27,6 +27,7 @@ public record ClientboundAbilityCuePayload(AbilityCue cue) implements CustomPack
         writeVec3(buffer, cue.position());
         writeVec3(buffer, cue.direction());
         buffer.writeByte(cue.rank());
+        buffer.writeVarInt(cue.durationTicks() + 1);
         buffer.writeVarLong(cue.instanceId());
         buffer.writeLong(cue.randomSeed());
     }
@@ -48,6 +49,7 @@ public record ClientboundAbilityCuePayload(AbilityCue cue) implements CustomPack
                 readVec3(buffer),
                 readVec3(buffer),
                 buffer.readUnsignedByte(),
+                buffer.readVarInt() - 1,
                 buffer.readVarLong(),
                 buffer.readLong()
         ));

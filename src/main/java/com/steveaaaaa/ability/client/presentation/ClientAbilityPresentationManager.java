@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -62,6 +63,7 @@ public final class ClientAbilityPresentationManager {
                 entry.setValue(new ActiveCue(
                         active.cue(),
                         active.definition(),
+                        active.startedAt(),
                         active.expiresAt(),
                         gameTime + active.definition().emissionIntervalTicks()
                 ));
@@ -99,13 +101,22 @@ public final class ClientAbilityPresentationManager {
         }
 
         long gameTime = level.getGameTime();
-        emit(level, cue, definition, true, gameTime);
-        if (cue.action() == AbilityCue.Action.START && definition.durationTicks() > 0) {
+        ActiveCue previous = ACTIVE.get(key);
+        if (cue.action() != AbilityCue.Action.START || previous == null) {
+            emit(level, cue, definition, true, gameTime);
+        }
+        int durationTicks = cue.durationTicks() == AbilityCue.USE_DEFINITION_DURATION
+                ? definition.durationTicks()
+                : cue.durationTicks();
+        if (cue.action() == AbilityCue.Action.START && durationTicks > 0) {
             ACTIVE.put(key, new ActiveCue(
                     cue,
                     definition,
-                    gameTime + definition.durationTicks(),
-                    gameTime + definition.emissionIntervalTicks()
+                    previous == null ? gameTime : previous.startedAt(),
+                    gameTime + durationTicks,
+                    previous == null
+                            ? gameTime + definition.emissionIntervalTicks()
+                            : previous.nextEmissionAt()
             ));
         }
     }
@@ -223,6 +234,15 @@ public final class ClientAbilityPresentationManager {
         }
     }
 
+    static List<ActivePresentation> activePresentations() {
+        return ACTIVE.values().stream()
+                .filter(active -> !active.definition().orbitingSprites().isEmpty())
+                .map(active -> new ActivePresentation(
+                        active.cue(), active.definition().orbitingSprites(), active.startedAt(), active.expiresAt()
+                ))
+                .toList();
+    }
+
     private record InstanceKey(
             ResourceLocation abilityId,
             ResourceLocation cueId,
@@ -240,8 +260,17 @@ public final class ClientAbilityPresentationManager {
     private record ActiveCue(
             AbilityCue cue,
             AbilityPresentationDefinition.CueDefinition definition,
+            long startedAt,
             long expiresAt,
             long nextEmissionAt
+    ) {
+    }
+
+    record ActivePresentation(
+            AbilityCue cue,
+            List<AbilityPresentationDefinition.OrbitingSprite> orbitingSprites,
+            long startedAt,
+            long expiresAt
     ) {
     }
 }

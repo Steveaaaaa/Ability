@@ -14,9 +14,13 @@ public record AbilityCue(
         Vec3 position,
         Vec3 direction,
         int rank,
+        int durationTicks,
         long instanceId,
         long randomSeed
 ) {
+    public static final int USE_DEFINITION_DURATION = -1;
+    public static final int MAX_DURATION_TICKS = 20 * 60 * 10;
+
     public AbilityCue {
         Objects.requireNonNull(abilityId, "abilityId");
         Objects.requireNonNull(cueId, "cueId");
@@ -32,6 +36,9 @@ public record AbilityCue(
         if (rank < 0 || rank > 255) {
             throw new IllegalArgumentException("Cue rank must be between 0 and 255");
         }
+        if (durationTicks < USE_DEFINITION_DURATION || durationTicks > MAX_DURATION_TICKS) {
+            throw new IllegalArgumentException("Cue duration must be -1 or between 0 and " + MAX_DURATION_TICKS);
+        }
     }
 
     public static AbilityCue pulse(
@@ -46,7 +53,32 @@ public record AbilityCue(
     ) {
         return new AbilityCue(
                 abilityId, cueId, Action.PULSE, sourceEntityId, targetEntityId,
-                position, direction, rank, 0L, randomSeed
+                position, direction, rank, USE_DEFINITION_DURATION, 0L, randomSeed
+        );
+    }
+
+    public static AbilityCue start(
+            ResourceLocation abilityId,
+            ResourceLocation cueId,
+            int sourceEntityId,
+            int targetEntityId,
+            Vec3 position,
+            Vec3 direction,
+            int rank,
+            int durationTicks,
+            long instanceId,
+            long randomSeed
+    ) {
+        return new AbilityCue(
+                abilityId, cueId, Action.START, sourceEntityId, targetEntityId,
+                position, direction, rank, durationTicks, instanceId, randomSeed
+        );
+    }
+
+    public AbilityCue asStop() {
+        return new AbilityCue(
+                abilityId, cueId, Action.STOP, sourceEntityId, targetEntityId,
+                position, direction, rank, 0, instanceId, randomSeed
         );
     }
 

@@ -73,4 +73,12 @@ public final class CombatStatusEventHandler {
         CombatStatusTracker.forgetOwner(event.getEntity().getUUID());
         CombatStatusTracker.forgetTarget(event.getEntity().getUUID());
     }
+
+    @SubscribeEvent
+    public static void onStartTracking(PlayerEvent.StartTracking event) {
+        if (event.getEntity() instanceof ServerPlayer player
+                && event.getTarget() instanceof LivingEntity living) {
+            CombatStatusTracker.syncStunTo(player, living);
+        }
+    }
 }

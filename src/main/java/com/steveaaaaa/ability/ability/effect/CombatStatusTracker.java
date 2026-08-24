@@ -1,14 +1,21 @@
 package com.steveaaaaa.ability.ability.effect;
 
+import com.steveaaaaa.ability.AbilityMod;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.Vec3;
 
 public final class CombatStatusTracker {
+    private static final ResourceLocation STUN_PRESENTATION = AbilityMod.id("stun");
+    private static final ResourceLocation STUN_ACTIVE_CUE = AbilityMod.id("active");
     private static final Map<MarkKey, MarkState> MARKS = new HashMap<>();
     private static final Map<UUID, StunState> STUNS = new HashMap<>();
 
@@ -58,7 +65,7 @@ public final class CombatStatusTracker {
             return;
         }
         long expiresAt = target.level().getGameTime() + durationTicks;
-        STUNS.compute(target.getUUID(), (id, previous) -> {
+        StunState updated = STUNS.compute(target.getUUID(), (id, previous) -> {
             if (previous != null && target.level().getGameTime() < previous.expiresAt()) {
                 return previous.withExpiresAt(Math.max(previous.expiresAt(), expiresAt));
             }
@@ -70,6 +77,7 @@ public final class CombatStatusTracker {
                     target.yHeadRot
             );
         });
+        sendStunStart(target, updated);
     }
 
     public static boolean isStunned(LivingEntity entity) {
@@ -119,9 +127,53 @@ public final class CombatStatusTracker {
         }
         if (entity.level().getGameTime() >= state.expiresAt()) {
             STUNS.remove(entity.getUUID());
+            sendStunStop(entity);
             return null;
         }
         return state;
+    }
+
+    public static void syncStunTo(ServerPlayer player, LivingEntity target) {
+        StunState state = activeStun(target);
+        if (state != null) {
+            AbilityPresentationService.sendToPlayer(player, stunStartCue(target, state));
+        }
+    }
+
+    private static void sendStunStart(LivingEntity target, StunState state) {
+        if (target.level() instanceof ServerLevel) {
+            AbilityPresentationService.sendTracking(target, stunStartCue(target, state));
+        }
+    }
+
+    private static AbilityCue stunStartCue(LivingEntity target, StunState state) {
+        long remaining = Math.max(0L, state.expiresAt() - target.level().getGameTime());
+        return stunCue(target, (int) Math.min(AbilityCue.MAX_DURATION_TICKS, remaining));
+    }
+
+    private static AbilityCue stunCue(LivingEntity target, int durationTicks) {
+        return AbilityCue.start(
+                STUN_PRESENTATION,
+                STUN_ACTIVE_CUE,
+                -1,
+                target.getId(),
+                target.position().add(0.0D, target.getBbHeight(), 0.0D),
+                Vec3.ZERO,
+                0,
+                durationTicks,
+                stunInstanceId(target.getUUID()),
+                target.getUUID().getLeastSignificantBits()
+        );
+    }
+
+    private static void sendStunStop(LivingEntity target) {
+        if (target.level() instanceof ServerLevel) {
+            AbilityPresentationService.sendTracking(target, stunCue(target, 0).asStop());
+        }
+    }
+
+    private static long stunInstanceId(UUID targetId) {
+        return targetId.getMostSignificantBits() ^ targetId.getLeastSignificantBits();
     }
 
     public record MarkResult(int remainingCount, boolean triggered) {

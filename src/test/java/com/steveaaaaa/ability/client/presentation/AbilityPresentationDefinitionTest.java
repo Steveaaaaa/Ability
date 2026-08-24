@@ -17,7 +17,8 @@ class AbilityPresentationDefinitionTest {
                           "emission_interval_ticks":2,
                           "particles":[{"type":"minecraft:end_rod","anchor":"source","count":5}],
                           "sound":{"event":"minecraft:block.note_block.pling"},
-                          "animation":"ability:roll"
+                          "animation":"ability:roll",
+                          "orbiting_sprites":[{"texture":"ability:textures/particle/stun_star.png"}]
                         }}}
                         """).getAsJsonObject()
         );
@@ -26,6 +27,7 @@ class AbilityPresentationDefinitionTest {
         assertEquals(2, cue.emissionIntervalTicks());
         assertEquals(5, cue.particles().getFirst().count());
         assertEquals(ResourceLocation.fromNamespaceAndPath("ability", "roll"), cue.animation().orElseThrow());
+        assertEquals(3, cue.orbitingSprites().getFirst().minimumCount());
     }
 
     @Test

@@ -24,6 +24,7 @@ class ClientboundAbilityCuePayloadTest {
                 new Vec3(1.25D, -2.5D, 8.0D),
                 new Vec3(-0.5D, 0.0D, 1.0D),
                 7,
+                42,
                 99L,
                 123456L
         );
@@ -42,15 +43,19 @@ class ClientboundAbilityCuePayloadTest {
     void rejectsInvalidCueData() {
         assertThrows(IllegalArgumentException.class, () -> new AbilityCue(
                 id("dodge"), id("activate"), AbilityCue.Action.PULSE,
-                -2, -1, Vec3.ZERO, Vec3.ZERO, 0, 0L, 0L
+                -2, -1, Vec3.ZERO, Vec3.ZERO, 0, -1, 0L, 0L
         ));
         assertThrows(IllegalArgumentException.class, () -> new AbilityCue(
                 id("dodge"), id("activate"), AbilityCue.Action.PULSE,
-                -1, -1, new Vec3(Double.NaN, 0.0D, 0.0D), Vec3.ZERO, 0, 0L, 0L
+                -1, -1, new Vec3(Double.NaN, 0.0D, 0.0D), Vec3.ZERO, 0, -1, 0L, 0L
         ));
         assertThrows(IllegalArgumentException.class, () -> new AbilityCue(
                 id("dodge"), id("activate"), AbilityCue.Action.PULSE,
-                -1, -1, Vec3.ZERO, Vec3.ZERO, 256, 0L, 0L
+                -1, -1, Vec3.ZERO, Vec3.ZERO, 256, -1, 0L, 0L
+        ));
+        assertThrows(IllegalArgumentException.class, () -> new AbilityCue(
+                id("dodge"), id("activate"), AbilityCue.Action.START,
+                -1, -1, Vec3.ZERO, Vec3.ZERO, 0, AbilityCue.MAX_DURATION_TICKS + 1, 0L, 0L
         ));
     }
 

@@ -66,7 +66,41 @@ public record AbilityPresentationDefinition(Map<ResourceLocation, CueDefinition>
         if (json.has("animation")) {
             animation = Optional.of(requiredId(json, "animation"));
         }
-        return new CueDefinition(duration, interval, List.copyOf(particles), sound, animation);
+        List<OrbitingSprite> orbitingSprites = new ArrayList<>();
+        JsonArray orbitArray = GsonHelper.getAsJsonArray(json, "orbiting_sprites", new JsonArray());
+        for (JsonElement element : orbitArray) {
+            JsonObject orbit = GsonHelper.convertToJsonObject(element, "orbiting_sprite");
+            Anchor anchor = Anchor.parse(GsonHelper.getAsString(orbit, "anchor", "target"));
+            if (anchor == Anchor.POSITION) {
+                throw new JsonParseException("orbiting_sprite anchor must be source or target");
+            }
+            int minimumCount = boundedInt(orbit, "minimum_count", 3, 1, 32);
+            int maximumCount = boundedInt(orbit, "maximum_count", minimumCount, minimumCount, 32);
+            float minimumRadius = boundedFloat(orbit, "minimum_radius", 0.45F, 0.01F, 16.0F);
+            float maximumRadius = boundedFloat(orbit, "maximum_radius", 1.35F, minimumRadius, 16.0F);
+            orbitingSprites.add(new OrbitingSprite(
+                    requiredId(orbit, "texture"),
+                    anchor,
+                    minimumCount,
+                    maximumCount,
+                    finiteFloat(orbit, "count_bias", 2.0F, 0.0F),
+                    finiteFloat(orbit, "count_width_multiplier", 1.5F, 0.0F),
+                    minimumRadius,
+                    maximumRadius,
+                    finiteFloat(orbit, "radius_base", 0.35F, 0.0F),
+                    finiteFloat(orbit, "radius_width_multiplier", 0.45F, 0.0F),
+                    finiteFloatAny(orbit, "height_offset", 0.3F),
+                    boundedFloat(orbit, "size", 0.22F, 0.01F, 4.0F),
+                    finiteFloatAny(orbit, "rotations_per_second", 0.6F),
+                    finiteFloat(orbit, "bob_amplitude", 0.04F, 0.0F),
+                    finiteFloat(orbit, "bob_cycles_per_second", 1.2F, 0.0F),
+                    boundedInt(orbit, "fade_ticks", 2, 0, 100),
+                    GsonHelper.getAsBoolean(orbit, "full_bright", true)
+            ));
+        }
+        return new CueDefinition(
+                duration, interval, List.copyOf(particles), sound, animation, List.copyOf(orbitingSprites)
+        );
     }
 
     private static ResourceLocation requiredId(JsonObject json, String name) {
@@ -94,6 +128,28 @@ public record AbilityPresentationDefinition(Map<ResourceLocation, CueDefinition>
         return value;
     }
 
+    private static float finiteFloatAny(JsonObject json, String name, float fallback) {
+        float value = GsonHelper.getAsFloat(json, name, fallback);
+        if (!Float.isFinite(value)) {
+            throw new JsonParseException(name + " must be finite");
+        }
+        return value;
+    }
+
+    private static float boundedFloat(
+            JsonObject json,
+            String name,
+            float fallback,
+            float min,
+            float max
+    ) {
+        float value = finiteFloat(json, name, fallback, min);
+        if (value > max) {
+            throw new JsonParseException(name + " must be at most " + max);
+        }
+        return value;
+    }
+
     private static Vec3 vec3(JsonObject json, String name, Vec3 fallback) {
         if (!json.has(name)) {
             return fallback;
@@ -114,7 +170,8 @@ public record AbilityPresentationDefinition(Map<ResourceLocation, CueDefinition>
             int emissionIntervalTicks,
             List<ParticleBurst> particles,
             Optional<SoundCue> sound,
-            Optional<ResourceLocation> animation
+            Optional<ResourceLocation> animation,
+            List<OrbitingSprite> orbitingSprites
     ) {
     }
 
@@ -136,6 +193,27 @@ public record AbilityPresentationDefinition(Map<ResourceLocation, CueDefinition>
             float volume,
             float pitch,
             float pitchRandom
+    ) {
+    }
+
+    public record OrbitingSprite(
+            ResourceLocation texture,
+            Anchor anchor,
+            int minimumCount,
+            int maximumCount,
+            float countBias,
+            float countWidthMultiplier,
+            float minimumRadius,
+            float maximumRadius,
+            float radiusBase,
+            float radiusWidthMultiplier,
+            float heightOffset,
+            float size,
+            float rotationsPerSecond,
+            float bobAmplitude,
+            float bobCyclesPerSecond,
+            int fadeTicks,
+            boolean fullBright
     ) {
     }
 
