@@ -37,7 +37,7 @@ public final class AmbushBloodSplashParticle extends TextureSheetParticle {
         this.gravity = 0.065F;
         this.hasPhysics = true;
         this.lifetime = 18 + random.nextInt(11);
-        this.quadSize = 0.045F + random.nextFloat() * 0.05F;
+        this.quadSize = 0.075F + random.nextFloat() * 0.065F;
         setColor(
                 0.32F + random.nextFloat() * 0.2F,
                 0.015F + random.nextFloat() * 0.025F,

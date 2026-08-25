@@ -4,10 +4,10 @@
       "particles": [
         {
           "type": "ability:ambush_blood_splash",
-          "anchor": "target",
-          "count": 13,
-          "spread": [0.16, 0.28, 0.16],
-          "direction_speed": 0.11,
+          "anchor": "position",
+          "count": 26,
+          "spread": [0.12, 0.2, 0.12],
+          "direction_speed": 0.14,
           "force": false
         }
       ]

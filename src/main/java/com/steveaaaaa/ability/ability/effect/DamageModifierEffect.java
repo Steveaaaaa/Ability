@@ -77,19 +77,41 @@ public final class DamageModifierEffect {
             return;
         }
         Vec3 targetCenter = pending.target().getBoundingBox().getCenter();
-        Vec3 direction = targetCenter.subtract(pending.attacker().getEyePosition());
+        Vec3 hitPosition = surfacePointFacing(pending.target(), pending.attacker().getEyePosition());
+        Vec3 direction = hitPosition.subtract(targetCenter);
         for (PresentationCue cue : pending.cues()) {
             AbilityPresentationService.sendTracking(pending.target(), AbilityCue.pulse(
                     cue.abilityId(),
                     cue.cueId(),
                     pending.attacker().getId(),
                     pending.target().getId(),
-                    targetCenter,
+                    hitPosition,
                     direction,
                     cue.rank(),
                     pending.attacker().level().getGameTime() ^ pending.target().getId()
             ));
         }
+    }
+
+    private static Vec3 surfacePointFacing(LivingEntity target, Vec3 attackerEyePosition) {
+        var bounds = target.getBoundingBox();
+        Vec3 center = bounds.getCenter();
+        Vec3 towardAttacker = attackerEyePosition.subtract(center);
+        double scale = Double.POSITIVE_INFINITY;
+        if (Math.abs(towardAttacker.x) > 1.0E-8D) {
+            scale = Math.min(scale, (bounds.getXsize() * 0.5D) / Math.abs(towardAttacker.x));
+        }
+        if (Math.abs(towardAttacker.y) > 1.0E-8D) {
+            scale = Math.min(scale, (bounds.getYsize() * 0.5D) / Math.abs(towardAttacker.y));
+        }
+        if (Math.abs(towardAttacker.z) > 1.0E-8D) {
+            scale = Math.min(scale, (bounds.getZsize() * 0.5D) / Math.abs(towardAttacker.z));
+        }
+        if (!Double.isFinite(scale)) {
+            return center;
+        }
+        Vec3 outward = towardAttacker.normalize();
+        return center.add(towardAttacker.scale(scale)).add(outward.scale(0.02D));
     }
 
     static float applyOutgoing(float damage, double multiplier, double flatDamage) {
