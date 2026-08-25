@@ -8,6 +8,8 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -24,9 +26,12 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 
 public final class AttributeModifierEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("attribute_modifier");
@@ -78,6 +83,38 @@ public final class AttributeModifierEffect {
 
     public static void forget(ServerPlayer player) {
         APPLIED.remove(player.getUUID());
+    }
+
+    public static void processFinalDamage(LivingDamageEvent.Post event) {
+        if (EnchantedEdgeEffect.isApplyingConvertedDamage()
+                || event.getNewDamage() <= 0.0F
+                || !(event.getSource().getEntity() instanceof ServerPlayer player)
+                || event.getSource().getDirectEntity() != player) {
+            return;
+        }
+        LivingEntity target = event.getEntity();
+        Registry<AbilityDefinition> abilities = player.registryAccess().registryOrThrow(ModDataRegistries.ABILITIES);
+        for (Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition> entry : abilities.entrySet()) {
+            ResourceLocation abilityId = entry.getKey().location();
+            try {
+                Optional<AbilityService.ActiveAbility> active = AbilityService.active(player, abilityId);
+                if (active.isEmpty()) {
+                    continue;
+                }
+                for (CompositeEffect.ComponentView component : CompositeEffect.componentsOfType(entry.getValue(), TYPE)) {
+                    Config config = parse(Config.CODEC, component.config(), "effect.config");
+                    config.meleeHitCue().ifPresent(cueId -> emitMeleeHitCue(
+                            player,
+                            target,
+                            abilityId,
+                            cueId,
+                            CompositeEffect.projectActive(active.get(), component).rank()
+                    ));
+                }
+            } catch (RuntimeException exception) {
+                logInvalidOnce(abilityId, exception.getMessage());
+            }
+        }
     }
 
     static List<String> validateDefinition(AbilityDefinition definition) {
@@ -198,6 +235,26 @@ public final class AttributeModifierEffect {
         return Map.copyOf(desired);
     }
 
+    private static void emitMeleeHitCue(
+            ServerPlayer player,
+            LivingEntity target,
+            ResourceLocation abilityId,
+            ResourceLocation cueId,
+            int rank
+    ) {
+        Vec3 direction = target.getBoundingBox().getCenter().subtract(player.getEyePosition());
+        AbilityPresentationService.sendTracking(target, AbilityCue.pulse(
+                abilityId,
+                cueId,
+                player.getId(),
+                target.getId(),
+                target.getBoundingBox().getCenter(),
+                direction,
+                rank,
+                player.level().getGameTime() ^ target.getId()
+        ));
+    }
+
     private static void logInvalidOnce(ResourceLocation abilityId, String detail) {
         String message = detail == null ? "Unknown attribute modifier error" : detail;
         if (LOGGED_INVALID_DEFINITIONS.add(abilityId + "|" + message)) {
@@ -216,9 +273,10 @@ public final class AttributeModifierEffect {
         return parsed.orElseThrow(() -> new IllegalArgumentException(path + ": " + error));
     }
 
-    public record Config(List<ModifierConfig> modifiers) {
+    public record Config(List<ModifierConfig> modifiers, Optional<ResourceLocation> meleeHitCue) {
         private static final Codec<Config> RAW_CODEC = RecordCodecBuilder.create(instance -> instance.group(
-                ModifierConfig.CODEC.listOf().fieldOf("modifiers").forGetter(Config::modifiers)
+                ModifierConfig.CODEC.listOf().fieldOf("modifiers").forGetter(Config::modifiers),
+                ResourceLocation.CODEC.optionalFieldOf("melee_hit_cue").forGetter(Config::meleeHitCue)
         ).apply(instance, Config::new));
         public static final Codec<Config> CODEC = RAW_CODEC.flatXmap(Config::validate, Config::validate);
 

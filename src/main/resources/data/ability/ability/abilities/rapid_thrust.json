@@ -31,6 +31,7 @@
   "effect": {
     "type": "ability:attribute_modifier",
     "config": {
+      "melee_hit_cue": "ability:hit",
       "modifiers": [
         {
           "attribute": "minecraft:generic.attack_speed",

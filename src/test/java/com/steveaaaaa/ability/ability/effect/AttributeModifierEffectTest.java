@@ -67,6 +67,7 @@ class AttributeModifierEffectTest {
                   "effect": {
                     "type": "ability:attribute_modifier",
                     "config": {
+                      "melee_hit_cue": "ability:hit",
                       "modifiers": [
                         {
                           "attribute": "minecraft:player.block_break_speed",
