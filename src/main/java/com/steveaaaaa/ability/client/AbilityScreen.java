@@ -58,6 +58,7 @@ public final class AbilityScreen extends Screen {
     private long lastCacheRevision;
     private int skillScroll;
     private int abilityScroll;
+    private int detailScroll;
     private int panelX;
     private int panelY;
     private int panelWidth;
@@ -116,6 +117,7 @@ public final class AbilityScreen extends Screen {
                 entry.getKey().location().equals(selectedAbility))) {
             selectedAbility = abilities.isEmpty() ? null : abilities.getFirst().getKey().location();
             abilityScroll = 0;
+            detailScroll = 0;
         }
         addAbilityTiles(abilities);
         addPurchaseButton();
@@ -144,6 +146,14 @@ public final class AbilityScreen extends Screen {
             }
             return true;
         }
+        if (inside(mouseX, mouseY, detailX, contentTop, panelX + panelWidth - 5, contentBottom)) {
+            int maximum = Math.max(0, detailDescriptionLines().size() - detailVisibleLines());
+            int updated = Math.clamp(detailScroll + (scrollY > 0.0D ? -1 : 1), 0, maximum);
+            if (updated != detailScroll) {
+                detailScroll = updated;
+            }
+            return true;
+        }
         if (inside(mouseX, mouseY, centerX, contentTop, centerX + centerWidth, contentBottom)) {
             int direction = scrollY > 0.0D ? -abilityColumns() : abilityColumns();
             int updated = ScrollWindow.clamp(
@@ -168,6 +178,7 @@ public final class AbilityScreen extends Screen {
         panel(graphics, panelX, panelY, panelWidth, panelHeight, PANEL_DARK, BORDER_GOLD, true);
         renderHeader(graphics);
         renderPanes(graphics);
+        renderSkillScrollbar(graphics);
         renderSelectedSkill(graphics);
         renderAbilityGridBackground(graphics);
         renderAbilityDetails(graphics);
@@ -198,7 +209,7 @@ public final class AbilityScreen extends Screen {
             DungeonsButton button = new DungeonsButton(
                     panelX + 8,
                     y + visibleIndex * (SKILL_BUTTON_HEIGHT + 3),
-                    leftWidth - 16,
+                    leftWidth - 21,
                     SKILL_BUTTON_HEIGHT,
                     Component.translatable(definition.display().name()),
                     ButtonStyle.SKILL,
@@ -207,6 +218,7 @@ public final class AbilityScreen extends Screen {
                         selectedSkill = skillId;
                         selectedAbility = null;
                         abilityScroll = 0;
+                        detailScroll = 0;
                         ClientProgressCache.clearPurchaseResult();
                         rebuildWidgets();
                     }
@@ -241,6 +253,7 @@ public final class AbilityScreen extends Screen {
                     abilityId.equals(selectedAbility),
                     () -> {
                         selectedAbility = abilityId;
+                        detailScroll = 0;
                         ClientProgressCache.clearPurchaseResult();
                         rebuildWidgets();
                     }
@@ -299,6 +312,18 @@ public final class AbilityScreen extends Screen {
                 panelX + leftWidth / 2,
                 contentTop + 9,
                 TEXT_MUTED
+        );
+    }
+
+    private void renderSkillScrollbar(GuiGraphics graphics) {
+        scrollbar(
+                graphics,
+                panelX + leftWidth - 10,
+                contentTop + 26,
+                contentBottom - contentTop - 34,
+                skills().size(),
+                visibleSkillCount(),
+                skillScroll
         );
     }
 
@@ -399,13 +424,29 @@ public final class AbilityScreen extends Screen {
                     rankX + index * (dotWidth + 2) + dotWidth, rankY + 4, color);
         }
 
-        int descriptionY = rankY + 13;
-        List<FormattedCharSequence> description = font.split(
-                Component.translatable(definition.display().description()), width);
-        int maxDescriptionLines = Math.max(2, (contentBottom - 75 - descriptionY) / 10);
-        for (int line = 0; line < Math.min(maxDescriptionLines, description.size()); line++) {
-            graphics.drawString(font, description.get(line), x, descriptionY + line * 10, TEXT_MUTED, false);
+        int descriptionY = detailDescriptionY();
+        int descriptionBottom = detailDescriptionBottom();
+        List<FormattedCharSequence> description = detailDescriptionLines();
+        int visibleDescriptionLines = detailVisibleLines();
+        detailScroll = Math.clamp(detailScroll, 0, Math.max(0, description.size() - visibleDescriptionLines));
+        graphics.enableScissor(x, descriptionY, x + width - 6, descriptionBottom);
+        for (int line = 0; line < visibleDescriptionLines; line++) {
+            int index = detailScroll + line;
+            if (index >= description.size()) {
+                break;
+            }
+            graphics.drawString(font, description.get(index), x, descriptionY + line * 10, TEXT_MUTED, false);
         }
+        graphics.disableScissor();
+        scrollbar(
+                graphics,
+                x + width - 4,
+                descriptionY,
+                descriptionBottom - descriptionY,
+                description.size(),
+                visibleDescriptionLines,
+                detailScroll
+        );
 
         int requirementY = contentBottom - 53;
         graphics.fill(x, requirementY - 4, x + width, requirementY - 3, BORDER_DARK);
@@ -497,6 +538,29 @@ public final class AbilityScreen extends Screen {
         return rows * abilityColumns();
     }
 
+    private int detailDescriptionY() {
+        return contentTop + 74;
+    }
+
+    private int detailDescriptionBottom() {
+        return contentBottom - 61;
+    }
+
+    private int detailVisibleLines() {
+        return Math.max(1, (detailDescriptionBottom() - detailDescriptionY()) / 10);
+    }
+
+    private List<FormattedCharSequence> detailDescriptionLines() {
+        SelectedAbility selected = selectedAbility();
+        if (selected == null) {
+            return List.of();
+        }
+        return font.split(
+                Component.translatable(selected.definition().display().description()),
+                Math.max(20, rightWidth - 31)
+        );
+    }
+
     private SelectedAbility selectedAbility() {
         if (selectedAbility == null || minecraft.level == null) {
             return null;
@@ -558,6 +622,31 @@ public final class AbilityScreen extends Screen {
             graphics.fill(x + 3, y + 4, x + 4, y + height - 4, BORDER_DARK);
             graphics.fill(x + width - 4, y + 4, x + width - 3, y + height - 4, BORDER_DARK);
         }
+    }
+
+    private static void scrollbar(
+            GuiGraphics graphics,
+            int x,
+            int y,
+            int height,
+            int itemCount,
+            int visibleCount,
+            int offset
+    ) {
+        if (height <= 0) {
+            return;
+        }
+        graphics.fill(x, y, x + 3, y + height, 0xFF111212);
+        graphics.fill(x + 1, y + 1, x + 2, y + height - 1, 0xFF4A4439);
+        if (itemCount <= visibleCount || itemCount <= 0) {
+            graphics.fill(x, y, x + 3, y + height, 0xFF6A5A3E);
+            return;
+        }
+        int thumbHeight = Math.max(10, visibleCount * height / itemCount);
+        int maximumOffset = itemCount - visibleCount;
+        int thumbY = y + (height - thumbHeight) * Math.clamp(offset, 0, maximumOffset) / maximumOffset;
+        graphics.fill(x, thumbY, x + 3, thumbY + thumbHeight, BORDER_GOLD);
+        graphics.fill(x + 1, thumbY + 1, x + 2, thumbY + thumbHeight - 1, BORDER_BRIGHT);
     }
 
     private static int parseColor(String value, int fallback) {

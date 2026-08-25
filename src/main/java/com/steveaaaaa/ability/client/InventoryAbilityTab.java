@@ -4,10 +4,12 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.network.ClientProgressCache;
 import com.steveaaaaa.ability.network.ClientWorldTravelerCache;
 import com.steveaaaaa.ability.network.ServerboundWorldTravelerPayload;
+import java.util.function.BooleanSupplier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
@@ -36,31 +38,28 @@ public final class InventoryAbilityTab {
         }
         AbstractContainerScreen<?> inventoryScreen = (AbstractContainerScreen<?>) screen;
 
-        Button tab = Button.builder(
-                        Component.translatable("gui.ability.tab.short"),
-                        button -> Minecraft.getInstance().setScreen(new AbilityScreen(screen))
-                )
-                .bounds(
-                        inventoryScreen.getGuiLeft() + inventoryScreen.getXSize() + 2,
-                        inventoryScreen.getGuiTop() + 8,
-                        24,
-                        20
-                )
-                .tooltip(Tooltip.create(Component.translatable("gui.ability.tab")))
-                .build();
+        DungeonTabButton tab = new DungeonTabButton(
+                inventoryScreen.getGuiLeft() + inventoryScreen.getXSize() + 2,
+                inventoryScreen.getGuiTop() + 8,
+                Component.translatable("gui.ability.tab.short"),
+                () -> false,
+                () -> Minecraft.getInstance().setScreen(new AbilityScreen(screen))
+        );
+        tab.setTooltip(Tooltip.create(Component.translatable("gui.ability.tab")));
         event.addListener(tab);
         travelerPanelVisible = false;
         if (ClientProgressCache.snapshot().purchasedAbilities().contains(WORLD_TRAVELER)) {
-            Button traveler = Button.builder(
-                            Component.translatable("gui.ability.world_traveler.tab.short"),
-                            button -> {
-                                travelerPanelVisible = !travelerPanelVisible;
-                                if (travelerPanelVisible) send(ServerboundWorldTravelerPayload.Action.REQUEST, -1);
-                            })
-                    .bounds(inventoryScreen.getGuiLeft() + inventoryScreen.getXSize() + 2,
-                            inventoryScreen.getGuiTop() + 32, 24, 20)
-                    .tooltip(Tooltip.create(Component.translatable("gui.ability.world_traveler.tab")))
-                    .build();
+            DungeonTabButton traveler = new DungeonTabButton(
+                    inventoryScreen.getGuiLeft() + inventoryScreen.getXSize() + 2,
+                    inventoryScreen.getGuiTop() + 32,
+                    Component.translatable("gui.ability.world_traveler.tab.short"),
+                    () -> travelerPanelVisible,
+                    () -> {
+                        travelerPanelVisible = !travelerPanelVisible;
+                        if (travelerPanelVisible) send(ServerboundWorldTravelerPayload.Action.REQUEST, -1);
+                    }
+            );
+            traveler.setTooltip(Tooltip.create(Component.translatable("gui.ability.world_traveler.tab")));
             event.addListener(traveler);
         }
     }
@@ -132,5 +131,56 @@ public final class InventoryAbilityTab {
 
     private static void send(ServerboundWorldTravelerPayload.Action action, int slot) {
         PacketDistributor.sendToServer(new ServerboundWorldTravelerPayload(action, slot));
+    }
+
+    private static final class DungeonTabButton extends AbstractButton {
+        private static final int WIDTH = 24;
+        private static final int HEIGHT = 20;
+        private final BooleanSupplier selected;
+        private final Runnable action;
+
+        private DungeonTabButton(
+                int x,
+                int y,
+                Component message,
+                BooleanSupplier selected,
+                Runnable action
+        ) {
+            super(x, y, WIDTH, HEIGHT, message);
+            this.selected = selected;
+            this.action = action;
+        }
+
+        @Override
+        public void onPress() {
+            action.run();
+        }
+
+        @Override
+        protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+            boolean highlighted = selected.getAsBoolean() || isHovered();
+            int border = highlighted ? 0xFFE3BC6B : 0xFF6A5030;
+            int fill = selected.getAsBoolean() ? 0xFF493720 : highlighted ? 0xFF332B20 : 0xFF1E201F;
+            graphics.fill(getX() + 2, getY(), getX() + getWidth() - 2, getY() + getHeight(), fill);
+            graphics.fill(getX(), getY() + 2, getX() + getWidth(), getY() + getHeight() - 2, fill);
+            graphics.fill(getX() + 2, getY(), getX() + getWidth() - 2, getY() + 1, border);
+            graphics.fill(getX() + 2, getY() + getHeight() - 1,
+                    getX() + getWidth() - 2, getY() + getHeight(), border);
+            graphics.fill(getX(), getY() + 2, getX() + 1, getY() + getHeight() - 2, border);
+            graphics.fill(getX() + getWidth() - 1, getY() + 2,
+                    getX() + getWidth(), getY() + getHeight() - 2, border);
+            graphics.drawCenteredString(
+                    Minecraft.getInstance().font,
+                    getMessage(),
+                    getX() + getWidth() / 2,
+                    getY() + 6,
+                    highlighted ? 0xFFFFE6A6 : 0xFFD6CCB4
+            );
+        }
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput output) {
+            defaultButtonNarrationText(output);
+        }
     }
 }
