@@ -11,7 +11,8 @@ public enum ActiveAbilityInput {
     FORWARD_LEFT(7),
     FORWARD_RIGHT(8),
     BACKWARD_LEFT(9),
-    BACKWARD_RIGHT(10);
+    BACKWARD_RIGHT(10),
+    CHARGE_CANCEL(11);
 
     private final int networkId;
 
@@ -36,6 +37,7 @@ public enum ActiveAbilityInput {
             case 8 -> FORWARD_RIGHT;
             case 9 -> BACKWARD_LEFT;
             case 10 -> BACKWARD_RIGHT;
+            case 11 -> CHARGE_CANCEL;
             default -> throw new IllegalArgumentException("Unknown active ability input: " + networkId);
         };
     }

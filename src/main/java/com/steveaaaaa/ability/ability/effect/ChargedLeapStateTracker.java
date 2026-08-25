@@ -26,6 +26,10 @@ public final class ChargedLeapStateTracker {
         return OptionalLong.of(gameTime - startedAt);
     }
 
+    public static void cancelCharge(UUID player) {
+        CHARGE_STARTED_AT.remove(player);
+    }
+
     public static void armLeap(
             UUID player,
             long expiresAt,

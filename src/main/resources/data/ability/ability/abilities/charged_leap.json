@@ -37,6 +37,7 @@
       "maximum_charge_ticks": 20,
       "minimum_vertical_speed": 0.42,
       "maximum_vertical_speed": 0.74,
+      "charge_activation_ticks": 3,
       "leap_timeout_ticks": 100,
       "double_jump_unlock_rank": 6,
       "double_jump_vertical_speed": 0.42

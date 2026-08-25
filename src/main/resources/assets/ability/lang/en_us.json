@@ -87,7 +87,7 @@
   "ability.ability.dodge": "Dodge",
   "ability.ability.dodge.description": "Press the Dodge key to roll in the current movement direction, or backward without directional input, reducing incoming damage briefly.",
   "ability.ability.charged_leap": "Charged Leap",
-  "ability.ability.charged_leap.description": "Hold the Charged Leap key, then release to leap upward; an airborne hit damages and stuns nearby enemies and negates landing damage.",
+  "ability.ability.charged_leap.description": "Tap Jump for a normal jump, or hold it to charge and release a high leap; an airborne hit damages and stuns nearby enemies and negates landing damage.",
   "ability.ability.primer": "Primer",
   "ability.ability.primer.description": "Hold Use with a fire charge in the offhand; release after charging to launch a fireball with increased explosion damage.",
   "ability.ability.dangerous_charge": "Dangerous Charge",
@@ -136,6 +136,5 @@
   "ability.ability.cold_current.description": "Strengthen a snow golem with blue ice; surviving progressively grants attack, health, armor, and final damage bonuses.",
   "key.categories.ability": "Ability",
   "key.ability.dodge": "Dodge Roll",
-  "key.ability.charged_leap": "Charge Leap / Double Jump",
   "item.ability.copper_nugget": "Copper Nugget"
 }

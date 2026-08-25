@@ -56,6 +56,7 @@ public final class ChargedLeapEffect {
             return switch (input) {
                 case CHARGE_START -> beginCharge(player, gameTime);
                 case CHARGE_RELEASE -> releaseCharge(player, active, config, rank, gameTime);
+                case CHARGE_CANCEL -> cancelCharge(player);
                 case SECONDARY -> doubleJump(player, config, gameTime);
                 default -> ActiveAbilityActionService.ActivationResult.UNSUPPORTED_ACTION;
             };
@@ -187,7 +188,12 @@ public final class ChargedLeapEffect {
     }
 
     private static ActiveAbilityActionService.ActivationResult beginCharge(ServerPlayer player, long gameTime) {
-        if (!player.onGround()) {
+        if (!player.onGround()
+                || player.isPassenger()
+                || player.isInWater()
+                || player.isInLava()
+                || player.onClimbable()
+                || player.getAbilities().flying) {
             return ActiveAbilityActionService.ActivationResult.INVALID_STATE;
         }
         ChargedLeapStateTracker.beginCharge(player.getUUID(), gameTime);
@@ -202,7 +208,18 @@ public final class ChargedLeapEffect {
             long gameTime
     ) {
         OptionalLong chargeTicks = ChargedLeapStateTracker.releaseCharge(player.getUUID(), gameTime);
-        if (chargeTicks.isEmpty() || !player.onGround()) {
+        if (chargeTicks.isEmpty()) {
+            return ActiveAbilityActionService.ActivationResult.INVALID_STATE;
+        }
+        if (chargeTicks.getAsLong() < config.chargeActivationTicks()) {
+            if (!player.onGround()) {
+                return ActiveAbilityActionService.ActivationResult.INVALID_STATE;
+            }
+            player.jumpFromGround();
+            player.hurtMarked = true;
+            return ActiveAbilityActionService.ActivationResult.SUCCESS;
+        }
+        if (!player.onGround()) {
             return ActiveAbilityActionService.ActivationResult.INVALID_STATE;
         }
         double verticalSpeed = chargedVerticalSpeed(chargeTicks.getAsLong(), config);
@@ -217,6 +234,11 @@ public final class ChargedLeapEffect {
                 rank.stunTicks(),
                 active.rank() >= config.doubleJumpUnlockRank()
         );
+        return ActiveAbilityActionService.ActivationResult.SUCCESS;
+    }
+
+    private static ActiveAbilityActionService.ActivationResult cancelCharge(ServerPlayer player) {
+        ChargedLeapStateTracker.cancelCharge(player.getUUID());
         return ActiveAbilityActionService.ActivationResult.SUCCESS;
     }
 
@@ -270,6 +292,7 @@ public final class ChargedLeapEffect {
             int maximumChargeTicks,
             double minimumVerticalSpeed,
             double maximumVerticalSpeed,
+            int chargeActivationTicks,
             int leapTimeoutTicks,
             int doubleJumpUnlockRank,
             double doubleJumpVerticalSpeed
@@ -283,6 +306,8 @@ public final class ChargedLeapEffect {
                         .forGetter(Config::minimumVerticalSpeed),
                 Codec.doubleRange(0.0D, 4.0D).optionalFieldOf("maximum_vertical_speed", 0.74D)
                         .forGetter(Config::maximumVerticalSpeed),
+                Codec.intRange(1, 20).optionalFieldOf("charge_activation_ticks", 3)
+                        .forGetter(Config::chargeActivationTicks),
                 Codec.intRange(1, 1200).optionalFieldOf("leap_timeout_ticks", 100)
                         .forGetter(Config::leapTimeoutTicks),
                 Codec.intRange(1, 100).optionalFieldOf("double_jump_unlock_rank", 6)
@@ -295,6 +320,11 @@ public final class ChargedLeapEffect {
             if (maximumVerticalSpeed < minimumVerticalSpeed) {
                 throw new IllegalArgumentException(
                         "maximum_vertical_speed must be at least minimum_vertical_speed"
+                );
+            }
+            if (chargeActivationTicks > maximumChargeTicks) {
+                throw new IllegalArgumentException(
+                        "charge_activation_ticks must not exceed maximum_charge_ticks"
                 );
             }
         }
