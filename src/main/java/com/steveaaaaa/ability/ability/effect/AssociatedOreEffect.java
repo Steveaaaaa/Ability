@@ -3,11 +3,15 @@ package com.steveaaaaa.ability.ability.effect;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.steveaaaaa.ability.AbilityMod;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.Optional;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -67,6 +71,19 @@ public final class AssociatedOreEffect {
             );
             drop.setDefaultPickUpDelay();
             event.getDrops().add(drop);
+            if (event.getBreaker() instanceof ServerPlayer player) {
+                long seed = event.getLevel().getGameTime() ^ event.getPos().asLong();
+                AbilityPresentationService.sendTracking(player, AbilityCue.pulse(
+                        AbilityMod.id("associated_ore"),
+                        AbilityMod.id("success"),
+                        player.getId(),
+                        -1,
+                        event.getPos().getCenter(),
+                        net.minecraft.world.phys.Vec3.ZERO,
+                        0,
+                        seed
+                ));
+            }
         }
     }
 
