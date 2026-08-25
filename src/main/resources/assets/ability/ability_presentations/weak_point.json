@@ -1,0 +1,35 @@
+{
+  "cues": {
+    "ability:marks": {
+      "duration_ticks": 12000
+    },
+    "ability:mark_hit": {
+      "sound": {
+        "event": "minecraft:block.grindstone.use",
+        "anchor": "position",
+        "volume": 0.18,
+        "pitch": 1.72,
+        "pitch_random": 0.08
+      }
+    },
+    "ability:trigger": {
+      "particles": [
+        {
+          "type": "minecraft:crit",
+          "anchor": "position",
+          "count": 12,
+          "spread": [0.12, 0.16, 0.12],
+          "direction_speed": 0.16,
+          "force": false
+        }
+      ],
+      "sound": {
+        "event": "minecraft:entity.player.attack.crit",
+        "anchor": "position",
+        "volume": 0.72,
+        "pitch": 0.92,
+        "pitch_random": 0.05
+      }
+    }
+  }
+}

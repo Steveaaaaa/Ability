@@ -7,6 +7,8 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -24,10 +26,14 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 public final class WeakPointEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("weak_point");
+    private static final ResourceLocation MARKS_CUE = AbilityMod.id("marks");
+    private static final ResourceLocation MARK_HIT_CUE = AbilityMod.id("mark_hit");
+    private static final ResourceLocation TRIGGER_CUE = AbilityMod.id("trigger");
     private static final Set<String> RANK_KEYS = Set.of("mark_threshold", "damage_multiplier", "stun_ticks");
     private static final Set<String> LOGGED_INVALID_DEFINITIONS = ConcurrentHashMap.newKeySet();
 
@@ -71,6 +77,14 @@ public final class WeakPointEffect {
                             config.marksPerHit(),
                             rank.markThreshold()
                     );
+                    sendPresentation(
+                            abilityId,
+                            attacker,
+                            target,
+                            config.markId(),
+                            result,
+                            rank.markThreshold()
+                    );
                     if (!result.triggered()) {
                         continue;
                     }
@@ -87,6 +101,105 @@ public final class WeakPointEffect {
                 logInvalidOnce(abilityId, exception.getMessage());
             }
         }
+    }
+
+    private static void sendPresentation(
+            ResourceLocation abilityId,
+            ServerPlayer attacker,
+            LivingEntity target,
+            ResourceLocation markId,
+            CombatStatusTracker.MarkResult result,
+            int threshold
+    ) {
+        Vec3 targetCenter = target.getBoundingBox().getCenter();
+        Vec3 hitPosition = surfacePointFacing(target, attacker.getEyePosition());
+        Vec3 direction = hitPosition.subtract(targetCenter);
+        long instanceId = markInstanceId(attacker, target, markId);
+        long seed = attacker.level().getGameTime() ^ instanceId;
+        if (result.triggered()) {
+            AbilityCue marks = AbilityCue.start(
+                    abilityId,
+                    MARKS_CUE,
+                    attacker.getId(),
+                    target.getId(),
+                    hitPosition,
+                    direction,
+                    0,
+                    0,
+                    instanceId,
+                    seed
+            );
+            AbilityPresentationService.sendTracking(target, marks.asStop());
+            AbilityPresentationService.sendTracking(target, AbilityCue.pulse(
+                    abilityId,
+                    TRIGGER_CUE,
+                    attacker.getId(),
+                    target.getId(),
+                    hitPosition,
+                    direction,
+                    255,
+                    seed
+            ));
+            return;
+        }
+
+        int progress = Math.clamp(
+                Math.round((float) result.remainingCount() / threshold * 255.0F),
+                1,
+                254
+        );
+        AbilityPresentationService.sendTracking(target, AbilityCue.start(
+                abilityId,
+                MARKS_CUE,
+                attacker.getId(),
+                target.getId(),
+                hitPosition,
+                direction,
+                progress,
+                AbilityCue.MAX_DURATION_TICKS,
+                instanceId,
+                seed
+        ));
+        AbilityPresentationService.sendTracking(target, AbilityCue.pulse(
+                abilityId,
+                MARK_HIT_CUE,
+                attacker.getId(),
+                target.getId(),
+                hitPosition,
+                direction,
+                progress,
+                seed
+        ));
+    }
+
+    private static Vec3 surfacePointFacing(LivingEntity target, Vec3 attackerEyePosition) {
+        var bounds = target.getBoundingBox();
+        Vec3 center = bounds.getCenter();
+        Vec3 towardAttacker = attackerEyePosition.subtract(center);
+        double scale = Double.POSITIVE_INFINITY;
+        if (Math.abs(towardAttacker.x) > 1.0E-8D) {
+            scale = Math.min(scale, (bounds.getXsize() * 0.5D) / Math.abs(towardAttacker.x));
+        }
+        if (Math.abs(towardAttacker.y) > 1.0E-8D) {
+            scale = Math.min(scale, (bounds.getYsize() * 0.5D) / Math.abs(towardAttacker.y));
+        }
+        if (Math.abs(towardAttacker.z) > 1.0E-8D) {
+            scale = Math.min(scale, (bounds.getZsize() * 0.5D) / Math.abs(towardAttacker.z));
+        }
+        if (!Double.isFinite(scale)) {
+            return center;
+        }
+        return center.add(towardAttacker.scale(scale)).add(towardAttacker.normalize().scale(0.03D));
+    }
+
+    private static long markInstanceId(
+            ServerPlayer attacker,
+            LivingEntity target,
+            ResourceLocation markId
+    ) {
+        return attacker.getUUID().getLeastSignificantBits()
+                ^ target.getUUID().getMostSignificantBits()
+                ^ Integer.toUnsignedLong(markId.hashCode());
     }
 
     static RankValues merge(RankValues earlier, RankValues later) {
