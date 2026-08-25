@@ -158,7 +158,7 @@ public final class WeakPointMarkRenderer {
                     y + Math.sin(angle * 1.7D) * 0.11D,
                     z + Math.sin(angle) * radius
             );
-            renderDiamond(
+            renderPixelMark(
                     poseStack,
                     vertices,
                     camera,
@@ -190,9 +190,9 @@ public final class WeakPointMarkRenderer {
         int alpha = Math.round(235.0F * (1.0F - progress));
         int green = Mth.lerpInt(flash.markProgress(), 18, 102);
         float length = 0.27F + progress * 0.18F;
-        renderDiamond(poseStack, vertices, camera, position.subtract(cameraPosition), 0.72F,
+        renderPixelMark(poseStack, vertices, camera, position.subtract(cameraPosition), 0.72F,
                 0.055F, length, 230, green, 25, alpha);
-        renderDiamond(poseStack, vertices, camera, position.subtract(cameraPosition), -0.72F,
+        renderPixelMark(poseStack, vertices, camera, position.subtract(cameraPosition), -0.72F,
                 0.035F, length * 0.72F, 255, 78, 30, alpha);
     }
 
@@ -219,7 +219,7 @@ public final class WeakPointMarkRenderer {
                         Math.sin(angle * 1.4D) * radius * 0.38D,
                         Math.sin(angle) * radius
                 );
-                renderDiamond(poseStack, vertices, camera, shard.subtract(cameraPosition), (float) angle,
+                renderPixelMark(poseStack, vertices, camera, shard.subtract(cameraPosition), (float) angle,
                         0.07F, 0.27F, 255, 82, 24, 230);
             }
             return;
@@ -227,15 +227,15 @@ public final class WeakPointMarkRenderer {
         float burstProgress = (progress - 0.58F) / 0.42F;
         int alpha = Math.round(255.0F * (1.0F - burstProgress));
         float length = 0.28F + burstProgress * 0.65F;
-        renderDiamond(poseStack, vertices, camera, impact.subtract(cameraPosition), 0.78F,
+        renderPixelMark(poseStack, vertices, camera, impact.subtract(cameraPosition), 0.78F,
                 0.07F, length, 255, 45, 30, alpha);
-        renderDiamond(poseStack, vertices, camera, impact.subtract(cameraPosition), -0.78F,
+        renderPixelMark(poseStack, vertices, camera, impact.subtract(cameraPosition), -0.78F,
                 0.07F, length, 255, 122, 32, alpha);
-        renderDiamond(poseStack, vertices, camera, impact.subtract(cameraPosition), 0.0F,
+        renderPixelMark(poseStack, vertices, camera, impact.subtract(cameraPosition), 0.0F,
                 0.10F, 0.18F + burstProgress * 0.18F, 255, 245, 220, alpha);
     }
 
-    private static void renderDiamond(
+    private static void renderPixelMark(
             PoseStack poseStack,
             VertexConsumer vertices,
             Camera camera,
@@ -254,12 +254,35 @@ public final class WeakPointMarkRenderer {
         poseStack.pushPose();
         poseStack.translate(relativePosition.x, relativePosition.y, relativePosition.z);
         poseStack.mulPose(camera.rotation());
-        poseStack.mulPose(Axis.ZP.rotation(rotation));
+        float rotationStep = (float) (Math.PI / 4.0D);
+        poseStack.mulPose(Axis.ZP.rotation(Math.round(rotation / rotationStep) * rotationStep));
         Matrix4f pose = poseStack.last().pose();
-        vertices.addVertex(pose, 0.0F, halfHeight, 0.0F).setColor(red, green, blue, alpha);
-        vertices.addVertex(pose, halfWidth, 0.0F, 0.0F).setColor(red, green, blue, alpha);
-        vertices.addVertex(pose, 0.0F, -halfHeight, 0.0F).setColor(red, green, blue, alpha);
-        vertices.addVertex(pose, -halfWidth, 0.0F, 0.0F).setColor(red, green, blue, alpha);
+        float pixelSize = Math.max(0.018F, Math.min(halfWidth * 0.9F, halfHeight / 5.0F));
+        int steps = Mth.clamp(Math.round(halfHeight * 2.0F / pixelSize), 5, 31);
+        if ((steps & 1) == 0) {
+            steps++;
+        }
+        float cellSize = pixelSize * 0.82F;
+        float halfCell = cellSize * 0.5F;
+        int center = steps / 2;
+        for (int row = 0; row < steps; row++) {
+            int pattern = Math.floorMod(row, 8);
+            int xStep = pattern <= 1 ? -1 : pattern <= 4 ? 0 : pattern <= 5 ? 1 : 0;
+            float x = xStep * pixelSize * 0.62F;
+            float y = (row - center) * pixelSize;
+            float shade = pattern == 0 || pattern == 5 ? 0.72F : pattern == 2 || pattern == 7 ? 0.88F : 1.0F;
+            int pixelRed = Math.round(red * shade);
+            int pixelGreen = Math.round(green * shade);
+            int pixelBlue = Math.round(blue * shade);
+            vertices.addVertex(pose, x - halfCell, y + halfCell, 0.0F)
+                    .setColor(pixelRed, pixelGreen, pixelBlue, alpha);
+            vertices.addVertex(pose, x + halfCell, y + halfCell, 0.0F)
+                    .setColor(pixelRed, pixelGreen, pixelBlue, alpha);
+            vertices.addVertex(pose, x + halfCell, y - halfCell, 0.0F)
+                    .setColor(pixelRed, pixelGreen, pixelBlue, alpha);
+            vertices.addVertex(pose, x - halfCell, y - halfCell, 0.0F)
+                    .setColor(pixelRed, pixelGreen, pixelBlue, alpha);
+        }
         poseStack.popPose();
     }
 
