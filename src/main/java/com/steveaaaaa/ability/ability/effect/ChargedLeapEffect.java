@@ -57,6 +57,9 @@ public final class ChargedLeapEffect {
             long gameTime = player.level().getGameTime();
             return switch (input) {
                 case CHARGE_START -> beginCharge(player, gameTime);
+                case SPACE_CHARGE_START -> player.isCreative()
+                        ? ActiveAbilityActionService.ActivationResult.INVALID_STATE
+                        : beginCharge(player, gameTime);
                 case CHARGE_RELEASE -> releaseCharge(player, active, config, rank, gameTime);
                 case CHARGE_CANCEL -> cancelCharge(player);
                 case SECONDARY -> doubleJump(player, config, gameTime);

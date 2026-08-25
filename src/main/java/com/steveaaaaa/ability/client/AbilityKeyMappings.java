@@ -17,11 +17,18 @@ public final class AbilityKeyMappings {
             GLFW.GLFW_KEY_LEFT_ALT,
             "key.categories.ability"
     );
+    public static final KeyMapping CHARGED_LEAP = new KeyMapping(
+            "key.ability.charged_leap",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_V,
+            "key.categories.ability"
+    );
     private AbilityKeyMappings() {
     }
 
     @SubscribeEvent
     public static void register(RegisterKeyMappingsEvent event) {
         event.register(DODGE);
+        event.register(CHARGED_LEAP);
     }
 }

@@ -26,6 +26,12 @@ tools/      开发期校验工具
 
 构建产物位于 `build/libs/ability-0.1.0.jar`。
 
+## 客户端配置
+
+“跃斩”默认按住独立按键 `V` 蓄力，松开释放；按键可在 Minecraft 按键设置中修改。若希望改用空格，
+可将 `config/ability-client.toml` 中的 `controls.chargedLeapControlMode` 改为 `JUMP_KEY`。空格模式在
+创造模式下自动禁用，以免影响双击空格飞行；默认值 `DEDICATED_KEY` 不接管普通跳跃。
+
 ## 数据校验
 
 需要 Node.js 18 或更高版本：

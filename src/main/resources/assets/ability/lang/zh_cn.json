@@ -87,7 +87,7 @@
   "ability.ability.dodge": "闪避",
   "ability.ability.dodge.description": "按闪避键向当前移动方向翻滚，无方向输入时向后翻滚；翻滚期间降低受到的伤害。",
   "ability.ability.charged_leap": "跃斩",
-  "ability.ability.charged_leap.description": "普通跳跃保持原版操作；潜行并按住跳跃键显示蓄力条，松开后高高跃起；空中命中会以技能伤害取代普通攻击，并对目标周围除自身外的所有生物造成同等伤害与眩晕，同时抵消落地伤害。",
+  "ability.ability.charged_leap.description": "按住跃斩键蓄力，松开后高高跃起；也可在客户端配置中启用空格蓄力模式。空中命中会以技能伤害取代普通攻击，并对目标周围除自身外的所有生物造成同等伤害与眩晕，同时抵消落地伤害。",
   "ability.ability.primer": "底火",
   "ability.ability.primer.description": "副手持火焰弹时按住使用键蓄力；蓄力完成并松开后发射一枚爆炸伤害强化的火球。",
   "ability.ability.dangerous_charge": "危险装药",
@@ -136,5 +136,6 @@
   "ability.ability.cold_current.description": "用蓝冰强化雪傀儡；存活越久，依次获得攻击、生命、护甲与最终伤害强化。",
   "key.categories.ability": "Ability",
   "key.ability.dodge": "闪避翻滚",
+  "key.ability.charged_leap": "跃斩",
   "item.ability.copper_nugget": "铜粒"
 }

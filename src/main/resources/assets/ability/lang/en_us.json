@@ -87,7 +87,7 @@
   "ability.ability.dodge": "Dodge",
   "ability.ability.dodge.description": "Press the Dodge key to roll in the current movement direction, or backward without directional input, reducing incoming damage briefly.",
   "ability.ability.charged_leap": "Charged Leap",
-  "ability.ability.charged_leap.description": "Normal jumping remains unchanged; sneak and hold Jump to charge a high leap, then release it. An airborne hit replaces normal attack damage with skill damage and deals the same damage and stun to every nearby living entity except you, while negating landing damage.",
+  "ability.ability.charged_leap.description": "Hold the Charged Leap key and release it to leap high; an optional Jump-key mode is available in the client config. An airborne hit replaces normal attack damage with skill damage and deals the same damage and stun to every nearby living entity except you, while negating landing damage.",
   "ability.ability.primer": "Primer",
   "ability.ability.primer.description": "Hold Use with a fire charge in the offhand; release after charging to launch a fireball with increased explosion damage.",
   "ability.ability.dangerous_charge": "Dangerous Charge",
@@ -136,5 +136,6 @@
   "ability.ability.cold_current.description": "Strengthen a snow golem with blue ice; surviving progressively grants attack, health, armor, and final damage bonuses.",
   "key.categories.ability": "Ability",
   "key.ability.dodge": "Dodge Roll",
+  "key.ability.charged_leap": "Charged Leap",
   "item.ability.copper_nugget": "Copper Nugget"
 }
