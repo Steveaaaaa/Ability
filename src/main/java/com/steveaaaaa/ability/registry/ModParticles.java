@@ -16,6 +16,10 @@ public final class ModParticles {
             "associated_ore_sparkle",
             () -> new SimpleParticleType(false)
     );
+    public static final Supplier<SimpleParticleType> GRAVEL_PANNING_SPARK = PARTICLE_TYPES.register(
+            "gravel_panning_spark",
+            () -> new SimpleParticleType(false)
+    );
 
     private ModParticles() {
     }

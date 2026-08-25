@@ -1,0 +1,16 @@
+{
+  "cues": {
+    "ability:success": {
+      "particles": [
+        {
+          "type": "ability:gravel_panning_spark",
+          "anchor": "position",
+          "count": 7,
+          "spread": [0.16, 0.16, 0.16],
+          "velocity": [0.0, 0.015, 0.0],
+          "force": false
+        }
+      ]
+    }
+  }
+}

@@ -8,6 +8,8 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -43,7 +45,7 @@ public final class LootInjectionEffect {
     }
 
     public static void processBlock(BlockDropsEvent event, ServerPlayer player) {
-        process(player, Context.BLOCK_DROPS, (config, values, rank) -> {
+        process(player, Context.BLOCK_DROPS, (abilityId, config, values, rank) -> {
             if (!matchesBlock(event, config)) {
                 return;
             }
@@ -81,6 +83,16 @@ public final class LootInjectionEffect {
                 entity.setDefaultPickUpDelay();
                 event.getDrops().add(entity);
             });
+            if (!drops.isEmpty()) {
+                config.successCue().ifPresent(cueId -> emitSuccessCue(
+                        player,
+                        abilityId,
+                        cueId,
+                        event.getPos().getCenter(),
+                        rank,
+                        event.getLevel().getGameTime() ^ event.getPos().asLong()
+                ));
+            }
         });
     }
 
@@ -88,7 +100,7 @@ public final class LootInjectionEffect {
         if (!(event.getEntity().level() instanceof ServerLevel level)) {
             return;
         }
-        process(player, Context.ENTITY_DROPS, (config, values, rank) -> {
+        process(player, Context.ENTITY_DROPS, (abilityId, config, values, rank) -> {
             if (!matchesEntity(event, config)) {
                 return;
             }
@@ -108,6 +120,16 @@ public final class LootInjectionEffect {
                 entity.setDefaultPickUpDelay();
                 event.getDrops().add(entity);
             });
+            if (!drops.isEmpty()) {
+                config.successCue().ifPresent(cueId -> emitSuccessCue(
+                        player,
+                        abilityId,
+                        cueId,
+                        event.getEntity().position(),
+                        rank,
+                        level.getGameTime() ^ event.getEntity().getId()
+                ));
+            }
         });
     }
 
@@ -270,7 +292,7 @@ public final class LootInjectionEffect {
                                 "ranks.values[" + index + "]"
                         ));
                     }
-                    consumer.apply(config, resolve(merged), projected.rank());
+                    consumer.apply(abilityId, config, resolve(merged), projected.rank());
                 }
             } catch (RuntimeException exception) {
                 logInvalidOnce(abilityId, exception.getMessage());
@@ -349,6 +371,26 @@ public final class LootInjectionEffect {
         }
     }
 
+    private static void emitSuccessCue(
+            ServerPlayer player,
+            ResourceLocation abilityId,
+            ResourceLocation cueId,
+            net.minecraft.world.phys.Vec3 position,
+            int rank,
+            long seed
+    ) {
+        AbilityPresentationService.sendTracking(player, AbilityCue.pulse(
+                abilityId,
+                cueId,
+                player.getId(),
+                -1,
+                position,
+                net.minecraft.world.phys.Vec3.ZERO,
+                rank,
+                seed
+        ));
+    }
+
     private static <T> T parse(Codec<T> codec, Dynamic<?> input, String path) {
         StringBuilder error = new StringBuilder();
         Optional<T> parsed = codec.parse(input).resultOrPartial(message -> {
@@ -367,6 +409,7 @@ public final class LootInjectionEffect {
             List<ResourceLocation> toolTags,
             Optional<ResourceLocation> requiredDrop,
             boolean consumeRequiredDrop,
+            Optional<ResourceLocation> successCue,
             List<Entry> entries
     ) {
         private static final Codec<Config> RAW_CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -377,6 +420,7 @@ public final class LootInjectionEffect {
                 ResourceLocation.CODEC.listOf().optionalFieldOf("tool_tags", List.of()).forGetter(Config::toolTags),
                 ResourceLocation.CODEC.optionalFieldOf("required_drop").forGetter(Config::requiredDrop),
                 Codec.BOOL.optionalFieldOf("consume_required_drop", false).forGetter(Config::consumeRequiredDrop),
+                ResourceLocation.CODEC.optionalFieldOf("success_cue").forGetter(Config::successCue),
                 Entry.CODEC.listOf().fieldOf("entries").forGetter(Config::entries)
         ).apply(instance, Config::new));
         public static final Codec<Config> CODEC = RAW_CODEC.flatXmap(Config::validate, Config::validate);
@@ -448,6 +492,6 @@ public final class LootInjectionEffect {
 
     @FunctionalInterface
     private interface LootConsumer {
-        void apply(Config config, ResolvedRank values, int rank);
+        void apply(ResourceLocation abilityId, Config config, ResolvedRank values, int rank);
     }
 }

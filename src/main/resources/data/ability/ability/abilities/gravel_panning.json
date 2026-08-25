@@ -33,6 +33,7 @@
       "block_tags": ["ability:gravel_panning_blocks"],
       "required_drop": "minecraft:flint",
       "consume_required_drop": true,
+      "success_cue": "ability:success",
       "entries": [
         { "item": "ability:copper_nugget", "weight": 1, "minimum_rank": 1 },
         { "item": "minecraft:iron_nugget", "weight": 1, "minimum_rank": 2 },

@@ -118,6 +118,7 @@ class LootInjectionEffectTest {
                       "context": "block_drops",
                       "block_tags": ["minecraft:logs"],
                       "tool_tags": ["minecraft:axes"],
+                      "success_cue": "ability:success",
                       "entries": [
                         { "item": "minecraft:stick", "weight": 3 },
                         { "item": "minecraft:apple", "weight": 1 }
