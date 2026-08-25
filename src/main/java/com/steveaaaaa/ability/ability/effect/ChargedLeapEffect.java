@@ -8,6 +8,8 @@ import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.ability.ActiveAbilityActionService;
 import com.steveaaaaa.ability.ability.ActiveAbilityInput;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -85,6 +87,16 @@ public final class ChargedLeapEffect {
         LivingEntity impactTarget = event.getEntity();
         float damage = safeDamage(player.getAttributeValue(Attributes.ATTACK_DAMAGE) * state.damageMultiplier());
         player.fallDistance = 0.0F;
+        AbilityPresentationService.sendTracking(impactTarget, AbilityCue.pulse(
+                AbilityMod.id("charged_leap"),
+                AbilityMod.id("impact"),
+                player.getId(),
+                impactTarget.getId(),
+                impactTarget.position(),
+                net.minecraft.world.phys.Vec3.ZERO,
+                0,
+                level.getGameTime() ^ player.getUUID().getLeastSignificantBits() ^ impactTarget.getId()
+        ));
         CombatStatusTracker.stun(impactTarget, state.stunTicks());
         level.getEntitiesOfClass(
                 LivingEntity.class,

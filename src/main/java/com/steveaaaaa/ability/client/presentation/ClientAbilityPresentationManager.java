@@ -100,6 +100,8 @@ public final class ClientAbilityPresentationManager {
             return;
         }
 
+        ChargedLeapImpactRenderer.accept(level, cue);
+
         long gameTime = level.getGameTime();
         ActiveCue previous = ACTIVE.get(key);
         if (cue.action() != AbilityCue.Action.START || previous == null) {
