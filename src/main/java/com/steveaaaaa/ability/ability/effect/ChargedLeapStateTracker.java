@@ -57,6 +57,10 @@ public final class ChargedLeapStateTracker {
         return Optional.of(state);
     }
 
+    public static Optional<LeapState> peekActiveLeap(UUID player, long gameTime) {
+        return Optional.ofNullable(activeLeap(player, gameTime));
+    }
+
     public static boolean useDoubleJump(UUID player, long gameTime) {
         LeapState state = activeLeap(player, gameTime);
         if (state == null || !state.doubleJumpAvailable()) {

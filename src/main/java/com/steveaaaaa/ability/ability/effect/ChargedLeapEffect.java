@@ -69,6 +69,7 @@ public final class ChargedLeapEffect {
     public static void processImpact(LivingDamageEvent.Post event) {
         if (event.getNewDamage() <= 0.0F
                 || !(event.getSource().getEntity() instanceof ServerPlayer player)
+                || event.getSource().getDirectEntity() != player
                 || player.onGround()
                 || !(player.level() instanceof ServerLevel level)) {
             return;
@@ -84,21 +85,46 @@ public final class ChargedLeapEffect {
         LivingEntity impactTarget = event.getEntity();
         float damage = safeDamage(player.getAttributeValue(Attributes.ATTACK_DAMAGE) * state.damageMultiplier());
         player.fallDistance = 0.0F;
+        CombatStatusTracker.stun(impactTarget, state.stunTicks());
         level.getEntitiesOfClass(
                 LivingEntity.class,
                 impactTarget.getBoundingBox().inflate(state.impactRadius()),
                 target -> target.isAlive()
+                        && target != player
+                        && target != impactTarget
                         && target.distanceToSqr(impactTarget) <= state.impactRadius() * state.impactRadius()
-                        && canHarm(player, target)
         ).forEach(target -> {
-            if (target == impactTarget) {
-                target.invulnerableTime = 0;
-            }
-            if (target.hurt(player.damageSources().playerAttack(player), damage)
-                    || target == impactTarget) {
+            target.invulnerableTime = 0;
+            if (target.hurt(player.damageSources().playerAttack(player), damage)) {
                 CombatStatusTracker.stun(target, state.stunTicks());
             }
         });
+    }
+
+    public static void replaceImpactDamage(LivingIncomingDamageEvent event) {
+        if (!isImpactAttack(event)) {
+            return;
+        }
+        ServerPlayer player = (ServerPlayer) event.getSource().getEntity();
+        ChargedLeapStateTracker.LeapState state = ChargedLeapStateTracker.peekActiveLeap(
+                player.getUUID(),
+                player.level().getGameTime()
+        ).orElse(null);
+        if (state != null) {
+            event.setAmount(safeDamage(
+                    player.getAttributeValue(Attributes.ATTACK_DAMAGE) * state.damageMultiplier()
+            ));
+        }
+    }
+
+    public static boolean isImpactAttack(LivingIncomingDamageEvent event) {
+        return event.getSource().getEntity() instanceof ServerPlayer player
+                && event.getSource().getDirectEntity() == player
+                && !player.onGround()
+                && ChargedLeapStateTracker.peekActiveLeap(
+                        player.getUUID(),
+                        player.level().getGameTime()
+                ).isPresent();
     }
 
     public static void preventFallDamage(LivingIncomingDamageEvent event) {
@@ -119,10 +145,6 @@ public final class ChargedLeapEffect {
         double progress = Math.clamp((double) chargeTicks / config.maximumChargeTicks(), 0.0D, 1.0D);
         return config.minimumVerticalSpeed()
                 + (config.maximumVerticalSpeed() - config.minimumVerticalSpeed()) * progress;
-    }
-
-    static boolean canHarm(ServerPlayer player, LivingEntity target) {
-        return AbilityTargeting.canHarm(player, target);
     }
 
     static RankValues merge(RankValues earlier, RankValues later) {

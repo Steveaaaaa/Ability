@@ -137,6 +137,7 @@ public final class AbilityEffectEventHandler {
         if (EnchantedEdgeEffect.isApplyingConvertedDamage()) return;
         StealthEffect.modifyOutgoingDamage(event);
         WeakPointEffect.process(event);
+        ChargedLeapEffect.replaceImpactDamage(event);
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)

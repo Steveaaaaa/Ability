@@ -35,6 +35,7 @@ public final class EnchantedEdgeEffect {
     public static void modifyDamage(LivingIncomingDamageEvent event) {
         if (APPLYING.get() || !(event.getSource().getEntity() instanceof ServerPlayer player)
                 || event.getSource().getDirectEntity() != player) return;
+        if (ChargedLeapEffect.isImpactAttack(event)) return;
         double fraction = activeFraction(player);
         if (fraction <= 0.0D) return;
         float original = event.getAmount();
