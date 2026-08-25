@@ -87,7 +87,7 @@
   "ability.ability.dodge": "Dodge",
   "ability.ability.dodge.description": "Press the Dodge key to roll in the current movement direction, or backward without directional input, reducing incoming damage briefly.",
   "ability.ability.charged_leap": "Charged Leap",
-  "ability.ability.charged_leap.description": "Tap Jump for a normal jump, or hold it to charge and release a high leap; an airborne hit damages and stuns nearby enemies and negates landing damage.",
+  "ability.ability.charged_leap.description": "Normal jumping remains unchanged; sneak and hold Jump to charge a high leap, then release it to damage and stun nearby enemies on an airborne hit and negate landing damage.",
   "ability.ability.primer": "Primer",
   "ability.ability.primer.description": "Hold Use with a fire charge in the offhand; release after charging to launch a fireball with increased explosion damage.",
   "ability.ability.dangerous_charge": "Dangerous Charge",

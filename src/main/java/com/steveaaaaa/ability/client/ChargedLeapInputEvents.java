@@ -19,10 +19,11 @@ import net.neoforged.neoforge.network.PacketDistributor;
 public final class ChargedLeapInputEvents {
     private static final ResourceLocation CHARGED_LEAP = AbilityMod.id("charged_leap");
     static final int MAXIMUM_CHARGE_TICKS = 20;
-    static final int CHARGE_ACTIVATION_TICKS = 3;
     private static boolean physicalJumpDown;
     private static boolean charging;
     private static int chargeTicks;
+    private static boolean leapPrimed;
+    private static boolean leapWasAirborne;
 
     private ChargedLeapInputEvents() {
     }
@@ -40,11 +41,25 @@ public final class ChargedLeapInputEvents {
             minecraft.options.keyJump.setDown(false);
             chargeTicks = Math.min(chargeTicks + 1, MAXIMUM_CHARGE_TICKS);
         }
+        if (leapPrimed) {
+            if (!minecraft.player.onGround()) {
+                leapWasAirborne = true;
+            } else if (leapWasAirborne) {
+                leapPrimed = false;
+                leapWasAirborne = false;
+            }
+        }
     }
 
     @SubscribeEvent
     public static void onKey(InputEvent.Key event) {
         Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.options.keyShift.matches(event.getKey(), event.getScanCode())
+                && event.getAction() == InputConstants.RELEASE
+                && charging) {
+            cancelCharge(minecraft);
+            return;
+        }
         if (!minecraft.options.keyJump.matches(event.getKey(), event.getScanCode())) {
             return;
         }
@@ -53,12 +68,16 @@ public final class ChargedLeapInputEvents {
             if (!canUse(minecraft)) {
                 return;
             }
-            if (minecraft.player.onGround() && canChargeFromCurrentState(minecraft)) {
+            if (minecraft.options.keyShift.isDown()
+                    && minecraft.player.onGround()
+                    && canChargeFromCurrentState(minecraft)) {
                 minecraft.options.keyJump.setDown(false);
                 charging = true;
                 chargeTicks = 0;
                 send(ActiveAbilityInput.CHARGE_START);
-            } else if (!minecraft.player.onGround()) {
+            } else if (leapPrimed && !minecraft.player.onGround()) {
+                minecraft.options.keyJump.setDown(false);
+                leapPrimed = false;
                 send(ActiveAbilityInput.SECONDARY);
             }
         } else if (event.getAction() == InputConstants.REPEAT) {
@@ -70,12 +89,10 @@ public final class ChargedLeapInputEvents {
             if (!charging) {
                 return;
             }
-            boolean normalJump = chargeTicks < CHARGE_ACTIVATION_TICKS;
             charging = false;
             chargeTicks = 0;
-            if (normalJump && minecraft.player != null && minecraft.player.onGround()) {
-                minecraft.player.jumpFromGround();
-            }
+            leapPrimed = true;
+            leapWasAirborne = false;
             send(ActiveAbilityInput.CHARGE_RELEASE);
         }
     }
@@ -118,6 +135,15 @@ public final class ChargedLeapInputEvents {
         physicalJumpDown = false;
         charging = false;
         chargeTicks = 0;
+        leapPrimed = false;
+        leapWasAirborne = false;
+    }
+
+    private static void cancelCharge(Minecraft minecraft) {
+        charging = false;
+        chargeTicks = 0;
+        send(ActiveAbilityInput.CHARGE_CANCEL);
+        minecraft.options.keyJump.setDown(physicalJumpDown);
     }
 
     private static void send(ActiveAbilityInput input) {

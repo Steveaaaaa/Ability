@@ -211,14 +211,6 @@ public final class ChargedLeapEffect {
         if (chargeTicks.isEmpty()) {
             return ActiveAbilityActionService.ActivationResult.INVALID_STATE;
         }
-        if (chargeTicks.getAsLong() < config.chargeActivationTicks()) {
-            if (!player.onGround()) {
-                return ActiveAbilityActionService.ActivationResult.INVALID_STATE;
-            }
-            player.jumpFromGround();
-            player.hurtMarked = true;
-            return ActiveAbilityActionService.ActivationResult.SUCCESS;
-        }
         if (!player.onGround()) {
             return ActiveAbilityActionService.ActivationResult.INVALID_STATE;
         }
@@ -292,7 +284,6 @@ public final class ChargedLeapEffect {
             int maximumChargeTicks,
             double minimumVerticalSpeed,
             double maximumVerticalSpeed,
-            int chargeActivationTicks,
             int leapTimeoutTicks,
             int doubleJumpUnlockRank,
             double doubleJumpVerticalSpeed
@@ -306,8 +297,6 @@ public final class ChargedLeapEffect {
                         .forGetter(Config::minimumVerticalSpeed),
                 Codec.doubleRange(0.0D, 4.0D).optionalFieldOf("maximum_vertical_speed", 0.74D)
                         .forGetter(Config::maximumVerticalSpeed),
-                Codec.intRange(1, 20).optionalFieldOf("charge_activation_ticks", 3)
-                        .forGetter(Config::chargeActivationTicks),
                 Codec.intRange(1, 1200).optionalFieldOf("leap_timeout_ticks", 100)
                         .forGetter(Config::leapTimeoutTicks),
                 Codec.intRange(1, 100).optionalFieldOf("double_jump_unlock_rank", 6)
@@ -320,11 +309,6 @@ public final class ChargedLeapEffect {
             if (maximumVerticalSpeed < minimumVerticalSpeed) {
                 throw new IllegalArgumentException(
                         "maximum_vertical_speed must be at least minimum_vertical_speed"
-                );
-            }
-            if (chargeActivationTicks > maximumChargeTicks) {
-                throw new IllegalArgumentException(
-                        "charge_activation_ticks must not exceed maximum_charge_ticks"
                 );
             }
         }
