@@ -14,6 +14,8 @@
   "command.ability.validate.truncated": "另有 %s 个错误未显示",
   "command.ability.presentation_preview": "已预览表现提示 %1$s / %2$s",
   "gui.ability.title": "能力",
+  "gui.ability.skills_heading": "技能分类",
+  "gui.ability.ui_hint": "选择分类与能力以查看详情 · 使用滚轮浏览",
   "gui.ability.tab": "打开能力界面",
   "gui.ability.tab.short": "A",
   "gui.ability.world_traveler.tab": "打开环球旅行者物品路由",

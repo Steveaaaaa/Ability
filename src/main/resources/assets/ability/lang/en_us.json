@@ -14,6 +14,8 @@
   "command.ability.validate.truncated": "%s additional error(s) not shown",
   "command.ability.presentation_preview": "Previewed presentation cue %1$s / %2$s",
   "gui.ability.title": "Abilities",
+  "gui.ability.skills_heading": "SKILL CATEGORIES",
+  "gui.ability.ui_hint": "Select a category and ability for details · Scroll to browse",
   "gui.ability.tab": "Open the Ability screen",
   "gui.ability.tab.short": "A",
   "gui.ability.world_traveler.tab": "Open World Traveler item routing",
