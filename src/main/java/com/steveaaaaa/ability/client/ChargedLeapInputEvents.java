@@ -12,8 +12,8 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.lwjgl.glfw.GLFW;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class ChargedLeapInputEvents {
@@ -29,7 +29,7 @@ public final class ChargedLeapInputEvents {
     }
 
     @SubscribeEvent
-    public static void onClientTick(ClientTickEvent.Post event) {
+    public static void onClientTick(ClientTickEvent.Pre event) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null
                 || minecraft.screen != null
@@ -37,10 +37,38 @@ public final class ChargedLeapInputEvents {
             reset(true);
             return;
         }
-        if (charging && physicalJumpDown) {
+
+        boolean jumpDown = isPhysicallyDown(minecraft, minecraft.options.keyJump.getKey());
+        boolean sneakDown = minecraft.options.keyShift.isDown()
+                || isPhysicallyDown(minecraft, minecraft.options.keyShift.getKey());
+        boolean jumpPressed = jumpDown && !physicalJumpDown;
+
+        if (charging) {
             minecraft.options.keyJump.setDown(false);
-            chargeTicks = Math.min(chargeTicks + 1, MAXIMUM_CHARGE_TICKS);
+            if (!sneakDown) {
+                cancelCharge(minecraft, jumpDown);
+            } else if (!jumpDown) {
+                charging = false;
+                chargeTicks = 0;
+                leapPrimed = true;
+                leapWasAirborne = false;
+                send(ActiveAbilityInput.CHARGE_RELEASE);
+            } else {
+                chargeTicks = Math.min(chargeTicks + 1, MAXIMUM_CHARGE_TICKS);
+            }
+        } else if (jumpPressed && minecraft.player.onGround() && sneakDown
+                && canChargeFromCurrentState(minecraft)) {
+            minecraft.options.keyJump.setDown(false);
+            charging = true;
+            chargeTicks = 0;
+            send(ActiveAbilityInput.CHARGE_START);
+        } else if (jumpPressed && leapPrimed && !minecraft.player.onGround()) {
+            minecraft.options.keyJump.setDown(false);
+            leapPrimed = false;
+            send(ActiveAbilityInput.SECONDARY);
         }
+
+        physicalJumpDown = jumpDown;
         if (leapPrimed) {
             if (!minecraft.player.onGround()) {
                 leapWasAirborne = true;
@@ -48,52 +76,6 @@ public final class ChargedLeapInputEvents {
                 leapPrimed = false;
                 leapWasAirborne = false;
             }
-        }
-    }
-
-    @SubscribeEvent
-    public static void onKey(InputEvent.Key event) {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.options.keyShift.matches(event.getKey(), event.getScanCode())
-                && event.getAction() == InputConstants.RELEASE
-                && charging) {
-            cancelCharge(minecraft);
-            return;
-        }
-        if (!minecraft.options.keyJump.matches(event.getKey(), event.getScanCode())) {
-            return;
-        }
-        if (event.getAction() == InputConstants.PRESS) {
-            physicalJumpDown = true;
-            if (!canUse(minecraft)) {
-                return;
-            }
-            if (minecraft.options.keyShift.isDown()
-                    && minecraft.player.onGround()
-                    && canChargeFromCurrentState(minecraft)) {
-                minecraft.options.keyJump.setDown(false);
-                charging = true;
-                chargeTicks = 0;
-                send(ActiveAbilityInput.CHARGE_START);
-            } else if (leapPrimed && !minecraft.player.onGround()) {
-                minecraft.options.keyJump.setDown(false);
-                leapPrimed = false;
-                send(ActiveAbilityInput.SECONDARY);
-            }
-        } else if (event.getAction() == InputConstants.REPEAT) {
-            if (charging) {
-                minecraft.options.keyJump.setDown(false);
-            }
-        } else if (event.getAction() == InputConstants.RELEASE) {
-            physicalJumpDown = false;
-            if (!charging) {
-                return;
-            }
-            charging = false;
-            chargeTicks = 0;
-            leapPrimed = true;
-            leapWasAirborne = false;
-            send(ActiveAbilityInput.CHARGE_RELEASE);
         }
     }
 
@@ -111,12 +93,6 @@ public final class ChargedLeapInputEvents {
             return 0.0F;
         }
         return Math.clamp((chargeTicks + Math.clamp(partialTick, 0.0F, 1.0F)) / MAXIMUM_CHARGE_TICKS, 0.0F, 1.0F);
-    }
-
-    private static boolean canUse(Minecraft minecraft) {
-        return minecraft.player != null
-                && minecraft.screen == null
-                && ClientProgressCache.snapshot().purchasedAbilities().contains(CHARGED_LEAP);
     }
 
     private static boolean canChargeFromCurrentState(Minecraft minecraft) {
@@ -139,11 +115,22 @@ public final class ChargedLeapInputEvents {
         leapWasAirborne = false;
     }
 
-    private static void cancelCharge(Minecraft minecraft) {
+    private static void cancelCharge(Minecraft minecraft, boolean jumpDown) {
         charging = false;
         chargeTicks = 0;
         send(ActiveAbilityInput.CHARGE_CANCEL);
-        minecraft.options.keyJump.setDown(physicalJumpDown);
+        minecraft.options.keyJump.setDown(jumpDown);
+    }
+
+    private static boolean isPhysicallyDown(Minecraft minecraft, InputConstants.Key key) {
+        long window = minecraft.getWindow().getWindow();
+        if (key.getType() == InputConstants.Type.MOUSE) {
+            return GLFW.glfwGetMouseButton(window, key.getValue()) == GLFW.GLFW_PRESS;
+        }
+        if (key.getType() == InputConstants.Type.KEYSYM) {
+            return InputConstants.isKeyDown(window, key.getValue());
+        }
+        return false;
     }
 
     private static void send(ActiveAbilityInput input) {
