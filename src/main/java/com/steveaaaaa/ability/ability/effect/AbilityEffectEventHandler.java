@@ -170,6 +170,7 @@ public final class AbilityEffectEventHandler {
     @SubscribeEvent
     public static void onFinalDamage(LivingDamageEvent.Post event) {
         AttributeModifierEffect.processFinalDamage(event);
+        DamageModifierEffect.processFinalDamage(event);
         DamageResponseEffect.process(event);
         CounterSniperEffect.processFinalDamage(event);
         StealthEffect.processFinalDamage(event);

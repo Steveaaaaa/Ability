@@ -8,6 +8,8 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -29,6 +31,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 public final class DamageModifierEffect {
@@ -37,22 +41,55 @@ public final class DamageModifierEffect {
     private static final Set<String> OUTGOING_KEYS = Set.of("damage_multiplier", "flat_damage");
     private static final Set<String> INCOMING_KEYS = Set.of("damage_multiplier", "flat_reduction");
     private static final Set<String> LOGGED_INVALID_DEFINITIONS = ConcurrentHashMap.newKeySet();
+    private static final ThreadLocal<PendingHit> PENDING_HIT = new ThreadLocal<>();
 
     private DamageModifierEffect() {
     }
 
     public static void process(LivingIncomingDamageEvent event) {
+        PENDING_HIT.remove();
         float damage = event.getAmount();
         DamageSource source = event.getSource();
         if (source.getEntity() instanceof ServerPlayer attacker) {
             Adjustment outgoing = collect(attacker, event.getEntity(), source, DAMAGE_MODIFIER);
             damage = applyOutgoing(damage, outgoing.multiplier(), outgoing.flatAmount());
+            if (!outgoing.cues().isEmpty()) {
+                PENDING_HIT.set(new PendingHit(attacker, event.getEntity(), outgoing.cues()));
+            }
         }
         if (event.getEntity() instanceof ServerPlayer victim) {
             Adjustment incoming = collect(victim, victim, source, DAMAGE_REDUCTION);
             damage = applyIncoming(damage, incoming.multiplier(), incoming.flatAmount());
         }
         event.setAmount(damage);
+    }
+
+    public static void processFinalDamage(LivingDamageEvent.Post event) {
+        if (EnchantedEdgeEffect.isApplyingConvertedDamage()) {
+            return;
+        }
+        PendingHit pending = PENDING_HIT.get();
+        PENDING_HIT.remove();
+        if (pending == null
+                || event.getNewDamage() <= 0.0F
+                || event.getEntity() != pending.target()
+                || event.getSource().getEntity() != pending.attacker()) {
+            return;
+        }
+        Vec3 targetCenter = pending.target().getBoundingBox().getCenter();
+        Vec3 direction = targetCenter.subtract(pending.attacker().getEyePosition());
+        for (PresentationCue cue : pending.cues()) {
+            AbilityPresentationService.sendTracking(pending.target(), AbilityCue.pulse(
+                    cue.abilityId(),
+                    cue.cueId(),
+                    pending.attacker().getId(),
+                    pending.target().getId(),
+                    targetCenter,
+                    direction,
+                    cue.rank(),
+                    pending.attacker().level().getGameTime() ^ pending.target().getId()
+            ));
+        }
     }
 
     static float applyOutgoing(float damage, double multiplier, double flatDamage) {
@@ -71,10 +108,15 @@ public final class DamageModifierEffect {
 
     static List<String> validateDefinition(AbilityDefinition definition) {
         ArrayList<String> errors = new ArrayList<>();
+        Config config;
         try {
-            parse(Config.CODEC, definition.effect().config(), "effect.config");
+            config = parse(Config.CODEC, definition.effect().config(), "effect.config");
         } catch (IllegalArgumentException exception) {
             errors.add(exception.getMessage());
+            return List.copyOf(errors);
+        }
+        if (definition.effect().type().equals(DAMAGE_REDUCTION) && config.successCue().isPresent()) {
+            errors.add("effect.config.success_cue: only outgoing damage modifiers can emit success cues");
         }
 
         Set<String> allowedKeys = definition.effect().type().equals(DAMAGE_MODIFIER)
@@ -114,6 +156,7 @@ public final class DamageModifierEffect {
     ) {
         double multiplier = 1.0D;
         double flatAmount = 0.0D;
+        ArrayList<PresentationCue> cues = new ArrayList<>();
         Registry<AbilityDefinition> abilities = owner.registryAccess().registryOrThrow(ModDataRegistries.ABILITIES);
         List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> sorted = abilities.entrySet().stream()
                 .sorted(Comparator.comparing(entry -> entry.getKey().location()))
@@ -152,12 +195,19 @@ public final class DamageModifierEffect {
                     }
                     multiplier *= abilityMultiplier;
                     flatAmount += abilityFlatAmount;
+                    if (effectType.equals(DAMAGE_MODIFIER)) {
+                        config.successCue().ifPresent(cueId -> cues.add(new PresentationCue(
+                                abilityId,
+                                cueId,
+                                projected.rank()
+                        )));
+                    }
                 }
             } catch (RuntimeException exception) {
                 logInvalidOnce(abilityId, exception.getMessage());
             }
         }
-        return new Adjustment(multiplier, flatAmount);
+        return new Adjustment(multiplier, flatAmount, List.copyOf(cues));
     }
 
     private static RankValues mergeRanks(AbilityService.ActiveAbility active) {
@@ -267,7 +317,8 @@ public final class DamageModifierEffect {
             List<ResourceLocation> targetEntityTypeTags,
             Directness directness,
             TargetState targetState,
-            double minimumTargetHealthRatio
+            double minimumTargetHealthRatio,
+            Optional<ResourceLocation> successCue
     ) {
         public static final Codec<Config> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 ResourceLocation.CODEC.listOf().optionalFieldOf("damage_type_tags", List.of())
@@ -279,7 +330,8 @@ public final class DamageModifierEffect {
                 Directness.CODEC.optionalFieldOf("directness", Directness.ANY).forGetter(Config::directness),
                 TargetState.CODEC.optionalFieldOf("target_state", TargetState.ANY).forGetter(Config::targetState),
                 Codec.doubleRange(0.0D, 1.0D).optionalFieldOf("minimum_target_health_ratio", 0.0D)
-                        .forGetter(Config::minimumTargetHealthRatio)
+                        .forGetter(Config::minimumTargetHealthRatio),
+                ResourceLocation.CODEC.optionalFieldOf("success_cue").forGetter(Config::successCue)
         ).apply(instance, Config::new));
 
         public Config {
@@ -333,6 +385,12 @@ public final class DamageModifierEffect {
         }
     }
 
-    private record Adjustment(double multiplier, double flatAmount) {
+    private record Adjustment(double multiplier, double flatAmount, List<PresentationCue> cues) {
+    }
+
+    private record PresentationCue(ResourceLocation abilityId, ResourceLocation cueId, int rank) {
+    }
+
+    private record PendingHit(ServerPlayer attacker, LivingEntity target, List<PresentationCue> cues) {
     }
 }

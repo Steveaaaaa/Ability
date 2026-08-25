@@ -32,7 +32,8 @@
     "type": "ability:damage_modifier",
     "config": {
       "target_state": "mob_without_target",
-      "directness": "any"
+      "directness": "any",
+      "success_cue": "ability:success"
     }
   }
 }

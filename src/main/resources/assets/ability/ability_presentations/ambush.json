@@ -1,0 +1,16 @@
+{
+  "cues": {
+    "ability:success": {
+      "particles": [
+        {
+          "type": "ability:ambush_blood_splash",
+          "anchor": "target",
+          "count": 13,
+          "spread": [0.16, 0.28, 0.16],
+          "direction_speed": 0.11,
+          "force": false
+        }
+      ]
+    }
+  }
+}

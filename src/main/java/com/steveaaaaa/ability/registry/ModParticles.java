@@ -20,6 +20,10 @@ public final class ModParticles {
             "gravel_panning_spark",
             () -> new SimpleParticleType(false)
     );
+    public static final Supplier<SimpleParticleType> AMBUSH_BLOOD_SPLASH = PARTICLE_TYPES.register(
+            "ambush_blood_splash",
+            () -> new SimpleParticleType(false)
+    );
 
     private ModParticles() {
     }

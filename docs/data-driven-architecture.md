@@ -164,6 +164,8 @@
 
 伤害效果在护甲、附魔和药水减伤前的 `LivingIncomingDamageEvent` 阶段执行，因此修改后的伤害仍会
 正常参与原版防御结算。高阶参数与属性效果一样支持稀疏覆盖。
+攻击侧伤害效果可配置 `success_cue`。运行时在入站阶段保存已经匹配的提示，但只在最终生命伤害大于零时
+广播，避免完全格挡也播放成功表现。内置“攻其不备”据此在未警觉目标的命中位置生成暗红色血液飞溅。
 
 通用战利品效果 `ability:loot_injection` 支持 `block_drops` 与 `entity_drops` 两种上下文。方块上下文
 可用 `block_tags` 和 `tool_tags` 筛选，实体上下文可用 `entity_type_tags` 筛选；这些列表内部均为
