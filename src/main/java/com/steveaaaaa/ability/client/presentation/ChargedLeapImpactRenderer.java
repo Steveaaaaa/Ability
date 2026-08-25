@@ -4,17 +4,22 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.presentation.AbilityCue;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -23,6 +28,8 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.client.RenderTypeHelper;
+import net.neoforged.neoforge.client.model.data.ModelData;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class ChargedLeapImpactRenderer {
@@ -85,7 +92,7 @@ public final class ChargedLeapImpactRenderer {
 
     @SubscribeEvent
     public static void render(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || IMPACTS.isEmpty()) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES || IMPACTS.isEmpty()) {
             return;
         }
         Minecraft minecraft = Minecraft.getInstance();
@@ -98,7 +105,8 @@ public final class ChargedLeapImpactRenderer {
         Vec3 cameraPosition = camera.getPosition();
         PoseStack poseStack = event.getPoseStack();
         MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
-        boolean rendered = false;
+        BlockRenderDispatcher dispatcher = minecraft.getBlockRenderer();
+        Set<RenderType> usedRenderTypes = new HashSet<>();
         for (Impact impact : IMPACTS) {
             double age = level.getGameTime() - impact.startedAt() + partialTick;
             for (SurfaceBlock surface : impact.blocks()) {
@@ -107,25 +115,55 @@ public final class ChargedLeapImpactRenderer {
                     continue;
                 }
                 BlockPos pos = surface.position();
+                if (level.getBlockState(pos) != surface.state()) {
+                    continue;
+                }
                 poseStack.pushPose();
                 poseStack.translate(
                         pos.getX() - cameraPosition.x,
                         pos.getY() - cameraPosition.y + lift,
                         pos.getZ() - cameraPosition.z
                 );
-                minecraft.getBlockRenderer().renderSingleBlock(
-                        surface.state(),
-                        poseStack,
-                        buffers,
-                        LevelRenderer.getLightColor(level, pos),
-                        OverlayTexture.NO_OVERLAY
-                );
+                renderWorldBlock(dispatcher, level, surface.state(), pos, poseStack, buffers, usedRenderTypes);
                 poseStack.popPose();
-                rendered = true;
             }
         }
-        if (rendered) {
-            buffers.endBatch();
+        usedRenderTypes.forEach(buffers::endBatch);
+    }
+
+    private static void renderWorldBlock(
+            BlockRenderDispatcher dispatcher,
+            ClientLevel level,
+            BlockState state,
+            BlockPos pos,
+            PoseStack poseStack,
+            MultiBufferSource.BufferSource buffers,
+            Set<RenderType> usedRenderTypes
+    ) {
+        BakedModel model = dispatcher.getBlockModel(state);
+        ModelData modelData = model.getModelData(level, pos, state, ModelData.EMPTY);
+        long seed = state.getSeed(pos);
+        for (RenderType sourceRenderType : model.getRenderTypes(
+                state,
+                RandomSource.create(seed),
+                modelData
+        )) {
+            RenderType movingRenderType = RenderTypeHelper.getMovingBlockRenderType(sourceRenderType);
+            dispatcher.getModelRenderer().tesselateBlock(
+                    level,
+                    model,
+                    state,
+                    pos,
+                    poseStack,
+                    buffers.getBuffer(movingRenderType),
+                    false,
+                    RandomSource.create(seed),
+                    seed,
+                    OverlayTexture.NO_OVERLAY,
+                    modelData,
+                    sourceRenderType
+            );
+            usedRenderTypes.add(movingRenderType);
         }
     }
 
