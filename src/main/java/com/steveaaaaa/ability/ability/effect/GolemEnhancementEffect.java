@@ -304,8 +304,6 @@ public final class GolemEnhancementEffect {
         double y = golem.getY() + 1.25D + direction.y * 0.55D;
         double z = golem.getZ() + direction.z * 0.72D;
         level.sendParticles(obsidian, x, y, z, 24, 0.38D, 0.55D, 0.38D, 0.13D);
-        level.sendParticles(ParticleTypes.HAPPY_VILLAGER, golem.getX(), golem.getY() + 0.65D, golem.getZ(), 6,
-                0.35D, 0.35D, 0.35D, 0.03D);
         level.playSound(null, golem.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.NEUTRAL, 0.9F, 0.7F);
     }
     private static ServerPlayer owner(LivingEntity entity, CompoundTag state) {
