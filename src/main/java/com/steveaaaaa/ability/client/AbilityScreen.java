@@ -461,6 +461,7 @@ public final class AbilityScreen extends Screen {
     }
 
     private void renderAbilityGridBackground(GuiGraphics graphics) {
+        renderGoldenDust(graphics);
         List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> abilities = abilitiesForSelectedSkill();
         if (abilities.isEmpty()) {
             graphics.drawCenteredString(font, Component.translatable("gui.ability.no_abilities"),
@@ -474,6 +475,27 @@ public final class AbilityScreen extends Screen {
             Component position = Component.translatable("gui.ability.page", currentPage, totalPages);
             graphics.drawCenteredString(font, position, centerX + centerWidth / 2,
                     contentBottom - 16, TEXT_MUTED);
+        }
+    }
+
+    private void renderGoldenDust(GuiGraphics graphics) {
+        int left = centerX + 9;
+        int top = contentTop + 55;
+        int dustWidth = centerWidth - 18;
+        int dustHeight = contentBottom - top - 25;
+        if (dustWidth <= 0 || dustHeight <= 0) {
+            return;
+        }
+        for (int index = 0; index < 9; index++) {
+            int x = left + Math.floorMod(index * 47 + animationTicks / 12, dustWidth);
+            int y = top + Math.floorMod(index * 31 - animationTicks / 4, dustHeight);
+            int phase = Math.floorMod(animationTicks + index * 13, 48);
+            int color = phase < 8 ? 0x997B5C31 : phase < 20 ? 0x665B4529 : 0x3D4C3B26;
+            graphics.fill(x, y, x + 1, y + 1, color);
+            if (phase < 3) {
+                graphics.fill(x - 1, y, x + 2, y + 1, 0x66785A30);
+                graphics.fill(x, y - 1, x + 1, y + 2, 0x66785A30);
+            }
         }
     }
 
@@ -688,6 +710,36 @@ public final class AbilityScreen extends Screen {
     private int animatedGold() {
         float pulse = (float) ((Math.sin(animationTicks * 0.18D) + 1.0D) * 0.5D);
         return mixColor(BORDER_GOLD, BORDER_BRIGHT, 0.35F + pulse * 0.65F);
+    }
+
+    private void renderUnlockedSparkle(
+            GuiGraphics graphics,
+            ResourceLocation abilityId,
+            int centerX,
+            int centerY,
+            int size
+    ) {
+        int cycle = Math.floorMod(animationTicks + abilityId.hashCode(), 80);
+        if (cycle >= 12) {
+            return;
+        }
+        int extent = Math.round(size * 0.46F);
+        int point = cycle / 3;
+        int sparkleX = switch (point) {
+            case 0 -> centerX;
+            case 1 -> centerX + extent;
+            case 2 -> centerX;
+            default -> centerX - extent;
+        };
+        int sparkleY = switch (point) {
+            case 0 -> centerY - extent;
+            case 1 -> centerY;
+            case 2 -> centerY + extent;
+            default -> centerY;
+        };
+        float intensity = 1.0F - Math.abs((cycle % 3) - 1) * 0.28F;
+        pixelDiamond(graphics, sparkleX, sparkleY, 1,
+                mixColor(BORDER_GOLD, 0xFFFFEDB0, intensity));
     }
 
     private static int mixColor(int from, int to, float amount) {
@@ -970,6 +1022,8 @@ public final class AbilityScreen extends Screen {
                     iconX, iconY, DIAMOND_ICON_SIZE, true);
             if (purchasedRank <= 0) {
                 renderDiamondShade(graphics, iconX, iconY, DIAMOND_ICON_SIZE - 4, 0x55101010);
+            } else {
+                renderUnlockedSparkle(graphics, abilityId, iconX, iconY, DIAMOND_ICON_SIZE);
             }
             if (selected) {
                 renderDiamondSelection(graphics, iconX, iconY, DIAMOND_ICON_SIZE, animatedGold());
