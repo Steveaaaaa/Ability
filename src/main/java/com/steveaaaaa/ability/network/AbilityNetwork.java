@@ -10,7 +10,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class AbilityNetwork {
-    private static final String NETWORK_VERSION = "7";
+    private static final String NETWORK_VERSION = "8";
 
     private AbilityNetwork() {
     }
@@ -36,6 +36,11 @@ public final class AbilityNetwork {
                 ClientboundColdCurrentPayload.TYPE,
                 ClientboundColdCurrentPayload.STREAM_CODEC,
                 (payload, context) -> ClientColdCurrentQueue.accept(payload)
+        );
+        registrar.playToClient(
+                ClientboundCrushingBlowPayload.TYPE,
+                ClientboundCrushingBlowPayload.STREAM_CODEC,
+                (payload, context) -> ClientCrushingBlowQueue.accept(payload)
         );
         registrar.playToClient(
                 ClientboundProgressPayload.TYPE,

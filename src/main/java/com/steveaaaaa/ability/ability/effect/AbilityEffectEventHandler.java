@@ -254,6 +254,7 @@ public final class AbilityEffectEventHandler {
         if (event.getEntity() instanceof ServerPlayer player) {
             GolemEnhancementEffect.syncObsidianStateTo(player, event.getTarget());
             GolemEnhancementEffect.syncColdStateTo(player, event.getTarget());
+            GolemEnhancementEffect.syncCrushingStateTo(player, event.getTarget());
         }
     }
 

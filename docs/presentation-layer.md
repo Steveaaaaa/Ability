@@ -113,3 +113,8 @@ PULSE 立即播放一次。START 会立即播放，并在有效持续时间内�
 `assets/ability/textures/particle/cold_current_crystal.png` 和
 `assets/ability/textures/particle/cold_current_snowflake.png`，最终阶段的冰雪王冠位于
 `assets/ability/textures/particle/cold_current_crown.png`。强化后立即替换皮肤；第二阶段显示肩部冰晶，第三阶段出现贴地雪花环，第四阶段使冰晶变亮并在头顶生成轻微悬浮的冰雪王冠，同时为雪球增加冰屑尾迹和命中爆散。每个阶段提升时会播放一次短促的雪花爆发和递增音调，强化者看向雪傀儡时可查看计时和阶段。
+
+“压碎”使用锻铁铁傀儡皮肤
+`assets/ability/textures/entity/iron_golem/crushing_blow.png`、胸口铁砧印记
+`assets/ability/textures/particle/crushing_blow_anvil.png` 和金属压力碎片
+`assets/ability/textures/particle/crushing_blow_pressure.png`。强化后铁傀儡出现深色锻钢束带与铆钉；每次实际受伤都在受击面爆出灰白金属火花，压力碎片向胸口收束，胸口印记与数量严格对应阈值的铆钉格同步变亮。满层时模型短暂下压、铁砧印记闪白，并以实际 7.5 格作用半径展开阶梯状像素冲击环；受影响目标上方出现下压线，银色碎片随后由外圈回流至铁傀儡表示 5% 治疗，不使用绿色治疗粒子。强化者看向铁傀儡时可查看当前蓄力、阈值与伤害倍率。若同一铁傀儡同时存在黑曜石加固，完整皮肤优先显示黑曜石侵蚀外观，压碎的胸口印记、铆钉、冲击和 HUD 仍正常显示。

@@ -8,6 +8,7 @@ import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
 import com.steveaaaaa.ability.network.ClientboundColdCurrentPayload;
+import com.steveaaaaa.ability.network.ClientboundCrushingBlowPayload;
 import com.steveaaaaa.ability.network.ClientboundGolemReinforcementPayload;
 import com.steveaaaaa.ability.registry.ModParticles;
 import java.util.ArrayList;
@@ -71,9 +72,11 @@ public final class GolemEnhancementEffect {
             if (!targetMatches || component.config().items().stream().noneMatch(event.getItemStack()::is)
                     || event.getItemStack().getCount() < component.config().itemCost()) continue;
             CompoundTag root = target.getPersistentData().getCompound(ROOT);
-            if ((component.type().equals(OBSIDIAN_REINFORCEMENT) || component.type().equals(COLD_CURRENT))
+            if ((component.type().equals(CRUSHING_BLOW) || component.type().equals(OBSIDIAN_REINFORCEMENT)
+                    || component.type().equals(COLD_CURRENT))
                     && root.contains(component.type().getPath())) {
-                if (target instanceof IronGolem golem) syncObsidianState(golem);
+                if (target instanceof IronGolem golem && component.type().equals(CRUSHING_BLOW)) syncCrushingState(golem);
+                if (target instanceof IronGolem golem && component.type().equals(OBSIDIAN_REINFORCEMENT)) syncObsidianState(golem);
                 if (target instanceof SnowGolem golem) syncColdState(golem);
                 event.setCancellationResult(InteractionResult.SUCCESS);
                 event.setCanceled(true);
@@ -89,6 +92,10 @@ public final class GolemEnhancementEffect {
             if (component.type().equals(OBSIDIAN_REINFORCEMENT) && target instanceof IronGolem golem) {
                 playActivationEffect(golem);
                 syncObsidianState(golem, ClientboundGolemReinforcementPayload.VisualEvent.ACTIVATED, Vec3.ZERO);
+            }
+            if (component.type().equals(CRUSHING_BLOW) && target instanceof IronGolem golem) {
+                playCrushingActivationEffect(golem);
+                syncCrushingState(golem, ClientboundCrushingBlowPayload.VisualEvent.ACTIVATED, Vec3.ZERO);
             }
             if (component.type().equals(COLD_CURRENT) && target instanceof SnowGolem golem) {
                 playColdActivationEffect(golem);
@@ -125,17 +132,37 @@ public final class GolemEnhancementEffect {
         CompoundTag state = state(golem, CRUSHING_BLOW);
         if (state == null) return;
         int charge = state.getInt("charge") + 1;
-        int threshold = (int) state.getDouble("charge_threshold");
-        if (charge < threshold) { state.putInt("charge", charge); return; }
-        state.putInt("charge", 0); golem.heal(golem.getMaxHealth() * 0.05F);
+        int threshold = Math.max(1, (int) state.getDouble("charge_threshold"));
+        Vec3 source = event.getSource().getSourcePosition();
+        Vec3 direction = source == null
+                ? Vec3.directionFromRotation(0.0F, golem.getYRot()).scale(-1.0D)
+                : source.subtract(golem.getX(), golem.getY() + golem.getBbHeight() * 0.55D, golem.getZ()).normalize();
+        if (charge < threshold) {
+            state.putInt("charge", charge);
+            playCrushingChargeEffect(golem, direction, charge, threshold);
+            syncCrushingState(golem, ClientboundCrushingBlowPayload.VisualEvent.CHARGED, direction);
+            return;
+        }
+        state.putInt("charge", 0);
+        golem.heal(golem.getMaxHealth() * 0.05F);
         ServerPlayer owner = owner(golem, state);
-        if (owner == null || !(golem.level() instanceof ServerLevel level)) return;
+        if (owner == null || !(golem.level() instanceof ServerLevel level)) {
+            syncCrushingState(golem);
+            return;
+        }
         float damage = (float) (owner.getAttributeValue(Attributes.ATTACK_DAMAGE)
                 * state.getDouble("damage_percent") / 100.0D);
-        level.getEntitiesOfClass(LivingEntity.class, new AABB(golem.blockPosition()).inflate(7.5D),
+        List<LivingEntity> affected = level.getEntitiesOfClass(LivingEntity.class,
+                new AABB(golem.blockPosition()).inflate(7.5D),
                 living -> living != golem && living.isAlive() && !(living instanceof IronGolem)
-                        && !(living instanceof AbstractVillager))
-                .forEach(living -> { living.invulnerableTime = 0; living.hurt(golem.damageSources().mobAttack(golem), damage); });
+                        && !(living instanceof AbstractVillager));
+        affected.forEach(living -> {
+            living.invulnerableTime = 0;
+            living.hurt(golem.damageSources().mobAttack(golem), damage);
+            playCrushingTargetEffect(level, living);
+        });
+        playCrushingReleaseEffect(golem);
+        syncCrushingState(golem, ClientboundCrushingBlowPayload.VisualEvent.RELEASED, direction);
     }
 
     public static void processTick(Entity entity) {
@@ -277,6 +304,15 @@ public final class GolemEnhancementEffect {
             }
         }
     }
+    public static void syncCrushingStateTo(ServerPlayer player, Entity entity) {
+        if (entity instanceof IronGolem golem) {
+            CompoundTag state = state(golem, CRUSHING_BLOW);
+            if (state != null && state.hasUUID("owner")) {
+                PacketDistributor.sendToPlayer(player, crushingPayload(golem, state,
+                        ClientboundCrushingBlowPayload.VisualEvent.SYNC, Vec3.ZERO));
+            }
+        }
+    }
     private static void syncColdState(SnowGolem golem) {
         CompoundTag state = state(golem, COLD_CURRENT);
         if (state != null && state.hasUUID("owner")) {
@@ -345,6 +381,26 @@ public final class GolemEnhancementEffect {
     private static void syncObsidianState(IronGolem golem) {
         syncObsidianState(golem, ClientboundGolemReinforcementPayload.VisualEvent.SYNC, Vec3.ZERO);
     }
+    private static void syncCrushingState(IronGolem golem) {
+        syncCrushingState(golem, ClientboundCrushingBlowPayload.VisualEvent.SYNC, Vec3.ZERO);
+    }
+    private static void syncCrushingState(IronGolem golem,
+            ClientboundCrushingBlowPayload.VisualEvent visualEvent, Vec3 impactDirection) {
+        CompoundTag state = state(golem, CRUSHING_BLOW);
+        if (state != null && state.hasUUID("owner")) {
+            PacketDistributor.sendToPlayersTrackingEntityAndSelf(golem,
+                    crushingPayload(golem, state, visualEvent, impactDirection));
+        }
+    }
+    private static ClientboundCrushingBlowPayload crushingPayload(IronGolem golem, CompoundTag state,
+            ClientboundCrushingBlowPayload.VisualEvent visualEvent, Vec3 impactDirection) {
+        return new ClientboundCrushingBlowPayload(
+                golem.getUUID(), state.getUUID("owner"), state.getInt("charge"),
+                Math.max(1, (int) state.getDouble("charge_threshold")),
+                Math.max(0, (int) state.getDouble("damage_percent")), visualEvent,
+                (float) impactDirection.x, (float) impactDirection.y, (float) impactDirection.z
+        );
+    }
     private static void syncObsidianState(
             IronGolem golem,
             ClientboundGolemReinforcementPayload.VisualEvent visualEvent,
@@ -378,6 +434,49 @@ public final class GolemEnhancementEffect {
         BlockParticleOption obsidian = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.OBSIDIAN.defaultBlockState());
         level.sendParticles(obsidian, golem.getX(), golem.getY() + 1.4D, golem.getZ(), 28, 0.55D, 0.8D, 0.55D, 0.08D);
         level.playSound(null, golem.blockPosition(), SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.NEUTRAL, 0.8F, 0.75F);
+    }
+    private static void playCrushingActivationEffect(IronGolem golem) {
+        if (!(golem.level() instanceof ServerLevel level)) return;
+        BlockParticleOption anvil = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.ANVIL.defaultBlockState());
+        level.sendParticles(anvil, golem.getX(), golem.getY() + 1.2D, golem.getZ(),
+                24, 0.54D, 0.82D, 0.54D, 0.07D);
+        level.sendParticles(ModParticles.CRUSHING_BLOW_PRESSURE.get(), golem.getX(), golem.getY() + 1.35D,
+                golem.getZ(), 10, 0.45D, 0.65D, 0.45D, 0.04D);
+        level.playSound(null, golem.blockPosition(), SoundEvents.ANVIL_LAND, SoundSource.NEUTRAL, 0.9F, 0.78F);
+    }
+    private static void playCrushingChargeEffect(IronGolem golem, Vec3 direction, int charge, int threshold) {
+        if (!(golem.level() instanceof ServerLevel level)) return;
+        double x = golem.getX() + direction.x * 0.72D;
+        double y = golem.getY() + golem.getBbHeight() * 0.55D + direction.y * 0.35D;
+        double z = golem.getZ() + direction.z * 0.72D;
+        level.sendParticles(ModParticles.CRUSHING_BLOW_PRESSURE.get(), x, y, z,
+                7, 0.22D, 0.3D, 0.22D, 0.075D);
+        float progress = charge / (float) Math.max(1, threshold);
+        level.playSound(null, golem.blockPosition(), SoundEvents.ANVIL_HIT, SoundSource.NEUTRAL,
+                0.34F + progress * 0.16F, 1.18F - progress * 0.46F);
+    }
+    private static void playCrushingReleaseEffect(IronGolem golem) {
+        if (!(golem.level() instanceof ServerLevel level)) return;
+        BlockParticleOption stone = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STONE.defaultBlockState());
+        for (int i = 0; i < 44; i++) {
+            double angle = Math.PI * 2.0D * i / 44.0D;
+            double radius = 7.5D;
+            level.sendParticles(stone, golem.getX() + Math.cos(angle) * radius, golem.getY() + 0.12D,
+                    golem.getZ() + Math.sin(angle) * radius, 1, 0.12D, 0.08D, 0.12D, 0.035D);
+        }
+        level.sendParticles(ModParticles.CRUSHING_BLOW_PRESSURE.get(), golem.getX(), golem.getY() + 0.18D,
+                golem.getZ(), 34, 3.7D, 0.15D, 3.7D, 0.13D);
+        level.playSound(null, golem.blockPosition(), SoundEvents.ANVIL_LAND, SoundSource.NEUTRAL, 1.2F, 0.54F);
+        level.playSound(null, golem.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(),
+                SoundSource.NEUTRAL, 0.42F, 0.62F);
+    }
+    private static void playCrushingTargetEffect(ServerLevel level, LivingEntity target) {
+        level.sendParticles(ModParticles.CRUSHING_BLOW_PRESSURE.get(), target.getX(),
+                target.getY() + target.getBbHeight() + 0.25D, target.getZ(),
+                7, Math.max(0.14D, target.getBbWidth() * 0.3D), 0.12D,
+                Math.max(0.14D, target.getBbWidth() * 0.3D), 0.025D);
+        level.sendParticles(ParticleTypes.POOF, target.getX(), target.getY() + 0.08D, target.getZ(),
+                3, target.getBbWidth() * 0.3D, 0.03D, target.getBbWidth() * 0.3D, 0.015D);
     }
     private static void playChargeEffect(IronGolem golem) {
         if (!(golem.level() instanceof ServerLevel level)) return;

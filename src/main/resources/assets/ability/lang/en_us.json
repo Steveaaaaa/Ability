@@ -51,6 +51,7 @@
   "gui.ability.purchase.unknown": "Unknown ability: %s",
   "hud.ability.obsidian_reinforcement.status": "Charge %1$s/%2$s · Shields %3$s/%4$s",
   "hud.ability.cold_current.status": "Cold Current %1$s/%2$ss · Stage %3$s/4",
+  "hud.ability.crushing_blow.status": "Crushing Blow %1$s/%2$s · Damage %3$s%%",
   "skill.ability.gathering": "Gathering",
   "skill.ability.gathering.description": "Gain experience by collecting natural resources.",
   "skill.ability.mining": "Mining",

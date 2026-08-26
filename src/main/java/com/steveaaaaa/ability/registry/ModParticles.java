@@ -28,6 +28,10 @@ public final class ModParticles {
             "cold_current_snowflake",
             () -> new SimpleParticleType(false)
     );
+    public static final Supplier<SimpleParticleType> CRUSHING_BLOW_PRESSURE = PARTICLE_TYPES.register(
+            "crushing_blow_pressure",
+            () -> new SimpleParticleType(false)
+    );
 
     private ModParticles() {
     }
