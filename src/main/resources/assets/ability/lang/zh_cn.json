@@ -49,6 +49,7 @@
   "gui.ability.description_heading": "能力说明",
   "gui.ability.requirement_heading": "解锁条件",
   "gui.ability.purchase.unknown": "未知能力：%s",
+  "hud.ability.obsidian_reinforcement.status": "充能 %1$s/%2$s · 护盾 %3$s/%4$s",
   "skill.ability.gathering": "采集",
   "skill.ability.gathering.description": "通过采集自然资源积累经验。",
   "skill.ability.mining": "挖掘",

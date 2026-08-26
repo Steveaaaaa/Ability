@@ -7,6 +7,7 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.network.ClientboundGolemReinforcementPayload;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -20,6 +21,11 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -38,6 +44,7 @@ import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class GolemEnhancementEffect {
     public static final ResourceLocation CRUSHING_BLOW = AbilityMod.id("crushing_blow");
@@ -50,6 +57,7 @@ public final class GolemEnhancementEffect {
     private static final ResourceLocation COLD_ARMOR_FLAT = AbilityMod.id("cold_current/armor_flat");
     private static final ResourceLocation COLD_ARMOR_PERCENT = AbilityMod.id("cold_current/armor_percent");
     private static final ResourceLocation COLD_TOUGHNESS = AbilityMod.id("cold_current/toughness");
+    private static final int OBSIDIAN_CHARGE_THRESHOLD = 9;
     private GolemEnhancementEffect() {}
 
     public static void enhance(PlayerInteractEvent.EntityInteract event) {
@@ -60,6 +68,13 @@ public final class GolemEnhancementEffect {
             if (!targetMatches || component.config().items().stream().noneMatch(event.getItemStack()::is)
                     || event.getItemStack().getCount() < component.config().itemCost()) continue;
             CompoundTag root = target.getPersistentData().getCompound(ROOT);
+            if (component.type().equals(OBSIDIAN_REINFORCEMENT)
+                    && root.contains(component.type().getPath())) {
+                if (target instanceof IronGolem golem) syncObsidianState(golem);
+                event.setCancellationResult(InteractionResult.SUCCESS);
+                event.setCanceled(true);
+                return;
+            }
             CompoundTag state = new CompoundTag();
             state.putUUID("owner", player.getUUID());
             component.rank().forEach(state::putDouble);
@@ -67,6 +82,10 @@ public final class GolemEnhancementEffect {
             root.put(component.type().getPath(), state);
             target.getPersistentData().put(ROOT, root);
             if (!player.getAbilities().instabuild) event.getItemStack().shrink(component.config().itemCost());
+            if (component.type().equals(OBSIDIAN_REINFORCEMENT) && target instanceof IronGolem golem) {
+                playActivationEffect(golem);
+                syncObsidianState(golem);
+            }
             event.setCancellationResult(InteractionResult.SUCCESS); event.setCanceled(true); return;
         }
     }
@@ -74,11 +93,19 @@ public final class GolemEnhancementEffect {
     public static void blockWithObsidianShield(LivingIncomingDamageEvent event) {
         LivingEntity entity = event.getEntity();
         CompoundTag state = state(entity, OBSIDIAN_REINFORCEMENT);
-        if (state == null || state.getInt("shields") <= 0) return;
+        if (state == null || state.getInt("shields") <= 0 || event.isCanceled() || event.getAmount() <= 0.0F) return;
         state.putInt("shields", state.getInt("shields") - 1);
-        state.putInt("charge", Math.min(9, state.getInt("charge") + (int) state.getDouble("recharge")));
+        int maxShields = maxShields(state);
+        if (state.getInt("shields") < maxShields) {
+            state.putInt("charge", Math.min(OBSIDIAN_CHARGE_THRESHOLD - 1,
+                    state.getInt("charge") + (int) state.getDouble("recharge")));
+        }
         entity.heal((float) (entity.getMaxHealth() * state.getDouble("heal_percent") / 100.0D));
         event.setCanceled(true);
+        if (entity instanceof IronGolem golem) {
+            playShieldBreakEffect(golem);
+            syncObsidianState(golem);
+        }
     }
 
     public static void processFinalDamage(LivingDamageEvent.Post event) {
@@ -104,11 +131,22 @@ public final class GolemEnhancementEffect {
         if (entity instanceof IronGolem golem && golem.tickCount % 20 == 0 && golem.getTarget() != null) {
             CompoundTag state = state(golem, OBSIDIAN_REINFORCEMENT);
             if (state != null) {
-                int charge = state.getInt("charge") + 1;
-                if (charge >= 9 && state.getInt("shields") < (int) state.getDouble("max_shields")) {
-                    state.putInt("shields", state.getInt("shields") + 1); charge = 0;
+                int maxShields = maxShields(state);
+                if (state.getInt("shields") < maxShields) {
+                    int charge = state.getInt("charge") + 1;
+                    if (charge >= OBSIDIAN_CHARGE_THRESHOLD) {
+                        state.putInt("shields", state.getInt("shields") + 1);
+                        charge = 0;
+                        playShieldGainedEffect(golem);
+                    } else {
+                        playChargeEffect(golem);
+                    }
+                    state.putInt("charge", charge);
+                    syncObsidianState(golem);
+                } else if (state.getInt("charge") != 0) {
+                    state.putInt("charge", 0);
+                    syncObsidianState(golem);
                 }
-                state.putInt("charge", charge);
             }
         }
         if (entity instanceof SnowGolem snow) processCold(snow);
@@ -196,6 +234,54 @@ public final class GolemEnhancementEffect {
         if (!data.contains(ROOT)) return null;
         CompoundTag root = data.getCompound(ROOT);
         return root.contains(type.getPath()) ? root.getCompound(type.getPath()) : null;
+    }
+    public static void syncObsidianStateTo(ServerPlayer player, Entity entity) {
+        if (entity instanceof IronGolem golem) {
+            CompoundTag state = state(golem, OBSIDIAN_REINFORCEMENT);
+            if (state != null && state.hasUUID("owner")) {
+                PacketDistributor.sendToPlayer(player, payload(golem, state));
+            }
+        }
+    }
+    private static void syncObsidianState(IronGolem golem) {
+        CompoundTag state = state(golem, OBSIDIAN_REINFORCEMENT);
+        if (state != null && state.hasUUID("owner")) {
+            PacketDistributor.sendToPlayersTrackingEntityAndSelf(golem, payload(golem, state));
+        }
+    }
+    private static ClientboundGolemReinforcementPayload payload(IronGolem golem, CompoundTag state) {
+        return new ClientboundGolemReinforcementPayload(
+                golem.getUUID(), state.getUUID("owner"), state.getInt("charge"), OBSIDIAN_CHARGE_THRESHOLD,
+                state.getInt("shields"), maxShields(state)
+        );
+    }
+    private static int maxShields(CompoundTag state) {
+        return Math.max(1, (int) state.getDouble("max_shields"));
+    }
+    private static void playActivationEffect(IronGolem golem) {
+        if (!(golem.level() instanceof ServerLevel level)) return;
+        BlockParticleOption obsidian = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.OBSIDIAN.defaultBlockState());
+        level.sendParticles(obsidian, golem.getX(), golem.getY() + 1.4D, golem.getZ(), 28, 0.55D, 0.8D, 0.55D, 0.08D);
+        level.playSound(null, golem.blockPosition(), SoundEvents.RESPAWN_ANCHOR_CHARGE, SoundSource.NEUTRAL, 0.8F, 0.75F);
+    }
+    private static void playChargeEffect(IronGolem golem) {
+        if (!(golem.level() instanceof ServerLevel level)) return;
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, golem.getX(), golem.getY() + 1.2D, golem.getZ(), 2,
+                0.35D, 0.45D, 0.35D, 0.015D);
+    }
+    private static void playShieldGainedEffect(IronGolem golem) {
+        if (!(golem.level() instanceof ServerLevel level)) return;
+        BlockParticleOption obsidian = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.OBSIDIAN.defaultBlockState());
+        level.sendParticles(obsidian, golem.getX(), golem.getY() + 1.35D, golem.getZ(), 12, 0.5D, 0.55D, 0.5D, 0.04D);
+        level.playSound(null, golem.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.NEUTRAL, 0.65F, 0.55F);
+    }
+    private static void playShieldBreakEffect(IronGolem golem) {
+        if (!(golem.level() instanceof ServerLevel level)) return;
+        BlockParticleOption obsidian = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.OBSIDIAN.defaultBlockState());
+        level.sendParticles(obsidian, golem.getX(), golem.getY() + 1.25D, golem.getZ(), 24, 0.65D, 0.7D, 0.65D, 0.12D);
+        level.sendParticles(ParticleTypes.HAPPY_VILLAGER, golem.getX(), golem.getY() + 0.65D, golem.getZ(), 6,
+                0.35D, 0.35D, 0.35D, 0.03D);
+        level.playSound(null, golem.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.NEUTRAL, 0.9F, 0.7F);
     }
     private static ServerPlayer owner(LivingEntity entity, CompoundTag state) {
         if (!(entity.level() instanceof ServerLevel level) || !state.hasUUID("owner")) return null;

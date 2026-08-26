@@ -250,6 +250,13 @@ public final class AbilityEffectEventHandler {
     }
 
     @SubscribeEvent
+    public static void onStartTracking(PlayerEvent.StartTracking event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            GolemEnhancementEffect.syncObsidianStateTo(player, event.getTarget());
+        }
+    }
+
+    @SubscribeEvent
     public static void onPlayerRespawned(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             InactivityTracker.recordActivity(player);
