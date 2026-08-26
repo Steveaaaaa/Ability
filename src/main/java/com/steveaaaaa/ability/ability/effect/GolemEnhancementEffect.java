@@ -458,14 +458,24 @@ public final class GolemEnhancementEffect {
     private static void playCrushingReleaseEffect(IronGolem golem) {
         if (!(golem.level() instanceof ServerLevel level)) return;
         BlockParticleOption stone = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STONE.defaultBlockState());
-        for (int i = 0; i < 44; i++) {
-            double angle = Math.PI * 2.0D * i / 44.0D;
-            double radius = 7.5D;
-            level.sendParticles(stone, golem.getX() + Math.cos(angle) * radius, golem.getY() + 0.12D,
-                    golem.getZ() + Math.sin(angle) * radius, 1, 0.12D, 0.08D, 0.12D, 0.035D);
+        int[] counts = {24, 36, 52};
+        double[] radii = {2.5D, 5.0D, 7.5D};
+        for (int ring = 0; ring < radii.length; ring++) {
+            for (int i = 0; i < counts[ring]; i++) {
+                double angle = Math.PI * 2.0D * i / counts[ring];
+                double radius = radii[ring];
+                double x = golem.getX() + Math.cos(angle) * radius;
+                double z = golem.getZ() + Math.sin(angle) * radius;
+                level.sendParticles(stone, x, golem.getY() + 0.12D, z,
+                        ring == 2 ? 2 : 1, 0.16D, 0.1D, 0.16D, 0.055D);
+                if (ring > 0 && i % 2 == 0) {
+                    level.sendParticles(ParticleTypes.CLOUD, x, golem.getY() + 0.08D, z,
+                            1, 0.08D, 0.025D, 0.08D, 0.015D);
+                }
+            }
         }
         level.sendParticles(ModParticles.CRUSHING_BLOW_PRESSURE.get(), golem.getX(), golem.getY() + 0.18D,
-                golem.getZ(), 34, 3.7D, 0.15D, 3.7D, 0.13D);
+                golem.getZ(), 68, 4.8D, 0.22D, 4.8D, 0.16D);
         level.playSound(null, golem.blockPosition(), SoundEvents.ANVIL_LAND, SoundSource.NEUTRAL, 1.2F, 0.54F);
         level.playSound(null, golem.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(),
                 SoundSource.NEUTRAL, 0.42F, 0.62F);

@@ -2,6 +2,7 @@ package com.steveaaaaa.ability.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.network.ClientboundCrushingBlowPayload;
 import java.util.Set;
@@ -28,7 +29,6 @@ import net.neoforged.neoforge.client.event.RenderLivingEvent;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class CrushingBlowRenderer {
-    private static final ResourceLocation ANVIL = AbilityMod.id("textures/particle/crushing_blow_anvil.png");
     private static final ResourceLocation PRESSURE = AbilityMod.id("textures/particle/crushing_blow_pressure.png");
     private static final Set<UUID> COMPRESSED = ConcurrentHashMap.newKeySet();
     private static final double TAU = Math.PI * 2.0D;
@@ -55,10 +55,6 @@ public final class CrushingBlowRenderer {
         CrushingBlowClientState.State state = CrushingBlowClientState.get(golem.getUUID());
         if (state != null) {
             float age = animationAge(golem, state, event.getPartialTick());
-            renderChestDisplay(event, golem, state, age);
-            if (state.visualEvent() == ClientboundCrushingBlowPayload.VisualEvent.CHARGED && age < 9.0F) {
-                renderContractingPressure(event, golem, age);
-            }
             if (state.visualEvent() == ClientboundCrushingBlowPayload.VisualEvent.RELEASED && age < 20.0F) {
                 renderRelease(event, age);
             }
@@ -66,57 +62,27 @@ public final class CrushingBlowRenderer {
         if (COMPRESSED.remove(golem.getUUID())) event.getPoseStack().popPose();
     }
 
-    private static void renderChestDisplay(RenderLivingEvent.Post<?, ?> event, IronGolem golem,
-            CrushingBlowClientState.State state, float age) {
-        float time = golem.tickCount + event.getPartialTick();
-        float progress = state.charge() / (float) Math.max(1, state.chargeThreshold());
-        float pulse = 0.95F + Mth.sin(time * (0.09F + progress * 0.08F)) * (0.025F + progress * 0.045F);
-        int alpha = 110 + (int) (progress * 125.0F);
-        float size = 0.42F * pulse;
-        if (state.visualEvent() == ClientboundCrushingBlowPayload.VisualEvent.RELEASED && age < 8.0F) {
-            float flash = 1.0F - age / 8.0F;
-            size += flash * 0.28F;
-            alpha = 255;
-        }
-        float yaw = Mth.rotLerp(event.getPartialTick(), golem.yBodyRotO, golem.yBodyRot) * Mth.DEG_TO_RAD;
-        float frontX = -Mth.sin(yaw) * 0.58F;
-        float frontZ = Mth.cos(yaw) * 0.58F;
-        renderBillboard(event, ANVIL, frontX, 1.52F, frontZ, size, alpha, LightTexture.FULL_BRIGHT);
-
-        int threshold = Math.max(1, state.chargeThreshold());
-        float spacing = Math.min(0.15F, 0.76F / threshold);
-        float start = -(threshold - 1) * spacing * 0.5F;
-        for (int i = 0; i < threshold; i++) {
-            boolean filled = i < state.charge();
-            renderBillboard(event, PRESSURE, frontX + start + i * spacing, 1.19F, frontZ,
-                    filled ? 0.105F : 0.075F, filled ? 235 : 58,
-                    filled ? LightTexture.FULL_BRIGHT : event.getPackedLight());
-        }
-    }
-
-    private static void renderContractingPressure(RenderLivingEvent.Post<?, ?> event, IronGolem golem, float age) {
-        float progress = easeOut(Mth.clamp(age / 9.0F, 0.0F, 1.0F));
-        float radius = Mth.lerp(progress, 1.65F, 0.25F);
-        float time = golem.tickCount + event.getPartialTick();
-        for (int i = 0; i < 6; i++) {
-            double angle = i * TAU / 6.0D + time * 0.015D;
-            renderBillboard(event, PRESSURE, (float) Math.cos(angle) * radius,
-                    1.42F + (float) Math.sin(angle * 2.0D) * 0.22F,
-                    (float) Math.sin(angle) * radius, 0.18F, (int) ((1.0F - progress) * 210.0F),
-                    LightTexture.FULL_BRIGHT);
-        }
-    }
-
     private static void renderRelease(RenderLivingEvent.Post<?, ?> event, float age) {
-        float progress = Mth.clamp(age / 16.0F, 0.0F, 1.0F);
-        float radius = easeOut(progress) * 7.5F;
-        int alpha = (int) ((1.0F - progress) * 205.0F);
-        for (int i = 0; i < 40; i++) {
-            double angle = i * TAU / 40.0D;
-            float steppedRadius = Math.round((radius + (i % 3) * 0.08F) * 4.0F) / 4.0F;
+        float progress = Mth.clamp(age / 15.0F, 0.0F, 1.0F);
+        float leadRadius = easeOut(progress) * 7.5F;
+        int leadAlpha = (int) ((1.0F - progress) * 245.0F);
+        renderGroundRing(event, leadRadius, 64, 0.38F, leadAlpha, 0.08F);
+        renderGroundRing(event, Math.max(0.0F, leadRadius - 0.58F), 56, 0.31F,
+                (int) (leadAlpha * 0.72F), 0.11F);
+
+        float secondProgress = Mth.clamp((age - 2.0F) / 15.0F, 0.0F, 1.0F);
+        if (age >= 2.0F) {
+            float secondRadius = easeOut(secondProgress) * 7.5F;
+            renderGroundRing(event, secondRadius, 52, 0.3F,
+                    (int) ((1.0F - secondProgress) * 190.0F), 0.055F);
+        }
+
+        for (int i = 0; i < 36; i++) {
+            double angle = i * TAU / 36.0D;
+            float steppedRadius = Math.round(leadRadius * 4.0F) / 4.0F;
             renderBillboard(event, PRESSURE, (float) Math.cos(angle) * steppedRadius,
-                    0.12F + (i & 1) * 0.05F, (float) Math.sin(angle) * steppedRadius,
-                    0.2F + (i % 4 == 0 ? 0.08F : 0.0F), alpha, event.getPackedLight());
+                    0.16F + (i % 3) * 0.055F, (float) Math.sin(angle) * steppedRadius,
+                    0.25F + (i % 4 == 0 ? 0.09F : 0.0F), leadAlpha, LightTexture.FULL_BRIGHT);
         }
         if (age >= 6.0F) {
             float returnProgress = Mth.clamp((age - 6.0F) / 14.0F, 0.0F, 1.0F);
@@ -128,6 +94,33 @@ public final class CrushingBlowRenderer {
                         0.16F, (int) ((1.0F - returnProgress) * 220.0F), LightTexture.FULL_BRIGHT);
             }
         }
+    }
+
+    private static void renderGroundRing(RenderLivingEvent.Post<?, ?> event, float radius,
+            int segments, float size, int alpha, float y) {
+        if (radius <= 0.05F || alpha <= 0) return;
+        for (int i = 0; i < segments; i++) {
+            double angle = i * TAU / segments;
+            float steppedRadius = Math.round((radius + (i & 1) * 0.07F) * 4.0F) / 4.0F;
+            renderGroundTile(event, (float) Math.cos(angle) * steppedRadius, y,
+                    (float) Math.sin(angle) * steppedRadius, size, alpha, (float) -angle);
+        }
+    }
+
+    private static void renderGroundTile(RenderLivingEvent.Post<?, ?> event,
+            float x, float y, float z, float size, int alpha, float rotation) {
+        PoseStack pose = event.getPoseStack();
+        pose.pushPose();
+        pose.translate(x, y, z);
+        pose.mulPose(Axis.YP.rotation(rotation));
+        pose.mulPose(Axis.XP.rotationDegrees(90.0F));
+        pose.scale(size, size, size);
+        VertexConsumer consumer = event.getMultiBufferSource().getBuffer(RenderType.entityTranslucent(PRESSURE));
+        vertex(pose, consumer, -0.5F, -0.5F, 0.0F, 1.0F, alpha, LightTexture.FULL_BRIGHT);
+        vertex(pose, consumer, 0.5F, -0.5F, 1.0F, 1.0F, alpha, LightTexture.FULL_BRIGHT);
+        vertex(pose, consumer, 0.5F, 0.5F, 1.0F, 0.0F, alpha, LightTexture.FULL_BRIGHT);
+        vertex(pose, consumer, -0.5F, 0.5F, 0.0F, 0.0F, alpha, LightTexture.FULL_BRIGHT);
+        pose.popPose();
     }
 
     private static void renderBillboard(RenderLivingEvent.Post<?, ?> event, ResourceLocation texture,
