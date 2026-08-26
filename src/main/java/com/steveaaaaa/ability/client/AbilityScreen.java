@@ -1,5 +1,6 @@
 package com.steveaaaaa.ability.client;
 
+import com.mojang.math.Axis;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
 import com.steveaaaaa.ability.data.model.SkillDefinition;
@@ -35,6 +36,12 @@ public final class AbilityScreen extends Screen {
     private static final int SKILL_BUTTON_HEIGHT = 30;
     private static final int ABILITY_TILE_SIZE = 58;
     private static final int TILE_GAP = 6;
+    private static final int DIAMOND_ICON_SIZE = 32;
+
+    private static final ResourceLocation DUNGEON_ICON_FRAME = ResourceLocation.fromNamespaceAndPath(
+            "ability",
+            "textures/gui/dungeon_icon_frame.png"
+    );
 
     private static final int BACKDROP = 0xD808090B;
     private static final int PANEL_SHADOW = 0xE0000000;
@@ -342,7 +349,8 @@ public final class AbilityScreen extends Screen {
                 PlayerProgressSnapshot.SkillSnapshot.EMPTY
         );
         int accent = parseColor(definition.display().color(), BORDER_GOLD);
-        renderIcon(graphics, selectedSkill, definition.display().icon(), centerX + 8, contentTop + 7, 28, false);
+        renderDiamondIcon(graphics, selectedSkill, definition.display().icon(),
+                centerX + 21, contentTop + 20, 24, false);
         graphics.drawString(font, Component.translatable(definition.display().name()),
                 centerX + 42, contentTop + 7, TEXT_PRIMARY, false);
         graphics.drawString(font, Component.translatable("gui.ability.skill_progress",
@@ -400,8 +408,9 @@ public final class AbilityScreen extends Screen {
         AbilityDefinition definition = selected.definition();
         PurchaseState state = purchaseState(selected.id(), definition);
         int accent = parseColor(definition.display().color(), BORDER_GOLD);
-        panel(graphics, x, contentTop + 8, 48, 48, 0xFF111212, accent, false);
-        renderIcon(graphics, selected.id(), definition.display().icon(), x + 8, contentTop + 16, 32, true);
+        renderDiamondBackdrop(graphics, x + 24, contentTop + 32, 37, 0xFF111212, accent, false);
+        renderDiamondIcon(graphics, selected.id(), definition.display().icon(),
+                x + 24, contentTop + 32, 34, true);
 
         int textX = x + 57;
         int nameWidth = Math.max(35, width - 57);
@@ -469,12 +478,12 @@ public final class AbilityScreen extends Screen {
                 panelX + panelWidth / 2, y + 7, color);
     }
 
-    private void renderIcon(
+    private void renderDiamondIcon(
             GuiGraphics graphics,
             ResourceLocation definitionId,
             ResourceLocation fallbackItemId,
-            int x,
-            int y,
+            int centerX,
+            int centerY,
             int size,
             boolean ability
     ) {
@@ -484,17 +493,63 @@ public final class AbilityScreen extends Screen {
                         + definitionId.getPath() + ".png"
         );
         if (minecraft.getResourceManager().getResource(texture).isPresent()) {
-            graphics.blit(texture, x, y, 0.0F, 0.0F, size, size, size, size);
-            return;
+            renderRotatedTexture(graphics, texture, centerX, centerY, size);
+        } else {
+            ItemStack stack = BuiltInRegistries.ITEM.getOptional(fallbackItemId)
+                    .map(ItemStack::new)
+                    .orElseGet(() -> new ItemStack(Items.BARRIER));
+            int itemSize = Math.max(12, Math.round(size * 0.53F));
+            graphics.pose().pushPose();
+            graphics.pose().translate(centerX - itemSize / 2.0F, centerY - itemSize / 2.0F, 0.0F);
+            float scale = itemSize / 16.0F;
+            graphics.pose().scale(scale, scale, 1.0F);
+            graphics.renderItem(stack, 0, 0);
+            graphics.pose().popPose();
         }
-        ItemStack stack = BuiltInRegistries.ITEM.getOptional(fallbackItemId)
-                .map(ItemStack::new)
-                .orElseGet(() -> new ItemStack(Items.BARRIER));
+        renderRotatedTexture(graphics, DUNGEON_ICON_FRAME, centerX, centerY, size);
+    }
+
+    private static void renderRotatedTexture(
+            GuiGraphics graphics,
+            ResourceLocation texture,
+            int centerX,
+            int centerY,
+            int size
+    ) {
         graphics.pose().pushPose();
-        graphics.pose().translate(x, y, 0.0F);
-        float scale = size / 16.0F;
-        graphics.pose().scale(scale, scale, 1.0F);
-        graphics.renderItem(stack, 0, 0);
+        graphics.pose().translate(centerX, centerY, 0.0F);
+        graphics.pose().mulPose(Axis.ZP.rotationDegrees(45.0F));
+        graphics.blit(texture, -size / 2, -size / 2, 0.0F, 0.0F, size, size, size, size);
+        graphics.pose().popPose();
+    }
+
+    private static void renderDiamondBackdrop(
+            GuiGraphics graphics,
+            int centerX,
+            int centerY,
+            int size,
+            int fill,
+            int border,
+            boolean doubleBorder
+    ) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(centerX, centerY, 0.0F);
+        graphics.pose().mulPose(Axis.ZP.rotationDegrees(45.0F));
+        panel(graphics, -size / 2, -size / 2, size, size, fill, border, doubleBorder);
+        graphics.pose().popPose();
+    }
+
+    private static void renderDiamondShade(
+            GuiGraphics graphics,
+            int centerX,
+            int centerY,
+            int size,
+            int color
+    ) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(centerX, centerY, 0.0F);
+        graphics.pose().mulPose(Axis.ZP.rotationDegrees(45.0F));
+        graphics.fill(-size / 2, -size / 2, size / 2, size / 2, color);
         graphics.pose().popPose();
     }
 
@@ -699,22 +754,29 @@ public final class AbilityScreen extends Screen {
             int accent = parseColor(definition.display().color(), BORDER_GOLD);
             int border = selected ? BORDER_BRIGHT : isHovered ? accent : BORDER_DARK;
             int fill = purchasedRank > 0 ? 0xFF302A21 : 0xFF191A19;
-            panel(graphics, getX(), getY(), getWidth(), getHeight(), fill, border, selected);
+            int iconX = getX() + getWidth() / 2;
+            int iconY = getY() + 22;
+            renderDiamondBackdrop(graphics, iconX, iconY, DIAMOND_ICON_SIZE + 5,
+                    fill, border, selected || isHovered);
+            renderDiamondIcon(graphics, abilityId, definition.display().icon(),
+                    iconX, iconY, DIAMOND_ICON_SIZE, true);
             if (purchasedRank <= 0) {
-                graphics.fill(getX() + 3, getY() + 3, getX() + getWidth() - 3,
-                        getY() + getHeight() - 3, 0x66101010);
+                renderDiamondShade(graphics, iconX, iconY, DIAMOND_ICON_SIZE - 4, 0x55101010);
             }
-            renderIcon(graphics, abilityId, definition.display().icon(), getX() + 17, getY() + 7, 24, true);
             Component name = Component.translatable(definition.display().name());
             String clipped = font.plainSubstrByWidth(name.getString(), getWidth() - 8);
-            graphics.drawCenteredString(font, clipped, getX() + getWidth() / 2, getY() + 36,
+            graphics.drawCenteredString(font, clipped, getX() + getWidth() / 2, getY() + 46,
                     purchasedRank > 0 ? TEXT_PRIMARY : TEXT_MUTED);
             int maxRank = definition.ranks().values().size();
             if (purchasedRank > 0) {
-                graphics.drawCenteredString(font, purchasedRank + "/" + maxRank,
-                        getX() + getWidth() / 2, getY() + 47, accent);
+                String rank = purchasedRank + "/" + maxRank;
+                int badgeWidth = font.width(rank) + 4;
+                graphics.fill(getX() + getWidth() - badgeWidth - 1, getY() + 1,
+                        getX() + getWidth() - 1, getY() + 11, 0xDD111212);
+                graphics.drawString(font, rank, getX() + getWidth() - badgeWidth + 1,
+                        getY() + 2, accent, false);
             } else {
-                graphics.drawCenteredString(font, "◆", getX() + getWidth() / 2, getY() + 47, LOCKED);
+                graphics.drawString(font, "◆", getX() + getWidth() - 9, getY() + 2, LOCKED, false);
             }
         }
 
