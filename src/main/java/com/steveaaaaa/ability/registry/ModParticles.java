@@ -24,6 +24,10 @@ public final class ModParticles {
             "ambush_blood_splash",
             () -> new SimpleParticleType(false)
     );
+    public static final Supplier<SimpleParticleType> COLD_CURRENT_SNOWFLAKE = PARTICLE_TYPES.register(
+            "cold_current_snowflake",
+            () -> new SimpleParticleType(false)
+    );
 
     private ModParticles() {
     }

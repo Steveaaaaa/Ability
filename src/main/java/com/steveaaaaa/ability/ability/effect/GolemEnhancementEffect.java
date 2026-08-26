@@ -7,7 +7,9 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.network.ClientboundColdCurrentPayload;
 import com.steveaaaaa.ability.network.ClientboundGolemReinforcementPayload;
+import com.steveaaaaa.ability.registry.ModParticles;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -69,9 +71,10 @@ public final class GolemEnhancementEffect {
             if (!targetMatches || component.config().items().stream().noneMatch(event.getItemStack()::is)
                     || event.getItemStack().getCount() < component.config().itemCost()) continue;
             CompoundTag root = target.getPersistentData().getCompound(ROOT);
-            if (component.type().equals(OBSIDIAN_REINFORCEMENT)
+            if ((component.type().equals(OBSIDIAN_REINFORCEMENT) || component.type().equals(COLD_CURRENT))
                     && root.contains(component.type().getPath())) {
                 if (target instanceof IronGolem golem) syncObsidianState(golem);
+                if (target instanceof SnowGolem golem) syncColdState(golem);
                 event.setCancellationResult(InteractionResult.SUCCESS);
                 event.setCanceled(true);
                 return;
@@ -86,6 +89,10 @@ public final class GolemEnhancementEffect {
             if (component.type().equals(OBSIDIAN_REINFORCEMENT) && target instanceof IronGolem golem) {
                 playActivationEffect(golem);
                 syncObsidianState(golem, ClientboundGolemReinforcementPayload.VisualEvent.ACTIVATED, Vec3.ZERO);
+            }
+            if (component.type().equals(COLD_CURRENT) && target instanceof SnowGolem golem) {
+                playColdActivationEffect(golem);
+                syncColdState(golem);
             }
             event.setCancellationResult(InteractionResult.SUCCESS); event.setCanceled(true); return;
         }
@@ -132,6 +139,10 @@ public final class GolemEnhancementEffect {
     }
 
     public static void processTick(Entity entity) {
+        if (entity instanceof Snowball snowball) {
+            processColdSnowballTrail(snowball);
+            return;
+        }
         if (!(entity instanceof LivingEntity living) || !(entity instanceof IronGolem || entity instanceof SnowGolem)) return;
         if (entity instanceof IronGolem golem && golem.tickCount % 20 == 0 && golem.getTarget() != null) {
             CompoundTag state = state(golem, OBSIDIAN_REINFORCEMENT);
@@ -160,12 +171,13 @@ public final class GolemEnhancementEffect {
 
     public static void processSnowballImpact(ProjectileImpactEvent event) {
         if (!(event.getProjectile() instanceof Snowball snowball)
-                || !(snowball.getOwner() instanceof SnowGolem golem)
-                || !(event.getRayTraceResult() instanceof EntityHitResult hit)
-                || !(hit.getEntity() instanceof LivingEntity target)) return;
+                || !(snowball.getOwner() instanceof SnowGolem golem)) return;
         CompoundTag state = state(golem, COLD_CURRENT);
         if (state == null) return;
         int reduction = (int) (state.getDouble("time_reduction_seconds") * 20);
+        if (coldStage(state) >= 4) playColdProjectileImpact(snowball);
+        if (!(event.getRayTraceResult() instanceof EntityHitResult hit)
+                || !(hit.getEntity() instanceof LivingEntity target)) return;
         if (state.getInt("age") < 600 - reduction) return;
         float damage = coldProjectileDamage(state.getInt("age"), reduction,
                 state.getDouble("attack_bonus_percent") / 100.0D);
@@ -183,6 +195,10 @@ public final class GolemEnhancementEffect {
         if (state == null) return;
         int age = state.getInt("age") + 1; state.putInt("age", age);
         int reduction = (int) (state.getDouble("time_reduction_seconds") * 20);
+        int[] thresholds = coldThresholds(state);
+        for (int stage = 1; stage <= thresholds.length; stage++) {
+            if (age == thresholds[stage - 1]) playColdMilestoneEffect(golem, stage);
+        }
         setModifier(golem, Attributes.ATTACK_DAMAGE, COLD_ATTACK_FLAT, age >= 600 - reduction ? 4.0D : 0.0D,
                 AttributeModifier.Operation.ADD_VALUE);
         setModifier(golem, Attributes.MAX_HEALTH, COLD_HEALTH, age >= 600 - reduction ? 6.0D : 0.0D,
@@ -195,6 +211,10 @@ public final class GolemEnhancementEffect {
                 ? state.getDouble("armor_percent") / 100.0D : 0.0D, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
         setModifier(golem, Attributes.ATTACK_DAMAGE, COLD_ATTACK_PERCENT, age >= 1800 - reduction
                 ? state.getDouble("attack_bonus_percent") / 100.0D : 0.0D, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
+        if (golem.tickCount % 20 == 0) {
+            playColdAmbientEffect(golem, coldStage(state));
+            syncColdState(golem);
+        }
     }
 
     private static void setModifier(LivingEntity entity, net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> attribute,
@@ -248,6 +268,79 @@ public final class GolemEnhancementEffect {
                 PacketDistributor.sendToPlayer(player, payload(golem, state));
             }
         }
+    }
+    public static void syncColdStateTo(ServerPlayer player, Entity entity) {
+        if (entity instanceof SnowGolem golem) {
+            CompoundTag state = state(golem, COLD_CURRENT);
+            if (state != null && state.hasUUID("owner")) {
+                PacketDistributor.sendToPlayer(player, coldPayload(golem, state));
+            }
+        }
+    }
+    private static void syncColdState(SnowGolem golem) {
+        CompoundTag state = state(golem, COLD_CURRENT);
+        if (state != null && state.hasUUID("owner")) {
+            PacketDistributor.sendToPlayersTrackingEntityAndSelf(golem, coldPayload(golem, state));
+        }
+    }
+    private static ClientboundColdCurrentPayload coldPayload(SnowGolem golem, CompoundTag state) {
+        int[] thresholds = coldThresholds(state);
+        return new ClientboundColdCurrentPayload(
+                golem.getUUID(), state.getUUID("owner"), state.getInt("age"), thresholds[3], coldStage(state)
+        );
+    }
+    private static int[] coldThresholds(CompoundTag state) {
+        int reduction = (int) (state.getDouble("time_reduction_seconds") * 20);
+        return new int[] {
+                Math.max(1, 600 - reduction),
+                Math.max(1, 900 - reduction),
+                Math.max(1, 1200 - reduction),
+                Math.max(1, 1800 - reduction)
+        };
+    }
+    private static int coldStage(CompoundTag state) {
+        int age = state.getInt("age");
+        int stage = 0;
+        for (int threshold : coldThresholds(state)) if (age >= threshold) stage++;
+        return stage;
+    }
+    private static void playColdActivationEffect(SnowGolem golem) {
+        if (!(golem.level() instanceof ServerLevel level)) return;
+        BlockParticleOption blueIce = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.BLUE_ICE.defaultBlockState());
+        level.sendParticles(blueIce, golem.getX(), golem.getY() + 0.95D, golem.getZ(),
+                22, 0.42D, 0.75D, 0.42D, 0.07D);
+        level.sendParticles(ModParticles.COLD_CURRENT_SNOWFLAKE.get(), golem.getX(), golem.getY() + 0.9D,
+                golem.getZ(), 14, 0.45D, 0.65D, 0.45D, 0.045D);
+        level.playSound(null, golem.blockPosition(), SoundEvents.AMETHYST_CLUSTER_PLACE, SoundSource.NEUTRAL, 0.8F, 0.82F);
+    }
+    private static void playColdMilestoneEffect(SnowGolem golem, int stage) {
+        if (!(golem.level() instanceof ServerLevel level)) return;
+        level.sendParticles(ModParticles.COLD_CURRENT_SNOWFLAKE.get(), golem.getX(), golem.getY() + 0.9D,
+                golem.getZ(), 10 + stage * 3, 0.58D, 0.72D, 0.58D, 0.075D);
+        level.playSound(null, golem.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.NEUTRAL,
+                0.55F + stage * 0.08F, 0.72F + stage * 0.13F);
+        syncColdState(golem);
+    }
+    private static void playColdAmbientEffect(SnowGolem golem, int stage) {
+        if (!(golem.level() instanceof ServerLevel level)) return;
+        int count = stage == 0 ? 1 : Math.min(3, stage);
+        double y = stage >= 3 ? golem.getY() + 0.12D : golem.getY() + 0.95D;
+        double spreadY = stage >= 3 ? 0.08D : 0.48D;
+        level.sendParticles(ModParticles.COLD_CURRENT_SNOWFLAKE.get(), golem.getX(), y, golem.getZ(),
+                count, stage >= 3 ? 0.72D : 0.34D, spreadY, stage >= 3 ? 0.72D : 0.34D, 0.012D);
+    }
+    private static void processColdSnowballTrail(Snowball snowball) {
+        if (snowball.tickCount % 2 != 0 || !(snowball.getOwner() instanceof SnowGolem golem)
+                || !(snowball.level() instanceof ServerLevel level)) return;
+        CompoundTag state = state(golem, COLD_CURRENT);
+        if (state == null || coldStage(state) < 4) return;
+        level.sendParticles(ModParticles.COLD_CURRENT_SNOWFLAKE.get(), snowball.getX(), snowball.getY(), snowball.getZ(),
+                1, 0.015D, 0.015D, 0.015D, 0.004D);
+    }
+    private static void playColdProjectileImpact(Snowball snowball) {
+        if (!(snowball.level() instanceof ServerLevel level)) return;
+        level.sendParticles(ModParticles.COLD_CURRENT_SNOWFLAKE.get(), snowball.getX(), snowball.getY(), snowball.getZ(),
+                9, 0.24D, 0.24D, 0.24D, 0.055D);
     }
     private static void syncObsidianState(IronGolem golem) {
         syncObsidianState(golem, ClientboundGolemReinforcementPayload.VisualEvent.SYNC, Vec3.ZERO);

@@ -253,6 +253,7 @@ public final class AbilityEffectEventHandler {
     public static void onStartTracking(PlayerEvent.StartTracking event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             GolemEnhancementEffect.syncObsidianStateTo(player, event.getTarget());
+            GolemEnhancementEffect.syncColdStateTo(player, event.getTarget());
         }
     }
 

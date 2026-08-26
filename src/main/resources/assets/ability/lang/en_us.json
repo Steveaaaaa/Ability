@@ -50,6 +50,7 @@
   "gui.ability.requirement_heading": "UNLOCK REQUIREMENTS",
   "gui.ability.purchase.unknown": "Unknown ability: %s",
   "hud.ability.obsidian_reinforcement.status": "Charge %1$s/%2$s · Shields %3$s/%4$s",
+  "hud.ability.cold_current.status": "Cold Current %1$s/%2$ss · Stage %3$s/4",
   "skill.ability.gathering": "Gathering",
   "skill.ability.gathering.description": "Gain experience by collecting natural resources.",
   "skill.ability.mining": "Mining",
