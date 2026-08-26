@@ -33,10 +33,12 @@ public final class AbilityScreen extends Screen {
     private static final int HEADER_HEIGHT = 42;
     private static final int FOOTER_HEIGHT = 24;
     private static final int PANE_GAP = 7;
-    private static final int SKILL_BUTTON_HEIGHT = 30;
+    private static final int SKILL_BUTTON_HEIGHT = 24;
+    private static final int SKILL_BUTTON_GAP = 2;
     private static final int ABILITY_TILE_SIZE = 58;
     private static final int TILE_GAP = 8;
     private static final int DIAMOND_ICON_SIZE = 32;
+    private static final int ABILITY_GRID_TOP_OFFSET = 65;
 
     private static final ResourceLocation DUNGEON_ICON_FRAME = ResourceLocation.fromNamespaceAndPath(
             "ability",
@@ -214,7 +216,7 @@ public final class AbilityScreen extends Screen {
             SkillDefinition definition = skills.get(index).getValue();
             DungeonsButton button = new DungeonsButton(
                     panelX + 8,
-                    y + visibleIndex * (SKILL_BUTTON_HEIGHT + 3),
+                    y + visibleIndex * (SKILL_BUTTON_HEIGHT + SKILL_BUTTON_GAP),
                     leftWidth - 21,
                     SKILL_BUTTON_HEIGHT,
                     Component.translatable(definition.display().name()),
@@ -238,7 +240,7 @@ public final class AbilityScreen extends Screen {
         int visible = visibleAbilityCount();
         abilityScroll = clampAbilityPageOffset(abilityScroll, abilities.size(), visible);
         int columns = abilityColumns();
-        int gridTop = contentTop + 55;
+        int gridTop = contentTop + ABILITY_GRID_TOP_OFFSET;
         int visibleCount = Math.min(visible, Math.max(0, abilities.size() - abilityScroll));
         for (int visibleIndex = 0; visibleIndex < visibleCount; visibleIndex++) {
             int index = abilityScroll + visibleIndex;
@@ -337,9 +339,9 @@ public final class AbilityScreen extends Screen {
                                 : Component.translatable("gui.ability.locked");
         DungeonsButton purchase = new DungeonsButton(
                 detailX + 10,
-                contentBottom - 29,
+                contentBottom - (compactDetails() ? 23 : 29),
                 rightWidth - 20,
-                21,
+                compactDetails() ? 16 : 21,
                 label,
                 ButtonStyle.PURCHASE,
                 false,
@@ -480,7 +482,7 @@ public final class AbilityScreen extends Screen {
 
     private void renderGoldenDust(GuiGraphics graphics, float partialTick) {
         int left = centerX + 9;
-        int top = contentTop + 55;
+        int top = contentTop + ABILITY_GRID_TOP_OFFSET;
         int dustWidth = centerWidth - 18;
         int dustHeight = contentBottom - top - 25;
         if (dustWidth <= 0 || dustHeight <= 0) {
@@ -546,7 +548,7 @@ public final class AbilityScreen extends Screen {
                         Math.min(state.purchasedRank(), state.maxRank()), state.maxRank()),
                 textX, contentTop + 35, state.purchasedRank() > 0 ? accent : LOCKED, false);
 
-        int rankY = contentTop + 62;
+        int rankY = contentTop + (compactDetails() ? 56 : 62);
         int dotWidth = Math.max(4, Math.min(7, (width - Math.max(0, state.maxRank() - 1) * 3) / state.maxRank()));
         int totalWidth = state.maxRank() * dotWidth + Math.max(0, state.maxRank() - 1) * 3;
         int rankX = x + Math.max(0, (width - totalWidth) / 2);
@@ -559,10 +561,10 @@ public final class AbilityScreen extends Screen {
                     color);
         }
 
+        int descriptionHeadingY = detailDescriptionHeadingY();
+        pixelDiamond(graphics, x + 2, descriptionHeadingY + 4, 1, BORDER_GOLD);
         graphics.drawString(font, Component.translatable("gui.ability.description_heading"),
-                x, contentTop + 75, BORDER_GOLD, false);
-        graphics.fill(x + font.width(Component.translatable("gui.ability.description_heading")) + 5,
-                contentTop + 79, x + width, contentTop + 80, BORDER_DIM);
+                x + 7, descriptionHeadingY, BORDER_GOLD, false);
         int descriptionY = detailDescriptionY();
         int descriptionBottom = detailDescriptionBottom();
         List<FormattedCharSequence> description = detailDescriptionLines();
@@ -587,18 +589,18 @@ public final class AbilityScreen extends Screen {
                 detailScroll
         );
 
-        int requirementHeadingY = contentBottom - 70;
+        int requirementHeadingY = detailRequirementHeadingY();
         Component requirementHeading = Component.translatable("gui.ability.requirement_heading");
-        graphics.drawString(font, requirementHeading, x, requirementHeadingY, BORDER_GOLD, false);
-        graphics.fill(x + font.width(requirementHeading) + 5, requirementHeadingY + 4,
-                x + width, requirementHeadingY + 5, BORDER_DIM);
+        pixelDiamond(graphics, x + 2, requirementHeadingY + 4, 1, BORDER_GOLD);
+        graphics.drawString(font, requirementHeading, x + 7, requirementHeadingY, BORDER_GOLD, false);
         List<FormattedCharSequence> requirement = font.split(
                 Component.translatable("gui.ability.purchase_requirement",
                         state.requiredLevel(), state.pointCost()),
                 width
         );
+        int requirementTextY = contentBottom - (compactDetails() ? 47 : 57);
         for (int line = 0; line < Math.min(2, requirement.size()); line++) {
-            graphics.drawString(font, requirement.get(line), x, contentBottom - 57 + line * 10,
+            graphics.drawString(font, requirement.get(line), x, requirementTextY + line * 10,
                     state.canPurchase() || state.maxed() ? TEXT_PRIMARY : FAILURE, false);
         }
     }
@@ -786,7 +788,8 @@ public final class AbilityScreen extends Screen {
     }
 
     private int visibleSkillCount() {
-        return Math.max(1, (contentBottom - contentTop - 31) / (SKILL_BUTTON_HEIGHT + 3));
+        return Math.max(1,
+                (contentBottom - contentTop - 31) / (SKILL_BUTTON_HEIGHT + SKILL_BUTTON_GAP));
     }
 
     private int abilityColumns() {
@@ -794,7 +797,7 @@ public final class AbilityScreen extends Screen {
     }
 
     private int visibleAbilityCount() {
-        int gridHeight = contentBottom - (contentTop + 55) - 17;
+        int gridHeight = contentBottom - (contentTop + ABILITY_GRID_TOP_OFFSET) - 17;
         int rows = Math.max(1, (gridHeight + TILE_GAP) / (ABILITY_TILE_SIZE + TILE_GAP));
         return rows * abilityColumns();
     }
@@ -808,11 +811,23 @@ public final class AbilityScreen extends Screen {
     }
 
     private int detailDescriptionY() {
-        return contentTop + 87;
+        return detailDescriptionHeadingY() + 12;
     }
 
     private int detailDescriptionBottom() {
-        return contentBottom - 76;
+        return Math.max(detailDescriptionY() + 10, detailRequirementHeadingY() - 6);
+    }
+
+    private int detailDescriptionHeadingY() {
+        return contentTop + (compactDetails() ? 64 : 75);
+    }
+
+    private int detailRequirementHeadingY() {
+        return contentBottom - (compactDetails() ? 58 : 70);
+    }
+
+    private boolean compactDetails() {
+        return contentBottom - contentTop < 230;
     }
 
     private int detailVisibleLines() {
