@@ -28,14 +28,14 @@ import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class AbilityScreen extends Screen {
-    private static final int MAX_PANEL_WIDTH = 580;
-    private static final int MAX_PANEL_HEIGHT = 326;
-    private static final int HEADER_HEIGHT = 38;
-    private static final int FOOTER_HEIGHT = 22;
-    private static final int PANE_GAP = 6;
+    private static final int MAX_PANEL_WIDTH = 680;
+    private static final int MAX_PANEL_HEIGHT = 360;
+    private static final int HEADER_HEIGHT = 42;
+    private static final int FOOTER_HEIGHT = 24;
+    private static final int PANE_GAP = 7;
     private static final int SKILL_BUTTON_HEIGHT = 30;
     private static final int ABILITY_TILE_SIZE = 58;
-    private static final int TILE_GAP = 6;
+    private static final int TILE_GAP = 8;
     private static final int DIAMOND_ICON_SIZE = 32;
 
     private static final ResourceLocation DUNGEON_ICON_FRAME = ResourceLocation.fromNamespaceAndPath(
@@ -48,9 +48,11 @@ public final class AbilityScreen extends Screen {
     private static final int PANEL_DARK = 0xF018191A;
     private static final int PANEL_MID = 0xF0232422;
     private static final int PANEL_LIGHT = 0xF02D2C28;
+    private static final int PANEL_INSET = 0xFF151615;
     private static final int BORDER_DARK = 0xFF4A3824;
     private static final int BORDER_GOLD = 0xFFB88A43;
     private static final int BORDER_BRIGHT = 0xFFE3BC6B;
+    private static final int BORDER_DIM = 0xFF70532E;
     private static final int TEXT_PRIMARY = 0xFFF2E8CF;
     private static final int TEXT_MUTED = 0xFFAAA28F;
     private static final int TEXT_DARK = 0xFF4A3828;
@@ -77,6 +79,7 @@ public final class AbilityScreen extends Screen {
     private int centerX;
     private int centerWidth;
     private int detailX;
+    private int animationTicks;
 
     public AbilityScreen(Screen previousScreen) {
         super(Component.translatable("gui.ability.title"));
@@ -85,12 +88,12 @@ public final class AbilityScreen extends Screen {
 
     @Override
     protected void init() {
-        panelWidth = Math.min(MAX_PANEL_WIDTH, width - 16);
-        panelHeight = Math.min(MAX_PANEL_HEIGHT, height - 16);
+        panelWidth = Math.min(MAX_PANEL_WIDTH, width - 12);
+        panelHeight = Math.min(MAX_PANEL_HEIGHT, height - 12);
         panelX = (width - panelWidth) / 2;
         panelY = (height - panelHeight) / 2;
-        leftWidth = panelWidth >= 500 ? 116 : 92;
-        rightWidth = panelWidth >= 500 ? 184 : 146;
+        leftWidth = panelWidth >= 620 ? 132 : panelWidth >= 500 ? 116 : 92;
+        rightWidth = panelWidth >= 620 ? 214 : panelWidth >= 500 ? 184 : 146;
         contentTop = panelY + HEADER_HEIGHT + 4;
         contentBottom = panelY + panelHeight - FOOTER_HEIGHT - 4;
         centerX = panelX + leftWidth + PANE_GAP;
@@ -127,11 +130,13 @@ public final class AbilityScreen extends Screen {
             detailScroll = 0;
         }
         addAbilityTiles(abilities);
+        addAbilityPageButtons(abilities);
         addPurchaseButton();
     }
 
     @Override
     public void tick() {
+        animationTicks++;
         long currentRevision = ClientProgressCache.uiRevision();
         if (currentRevision != lastCacheRevision) {
             lastCacheRevision = currentRevision;
@@ -162,16 +167,7 @@ public final class AbilityScreen extends Screen {
             return true;
         }
         if (inside(mouseX, mouseY, centerX, contentTop, centerX + centerWidth, contentBottom)) {
-            int direction = scrollY > 0.0D ? -abilityColumns() : abilityColumns();
-            int updated = ScrollWindow.clamp(
-                    abilityScroll + direction,
-                    abilitiesForSelectedSkill().size(),
-                    visibleAbilityCount()
-            );
-            if (updated != abilityScroll) {
-                abilityScroll = updated;
-                rebuildWidgets();
-            }
+            moveAbilityPage(scrollY > 0.0D ? -1 : 1);
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -181,8 +177,11 @@ public final class AbilityScreen extends Screen {
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.renderBackground(graphics, mouseX, mouseY, partialTick);
         graphics.fill(0, 0, width, height, BACKDROP);
-        graphics.fill(panelX + 4, panelY + 5, panelX + panelWidth + 4, panelY + panelHeight + 5, PANEL_SHADOW);
+        renderBackdropPattern(graphics);
+        graphics.fill(panelX + 6, panelY + 7, panelX + panelWidth + 6, panelY + panelHeight + 7, 0xB0000000);
+        graphics.fill(panelX + 3, panelY + 4, panelX + panelWidth + 3, panelY + panelHeight + 4, PANEL_SHADOW);
         panel(graphics, panelX, panelY, panelWidth, panelHeight, PANEL_DARK, BORDER_GOLD, true);
+        renderPanelCorners(graphics, panelX, panelY, panelWidth, panelHeight, BORDER_BRIGHT);
         renderHeader(graphics);
         renderPanes(graphics);
         renderSkillScrollbar(graphics);
@@ -237,22 +236,20 @@ public final class AbilityScreen extends Screen {
 
     private void addAbilityTiles(List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> abilities) {
         int visible = visibleAbilityCount();
-        abilityScroll = ScrollWindow.clamp(abilityScroll, abilities.size(), visible);
+        abilityScroll = clampAbilityPageOffset(abilityScroll, abilities.size(), visible);
         int columns = abilityColumns();
         int gridTop = contentTop + 55;
-        int occupiedWidth = columns * ABILITY_TILE_SIZE + (columns - 1) * TILE_GAP;
-        int startX = centerX + Math.max(5, (centerWidth - occupiedWidth) / 2);
-        for (int visibleIndex = 0; visibleIndex < Math.min(visible, abilities.size()); visibleIndex++) {
+        int visibleCount = Math.min(visible, Math.max(0, abilities.size() - abilityScroll));
+        for (int visibleIndex = 0; visibleIndex < visibleCount; visibleIndex++) {
             int index = abilityScroll + visibleIndex;
             if (index >= abilities.size()) {
                 break;
             }
             ResourceLocation abilityId = abilities.get(index).getKey().location();
             AbilityDefinition definition = abilities.get(index).getValue();
-            int column = visibleIndex % columns;
             int row = visibleIndex / columns;
             AbilityTile tile = new AbilityTile(
-                    startX + column * (ABILITY_TILE_SIZE + TILE_GAP),
+                    abilityTileX(visibleIndex, visibleCount, columns),
                     gridTop + row * (ABILITY_TILE_SIZE + TILE_GAP),
                     abilityId,
                     definition,
@@ -270,6 +267,61 @@ public final class AbilityScreen extends Screen {
         }
     }
 
+    private void addAbilityPageButtons(List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> abilities) {
+        int pageSize = visibleAbilityCount();
+        if (abilities.size() <= pageSize) {
+            return;
+        }
+        int y = contentBottom - 20;
+        DungeonsButton previous = new DungeonsButton(
+                centerX + 8,
+                y,
+                24,
+                16,
+                Component.literal("<"),
+                ButtonStyle.PAGE,
+                false,
+                () -> moveAbilityPage(-1)
+        );
+        previous.active = abilityScroll > 0;
+        previous.setTooltip(Tooltip.create(Component.translatable("gui.ability.previous_page")));
+        addRenderableWidget(previous);
+
+        DungeonsButton next = new DungeonsButton(
+                centerX + centerWidth - 32,
+                y,
+                24,
+                16,
+                Component.literal(">"),
+                ButtonStyle.PAGE,
+                false,
+                () -> moveAbilityPage(1)
+        );
+        next.active = abilityScroll + pageSize < abilities.size();
+        next.setTooltip(Tooltip.create(Component.translatable("gui.ability.next_page")));
+        addRenderableWidget(next);
+    }
+
+    private void moveAbilityPage(int direction) {
+        List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> abilities = abilitiesForSelectedSkill();
+        int pageSize = visibleAbilityCount();
+        int updated = clampAbilityPageOffset(
+                abilityScroll + direction * pageSize,
+                abilities.size(),
+                pageSize
+        );
+        if (updated == abilityScroll) {
+            return;
+        }
+        abilityScroll = updated;
+        if (!abilities.isEmpty() && updated < abilities.size()) {
+            selectedAbility = abilities.get(updated).getKey().location();
+        }
+        detailScroll = 0;
+        ClientProgressCache.clearPurchaseResult();
+        rebuildWidgets();
+    }
+
     private void addPurchaseButton() {
         SelectedAbility selected = selectedAbility();
         if (selected == null) {
@@ -285,9 +337,9 @@ public final class AbilityScreen extends Screen {
                                 : Component.translatable("gui.ability.locked");
         DungeonsButton purchase = new DungeonsButton(
                 detailX + 10,
-                contentBottom - 31,
+                contentBottom - 29,
                 rightWidth - 20,
-                23,
+                21,
                 label,
                 ButtonStyle.PURCHASE,
                 false,
@@ -299,11 +351,20 @@ public final class AbilityScreen extends Screen {
     }
 
     private void renderHeader(GuiGraphics graphics) {
-        graphics.fill(panelX + 2, panelY + 2, panelX + panelWidth - 2, panelY + HEADER_HEIGHT, 0xFF121313);
-        graphics.fill(panelX + leftWidth, panelY + 7, panelX + leftWidth + 1, panelY + HEADER_HEIGHT - 5, BORDER_DARK);
-        graphics.drawCenteredString(font, title, panelX + panelWidth / 2, panelY + 12, TEXT_PRIMARY);
-        graphics.fill(panelX + panelWidth / 2 - 34, panelY + 25, panelX + panelWidth / 2 + 34, panelY + 26, BORDER_GOLD);
-        graphics.fill(panelX + panelWidth / 2 - 12, panelY + 27, panelX + panelWidth / 2 + 12, panelY + 28, BORDER_BRIGHT);
+        graphics.fill(panelX + 2, panelY + 2, panelX + panelWidth - 2, panelY + HEADER_HEIGHT, 0xFF101111);
+        graphics.fill(panelX + 5, panelY + HEADER_HEIGHT - 2,
+                panelX + panelWidth - 5, panelY + HEADER_HEIGHT - 1, BORDER_DARK);
+        graphics.fill(panelX + leftWidth, panelY + 7, panelX + leftWidth + 1, panelY + HEADER_HEIGHT - 5, BORDER_DIM);
+        int titleX = panelX + panelWidth / 2;
+        graphics.drawCenteredString(font, title, titleX, panelY + 11, TEXT_PRIMARY);
+        graphics.fill(titleX - 54, panelY + 27, titleX + 54, panelY + 28, BORDER_DIM);
+        graphics.fill(titleX - 31, panelY + 26, titleX + 31, panelY + 29, BORDER_GOLD);
+        graphics.fill(titleX - 10, panelY + 29, titleX + 10, panelY + 30, BORDER_BRIGHT);
+        int shimmer = (animationTicks / 2) % 52;
+        graphics.fill(titleX - 26 + shimmer, panelY + 26,
+                titleX - 23 + shimmer, panelY + 27, 0xFFFFE4A0);
+        pixelDiamond(graphics, titleX - 60, panelY + 27, 3, BORDER_GOLD);
+        pixelDiamond(graphics, titleX + 60, panelY + 27, 3, BORDER_GOLD);
     }
 
     private void renderPanes(GuiGraphics graphics) {
@@ -313,6 +374,12 @@ public final class AbilityScreen extends Screen {
                 PANEL_MID, BORDER_DARK, false);
         panel(graphics, detailX, contentTop, rightWidth - 5, contentBottom - contentTop,
                 PANEL_LIGHT, BORDER_DARK, false);
+        renderStoneTexture(graphics, panelX + 7, contentTop + 3,
+                leftWidth - 14, contentBottom - contentTop - 6, 3);
+        renderStoneTexture(graphics, centerX + 3, contentTop + 3,
+                centerWidth - 6, contentBottom - contentTop - 6, 11);
+        renderStoneTexture(graphics, detailX + 3, contentTop + 3,
+                rightWidth - 11, contentBottom - contentTop - 6, 19);
         graphics.drawCenteredString(
                 font,
                 Component.translatable("gui.ability.skills_heading"),
@@ -320,6 +387,8 @@ public final class AbilityScreen extends Screen {
                 contentTop + 9,
                 TEXT_MUTED
         );
+        graphics.fill(panelX + 18, contentTop + 22, panelX + leftWidth - 19, contentTop + 23, BORDER_DIM);
+        pixelDiamond(graphics, panelX + leftWidth / 2, contentTop + 22, 2, BORDER_GOLD);
     }
 
     private void renderSkillScrollbar(GuiGraphics graphics) {
@@ -351,6 +420,7 @@ public final class AbilityScreen extends Screen {
         int accent = parseColor(definition.display().color(), BORDER_GOLD);
         renderDiamondIcon(graphics, selectedSkill, definition.display().icon(),
                 centerX + 21, contentTop + 20, 24, false);
+        renderDiamondSelection(graphics, centerX + 21, contentTop + 20, 24, animatedGold());
         graphics.drawString(font, Component.translatable(definition.display().name()),
                 centerX + 42, contentTop + 7, TEXT_PRIMARY, false);
         graphics.drawString(font, Component.translatable("gui.ability.skill_progress",
@@ -366,6 +436,13 @@ public final class AbilityScreen extends Screen {
         }
         int required = progress.level() >= definition.maxLevel() ? 0 : definition.xpToNext().get(progress.level());
         long withinLevel = Math.max(0L, progress.totalXp() - consumed);
+        if (centerWidth >= 220) {
+            Component xp = required == 0
+                    ? Component.translatable("gui.ability.max_level")
+                    : Component.translatable("gui.ability.xp", withinLevel, required);
+            graphics.drawString(font, xp, centerX + centerWidth - 8 - font.width(xp),
+                    contentTop + 31, TEXT_MUTED, false);
+        }
         int barX = centerX + 7;
         int barY = contentTop + 44;
         int barWidth = centerWidth - 14;
@@ -374,6 +451,13 @@ public final class AbilityScreen extends Screen {
         int filled = required == 0 ? barWidth - 2 : (int) Math.min(barWidth - 2,
                 withinLevel * (barWidth - 2) / required);
         graphics.fill(barX + 1, barY + 1, barX + 1 + filled, barY + 6, accent);
+        for (int separator = 12; separator < barWidth - 2; separator += 12) {
+            graphics.fill(barX + separator, barY + 1, barX + separator + 1, barY + 6, 0x55111111);
+        }
+        if (filled > 5) {
+            int glint = (animationTicks / 2) % filled;
+            graphics.fill(barX + 1 + glint, barY + 1, barX + 3 + glint, barY + 2, 0x99FFF0B0);
+        }
     }
 
     private void renderAbilityGridBackground(GuiGraphics graphics) {
@@ -384,16 +468,58 @@ public final class AbilityScreen extends Screen {
             return;
         }
         int visible = visibleAbilityCount();
+        renderAbilityConnections(graphics, abilities, visible);
         if (abilities.size() > visible) {
-            Component position = Component.translatable(
-                    "gui.ability.scroll_position",
-                    abilityScroll + 1,
-                    Math.min(abilities.size(), abilityScroll + visible),
-                    abilities.size()
-            );
+            int currentPage = abilityScroll / visible + 1;
+            int totalPages = (int) Math.ceil(abilities.size() / (double) visible);
+            Component position = Component.translatable("gui.ability.page", currentPage, totalPages);
             graphics.drawCenteredString(font, position, centerX + centerWidth / 2,
-                    contentBottom - 12, 0xFF777165);
+                    contentBottom - 16, TEXT_MUTED);
         }
+    }
+
+    private void renderAbilityConnections(
+            GuiGraphics graphics,
+            List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> abilities,
+            int visible
+    ) {
+        int count = Math.min(visible, Math.max(0, abilities.size() - abilityScroll));
+        if (count < 2) {
+            return;
+        }
+        int columns = abilityColumns();
+        int gridTop = contentTop + 55;
+        for (int index = 0; index < count - 1; index++) {
+            int row = index / columns;
+            int nextRow = (index + 1) / columns;
+            if (row != nextRow) {
+                continue;
+            }
+            int leftCenter = abilityTileX(index, count, columns) + ABILITY_TILE_SIZE / 2;
+            int rightCenter = abilityTileX(index + 1, count, columns) + ABILITY_TILE_SIZE / 2;
+            int y = gridTop + row * (ABILITY_TILE_SIZE + TILE_GAP) + 22;
+            ResourceLocation leftId = abilities.get(abilityScroll + index).getKey().location();
+            ResourceLocation rightId = abilities.get(abilityScroll + index + 1).getKey().location();
+            boolean active = lastSnapshot.abilityRank(leftId) > 0 && lastSnapshot.abilityRank(rightId) > 0;
+            int color = active ? BORDER_GOLD : BORDER_DIM;
+            graphics.fill(leftCenter + 18, y - 1, rightCenter - 18, y + 2, 0xFF111211);
+            graphics.fill(leftCenter + 18, y, rightCenter - 18, y + 1, color);
+            int span = Math.max(1, rightCenter - leftCenter - 36);
+            int sparkX = leftCenter + 18 + Math.floorMod(animationTicks / 2 + index * 9, span);
+            graphics.fill(sparkX, y - 1, sparkX + 2, y + 2,
+                    active ? 0xFFFFE6A6 : 0xFF876A3C);
+            pixelDiamond(graphics, (leftCenter + rightCenter) / 2, y, 2, color);
+        }
+    }
+
+    private int abilityTileX(int visibleIndex, int visibleCount, int columns) {
+        int row = visibleIndex / columns;
+        int column = visibleIndex % columns;
+        int rowStart = row * columns;
+        int rowCount = Math.min(columns, visibleCount - rowStart);
+        int rowWidth = rowCount * ABILITY_TILE_SIZE + Math.max(0, rowCount - 1) * TILE_GAP;
+        return centerX + Math.max(5, (centerWidth - rowWidth) / 2)
+                + column * (ABILITY_TILE_SIZE + TILE_GAP);
     }
 
     private void renderAbilityDetails(GuiGraphics graphics) {
@@ -411,6 +537,7 @@ public final class AbilityScreen extends Screen {
         renderDiamondFill(graphics, x + 24, contentTop + 32, 26, 0xFF111212);
         renderDiamondIcon(graphics, selected.id(), definition.display().icon(),
                 x + 24, contentTop + 32, 34, true);
+        renderDiamondSelection(graphics, x + 24, contentTop + 32, 34, animatedGold());
 
         int textX = x + 57;
         int nameWidth = Math.max(35, width - 57);
@@ -423,16 +550,23 @@ public final class AbilityScreen extends Screen {
                         Math.min(state.purchasedRank(), state.maxRank()), state.maxRank()),
                 textX, contentTop + 35, state.purchasedRank() > 0 ? accent : LOCKED, false);
 
-        int rankY = contentTop + 61;
-        int dotWidth = Math.max(2, Math.min(8, (width - Math.max(0, state.maxRank() - 1) * 2) / state.maxRank()));
-        int totalWidth = state.maxRank() * dotWidth + Math.max(0, state.maxRank() - 1) * 2;
+        int rankY = contentTop + 62;
+        int dotWidth = Math.max(4, Math.min(7, (width - Math.max(0, state.maxRank() - 1) * 3) / state.maxRank()));
+        int totalWidth = state.maxRank() * dotWidth + Math.max(0, state.maxRank() - 1) * 3;
         int rankX = x + Math.max(0, (width - totalWidth) / 2);
         for (int index = 0; index < state.maxRank(); index++) {
             int color = index < state.purchasedRank() ? accent : 0xFF4B4943;
-            graphics.fill(rankX + index * (dotWidth + 2), rankY,
-                    rankX + index * (dotWidth + 2) + dotWidth, rankY + 4, color);
+            renderDiamondFill(graphics,
+                    rankX + index * (dotWidth + 3) + dotWidth / 2,
+                    rankY,
+                    dotWidth,
+                    color);
         }
 
+        graphics.drawString(font, Component.translatable("gui.ability.description_heading"),
+                x, contentTop + 75, BORDER_GOLD, false);
+        graphics.fill(x + font.width(Component.translatable("gui.ability.description_heading")) + 5,
+                contentTop + 79, x + width, contentTop + 80, BORDER_DIM);
         int descriptionY = detailDescriptionY();
         int descriptionBottom = detailDescriptionBottom();
         List<FormattedCharSequence> description = detailDescriptionLines();
@@ -457,16 +591,28 @@ public final class AbilityScreen extends Screen {
                 detailScroll
         );
 
-        int requirementY = contentBottom - 53;
-        graphics.fill(x, requirementY - 4, x + width, requirementY - 3, BORDER_DARK);
-        graphics.drawString(font, Component.translatable("gui.ability.purchase_requirement",
+        int requirementHeadingY = contentBottom - 70;
+        Component requirementHeading = Component.translatable("gui.ability.requirement_heading");
+        graphics.drawString(font, requirementHeading, x, requirementHeadingY, BORDER_GOLD, false);
+        graphics.fill(x + font.width(requirementHeading) + 5, requirementHeadingY + 4,
+                x + width, requirementHeadingY + 5, BORDER_DIM);
+        List<FormattedCharSequence> requirement = font.split(
+                Component.translatable("gui.ability.purchase_requirement",
                         state.requiredLevel(), state.pointCost()),
-                x, requirementY + 2, state.canPurchase() || state.maxed() ? TEXT_PRIMARY : FAILURE, false);
+                width
+        );
+        for (int line = 0; line < Math.min(2, requirement.size()); line++) {
+            graphics.drawString(font, requirement.get(line), x, contentBottom - 57 + line * 10,
+                    state.canPurchase() || state.maxed() ? TEXT_PRIMARY : FAILURE, false);
+        }
     }
 
     private void renderFooter(GuiGraphics graphics) {
         int y = panelY + panelHeight - FOOTER_HEIGHT;
         graphics.fill(panelX + 2, y, panelX + panelWidth - 2, panelY + panelHeight - 2, 0xFF121313);
+        graphics.fill(panelX + 8, y, panelX + panelWidth - 8, y + 1, BORDER_DIM);
+        pixelDiamond(graphics, panelX + 14, y, 2, BORDER_GOLD);
+        pixelDiamond(graphics, panelX + panelWidth - 14, y, 2, BORDER_GOLD);
         ClientboundPurchaseResultPayload result = ClientProgressCache.lastPurchaseResult();
         if (result == null) {
             graphics.drawCenteredString(font, Component.translatable("gui.ability.ui_hint"),
@@ -564,13 +710,27 @@ public final class AbilityScreen extends Screen {
             GuiGraphics graphics,
             int centerX,
             int centerY,
-            int size
+            int size,
+            int color
     ) {
         int extent = Math.round(size * 0.53F);
-        graphics.fill(centerX - 2, centerY - extent, centerX + 2, centerY - extent + 2, BORDER_BRIGHT);
-        graphics.fill(centerX - 2, centerY + extent - 2, centerX + 2, centerY + extent, BORDER_BRIGHT);
-        graphics.fill(centerX - extent, centerY - 2, centerX - extent + 2, centerY + 2, BORDER_BRIGHT);
-        graphics.fill(centerX + extent - 2, centerY - 2, centerX + extent, centerY + 2, BORDER_BRIGHT);
+        graphics.fill(centerX - 2, centerY - extent, centerX + 2, centerY - extent + 2, color);
+        graphics.fill(centerX - 2, centerY + extent - 2, centerX + 2, centerY + extent, color);
+        graphics.fill(centerX - extent, centerY - 2, centerX - extent + 2, centerY + 2, color);
+        graphics.fill(centerX + extent - 2, centerY - 2, centerX + extent, centerY + 2, color);
+    }
+
+    private int animatedGold() {
+        float pulse = (float) ((Math.sin(animationTicks * 0.18D) + 1.0D) * 0.5D);
+        return mixColor(BORDER_GOLD, BORDER_BRIGHT, 0.35F + pulse * 0.65F);
+    }
+
+    private static int mixColor(int from, int to, float amount) {
+        float value = Math.clamp(amount, 0.0F, 1.0F);
+        int red = Math.round(((from >> 16) & 0xFF) * (1.0F - value) + ((to >> 16) & 0xFF) * value);
+        int green = Math.round(((from >> 8) & 0xFF) * (1.0F - value) + ((to >> 8) & 0xFF) * value);
+        int blue = Math.round((from & 0xFF) * (1.0F - value) + (to & 0xFF) * value);
+        return 0xFF000000 | red << 16 | green << 8 | blue;
     }
 
     private PurchaseState purchaseState(ResourceLocation abilityId, AbilityDefinition definition) {
@@ -613,12 +773,20 @@ public final class AbilityScreen extends Screen {
         return rows * abilityColumns();
     }
 
+    private static int clampAbilityPageOffset(int offset, int itemCount, int pageSize) {
+        if (itemCount <= 0 || pageSize <= 0) {
+            return 0;
+        }
+        int lastPageStart = (itemCount - 1) / pageSize * pageSize;
+        return Math.clamp(offset, 0, lastPageStart);
+    }
+
     private int detailDescriptionY() {
-        return contentTop + 74;
+        return contentTop + 87;
     }
 
     private int detailDescriptionBottom() {
-        return contentBottom - 61;
+        return contentBottom - 76;
     }
 
     private int detailVisibleLines() {
@@ -673,6 +841,63 @@ public final class AbilityScreen extends Screen {
 
     private Registry<AbilityDefinition> abilityRegistry() {
         return minecraft.level.registryAccess().registryOrThrow(ModDataRegistries.ABILITIES);
+    }
+
+    private void renderBackdropPattern(GuiGraphics graphics) {
+        int drift = animationTicks % 24;
+        for (int x = -24 + drift; x < width + 24; x += 24) {
+            graphics.fill(x, 0, x + 1, height, 0x141F211F);
+        }
+        for (int y = 12; y < height; y += 24) {
+            graphics.fill(0, y, width, y + 1, 0x10181918);
+        }
+    }
+
+    private static void renderPanelCorners(
+            GuiGraphics graphics,
+            int x,
+            int y,
+            int width,
+            int height,
+            int color
+    ) {
+        int arm = Math.min(14, Math.min(width, height) / 4);
+        graphics.fill(x + 2, y + 2, x + 2 + arm, y + 3, color);
+        graphics.fill(x + 2, y + 2, x + 3, y + 2 + arm, color);
+        graphics.fill(x + width - 2 - arm, y + 2, x + width - 2, y + 3, color);
+        graphics.fill(x + width - 3, y + 2, x + width - 2, y + 2 + arm, color);
+        graphics.fill(x + 2, y + height - 3, x + 2 + arm, y + height - 2, color);
+        graphics.fill(x + 2, y + height - 2 - arm, x + 3, y + height - 2, color);
+        graphics.fill(x + width - 2 - arm, y + height - 3, x + width - 2, y + height - 2, color);
+        graphics.fill(x + width - 3, y + height - 2 - arm, x + width - 2, y + height - 2, color);
+    }
+
+    private static void renderStoneTexture(
+            GuiGraphics graphics,
+            int x,
+            int y,
+            int width,
+            int height,
+            int seed
+    ) {
+        if (width < 8 || height < 8) {
+            return;
+        }
+        int count = Math.max(5, width * height / 850);
+        for (int index = 0; index < count; index++) {
+            int px = x + 3 + Math.floorMod(index * 37 + seed * 13, width - 6);
+            int py = y + 3 + Math.floorMod(index * 23 + seed * 7, height - 6);
+            int color = (index & 1) == 0 ? 0xFF2B2C29 : 0xFF1B1C1B;
+            graphics.fill(px, py, px + 1 + index % 2, py + 1, color);
+        }
+    }
+
+    private static void pixelDiamond(GuiGraphics graphics, int centerX, int centerY, int size, int color) {
+        for (int row = -size; row <= size; row++) {
+            int halfWidth = size - Math.abs(row);
+            graphics.fill(centerX - halfWidth, centerY + row,
+                    centerX + halfWidth + 1, centerY + row + 1, color);
+        }
     }
 
     private static void panel(
@@ -774,7 +999,7 @@ public final class AbilityScreen extends Screen {
             int accent = parseColor(definition.display().color(), BORDER_GOLD);
             int fill = purchasedRank > 0 ? 0xFF302A21 : 0xFF191A19;
             int iconX = getX() + getWidth() / 2;
-            int iconY = getY() + 22;
+            int iconY = getY() + 22 - (isHovered ? 1 : 0);
             renderDiamondFill(graphics, iconX, iconY, DIAMOND_ICON_SIZE - 8, fill);
             renderDiamondIcon(graphics, abilityId, definition.display().icon(),
                     iconX, iconY, DIAMOND_ICON_SIZE, true);
@@ -782,7 +1007,7 @@ public final class AbilityScreen extends Screen {
                 renderDiamondShade(graphics, iconX, iconY, DIAMOND_ICON_SIZE - 4, 0x55101010);
             }
             if (selected) {
-                renderDiamondSelection(graphics, iconX, iconY, DIAMOND_ICON_SIZE);
+                renderDiamondSelection(graphics, iconX, iconY, DIAMOND_ICON_SIZE, animatedGold());
             }
             Component name = Component.translatable(definition.display().name());
             String clipped = font.plainSubstrByWidth(name.getString(), getWidth() - 8);
@@ -791,6 +1016,14 @@ public final class AbilityScreen extends Screen {
                     : purchasedRank > 0 || isHovered ? TEXT_PRIMARY : TEXT_MUTED;
             graphics.drawCenteredString(font, clipped, getX() + getWidth() / 2, getY() + 46,
                     nameColor);
+            if (selected) {
+                int selectionColor = animatedGold();
+                graphics.fill(getX() + getWidth() / 2 - 10, getY() + 56,
+                        getX() + getWidth() / 2 + 10, getY() + 57, selectionColor);
+            } else if (isHovered) {
+                graphics.fill(getX() + getWidth() / 2 - 5, getY() + 56,
+                        getX() + getWidth() / 2 + 5, getY() + 57, BORDER_DIM);
+            }
             int maxRank = definition.ranks().values().size();
             if (purchasedRank > 0) {
                 String rank = purchasedRank + "/" + maxRank;
@@ -850,14 +1083,25 @@ public final class AbilityScreen extends Screen {
                 case BACK -> 0xFF24231F;
                 case SKILL -> selected ? 0xFF3B3021 : isHovered ? 0xFF302B23 : 0xFF232421;
                 case PURCHASE -> active ? 0xFF4B3921 : 0xFF252522;
+                case PAGE -> active ? 0xFF292720 : 0xFF1C1D1C;
             };
             panel(graphics, getX(), getY(), getWidth(), getHeight(), fill, border, selected || isHovered);
             if (style == ButtonStyle.SKILL) {
                 graphics.fill(getX() + 3, getY() + 4, getX() + 6, getY() + getHeight() - 4,
                         selected ? accent : 0xFF4F4A40);
+                if (selected) {
+                    pixelDiamond(graphics, getX() + getWidth() - 6,
+                            getY() + getHeight() / 2, 2, BORDER_BRIGHT);
+                }
+            } else if (style == ButtonStyle.PURCHASE && active) {
+                pixelDiamond(graphics, getX() + 7, getY() + getHeight() / 2, 2, accent);
+                pixelDiamond(graphics, getX() + getWidth() - 7,
+                        getY() + getHeight() / 2, 2, accent);
             }
             int color = !active ? LOCKED : style == ButtonStyle.PURCHASE ? 0xFFFFE6A6 : TEXT_PRIMARY;
-            graphics.drawCenteredString(Minecraft.getInstance().font, getMessage(),
+            String clipped = Minecraft.getInstance().font.plainSubstrByWidth(
+                    getMessage().getString(), Math.max(4, getWidth() - (style == ButtonStyle.SKILL ? 18 : 8)));
+            graphics.drawCenteredString(Minecraft.getInstance().font, clipped,
                     getX() + getWidth() / 2,
                     getY() + (getHeight() - 8) / 2,
                     color);
@@ -872,7 +1116,8 @@ public final class AbilityScreen extends Screen {
     private enum ButtonStyle {
         BACK,
         SKILL,
-        PURCHASE
+        PURCHASE,
+        PAGE
     }
 
     private record SelectedAbility(ResourceLocation id, AbilityDefinition definition) {
