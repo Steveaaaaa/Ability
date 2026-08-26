@@ -186,7 +186,7 @@ public final class AbilityScreen extends Screen {
         renderPanes(graphics);
         renderSkillScrollbar(graphics);
         renderSelectedSkill(graphics);
-        renderAbilityGridBackground(graphics);
+        renderAbilityGridBackground(graphics, partialTick);
         renderAbilityDetails(graphics);
         renderFooter(graphics);
     }
@@ -460,8 +460,8 @@ public final class AbilityScreen extends Screen {
         }
     }
 
-    private void renderAbilityGridBackground(GuiGraphics graphics) {
-        renderGoldenDust(graphics);
+    private void renderAbilityGridBackground(GuiGraphics graphics, float partialTick) {
+        renderGoldenDust(graphics, partialTick);
         List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> abilities = abilitiesForSelectedSkill();
         if (abilities.isEmpty()) {
             graphics.drawCenteredString(font, Component.translatable("gui.ability.no_abilities"),
@@ -478,7 +478,7 @@ public final class AbilityScreen extends Screen {
         }
     }
 
-    private void renderGoldenDust(GuiGraphics graphics) {
+    private void renderGoldenDust(GuiGraphics graphics, float partialTick) {
         int left = centerX + 9;
         int top = contentTop + 55;
         int dustWidth = centerWidth - 18;
@@ -486,17 +486,26 @@ public final class AbilityScreen extends Screen {
         if (dustWidth <= 0 || dustHeight <= 0) {
             return;
         }
+        float animationTime = animationTicks + partialTick;
         for (int index = 0; index < 9; index++) {
-            int x = left + Math.floorMod(index * 47 + animationTicks / 12, dustWidth);
-            int y = top + Math.floorMod(index * 31 - animationTicks / 4, dustHeight);
-            int phase = Math.floorMod(animationTicks + index * 13, 48);
+            float x = left + positiveModulo(index * 47.0F + animationTime / 12.0F, dustWidth);
+            float y = top + positiveModulo(index * 31.0F - animationTime / 4.0F, dustHeight);
+            int phase = Math.floorMod((int) animationTime + index * 13, 48);
             int color = phase < 8 ? 0x997B5C31 : phase < 20 ? 0x665B4529 : 0x3D4C3B26;
-            graphics.fill(x, y, x + 1, y + 1, color);
+            graphics.pose().pushPose();
+            graphics.pose().translate(x, y, 0.0F);
+            graphics.fill(0, 0, 1, 1, color);
             if (phase < 3) {
-                graphics.fill(x - 1, y, x + 2, y + 1, 0x66785A30);
-                graphics.fill(x, y - 1, x + 1, y + 2, 0x66785A30);
+                graphics.fill(-1, 0, 2, 1, 0x66785A30);
+                graphics.fill(0, -1, 1, 2, 0x66785A30);
             }
+            graphics.pose().popPose();
         }
+    }
+
+    private static float positiveModulo(float value, int modulus) {
+        float result = value % modulus;
+        return result < 0.0F ? result + modulus : result;
     }
 
     private int abilityTileX(int visibleIndex, int visibleCount, int columns) {
