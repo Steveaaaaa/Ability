@@ -111,4 +111,5 @@ PULSE 立即播放一次。START 会立即播放，并在有效持续时间内�
 “寒流”使用三张独立资源：完整雪傀儡皮肤位于
 `assets/ability/textures/entity/snow_golem/cold_current.png`，冰晶与雪花分别位于
 `assets/ability/textures/particle/cold_current_crystal.png` 和
-`assets/ability/textures/particle/cold_current_snowflake.png`。强化后立即替换皮肤；第二阶段显示肩部冰晶，第三阶段出现贴地雪花环，第四阶段使冰晶与头部雪花变亮，并为雪球增加冰屑尾迹和命中爆散。每个阶段提升时会播放一次短促的雪花爆发和递增音调，强化者看向雪傀儡时可查看计时和阶段。
+`assets/ability/textures/particle/cold_current_snowflake.png`，最终阶段的冰雪王冠位于
+`assets/ability/textures/particle/cold_current_crown.png`。强化后立即替换皮肤；第二阶段显示肩部冰晶，第三阶段出现贴地雪花环，第四阶段使冰晶变亮并在头顶生成轻微悬浮的冰雪王冠，同时为雪球增加冰屑尾迹和命中爆散。每个阶段提升时会播放一次短促的雪花爆发和递增音调，强化者看向雪傀儡时可查看计时和阶段。

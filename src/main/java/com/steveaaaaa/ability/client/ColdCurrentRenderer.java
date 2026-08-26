@@ -25,6 +25,7 @@ import net.neoforged.neoforge.client.event.RenderLivingEvent;
 public final class ColdCurrentRenderer {
     private static final ResourceLocation CRYSTAL = AbilityMod.id("textures/particle/cold_current_crystal.png");
     private static final ResourceLocation SNOWFLAKE = AbilityMod.id("textures/particle/cold_current_snowflake.png");
+    private static final ResourceLocation CROWN = AbilityMod.id("textures/particle/cold_current_crown.png");
     private static final double TAU = Math.PI * 2.0D;
 
     private ColdCurrentRenderer() {
@@ -56,8 +57,9 @@ public final class ColdCurrentRenderer {
             }
         }
         if (state.stage() >= 4) {
-            renderBillboard(event, SNOWFLAKE, 0.0F, 1.95F + Mth.sin(time * 0.11F) * 0.04F,
-                    0.0F, 0.27F, 205, LightTexture.FULL_BRIGHT);
+            float crownPulse = 0.97F + Mth.sin(time * 0.11F) * 0.03F;
+            renderBillboard(event, CROWN, 0.0F, 2.08F + Mth.sin(time * 0.075F) * 0.025F,
+                    0.0F, 0.82F * crownPulse, 235, LightTexture.FULL_BRIGHT);
         }
     }
 
