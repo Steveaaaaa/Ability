@@ -101,3 +101,9 @@ PULSE 立即播放一次。START 会立即播放，并在有效持续时间内�
 如果素材本身已经是最终菱形朝向，可分别放入
 `textures/gui/skill_icons/diamond/<path>.png` 或
 `textures/gui/ability_icons/diamond/<path>.png`。该路径优先于普通方形素材，界面不会再次旋转图案，只叠加统一边框。
+
+## 黑曜石加固美术资源
+
+强化铁傀儡的完整侵蚀皮肤路径为
+`assets/ability/textures/entity/iron_golem/obsidian_reinforcement.png`。护盾外壳的可替换透明纹理路径为
+`assets/ability/textures/entity/iron_golem/obsidian_shield.png`，推荐使用 32×32 或 64×64 的像素纹理：主体保持大面积透明，只保留暗色像素纹理和少量高光。未提供护盾纹理时会自动使用原版黑曜石纹理作为后备，不影响护盾外壳、呼吸、分层轮廓、生成脉冲和受击波纹。

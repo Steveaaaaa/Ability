@@ -12,7 +12,11 @@ public record ClientboundGolemReinforcementPayload(
         int charge,
         int chargeThreshold,
         int shields,
-        int maxShields
+        int maxShields,
+        VisualEvent visualEvent,
+        float impactX,
+        float impactY,
+        float impactZ
 ) implements CustomPacketPayload {
     public static final Type<ClientboundGolemReinforcementPayload> TYPE =
             new Type<>(AbilityMod.id("golem_reinforcement"));
@@ -31,6 +35,10 @@ public record ClientboundGolemReinforcementPayload(
         buffer.writeVarInt(chargeThreshold);
         buffer.writeVarInt(shields);
         buffer.writeVarInt(maxShields);
+        buffer.writeEnum(visualEvent);
+        buffer.writeFloat(impactX);
+        buffer.writeFloat(impactY);
+        buffer.writeFloat(impactZ);
     }
 
     private static ClientboundGolemReinforcementPayload decode(RegistryFriendlyByteBuf buffer) {
@@ -40,7 +48,18 @@ public record ClientboundGolemReinforcementPayload(
                 buffer.readVarInt(),
                 buffer.readVarInt(),
                 buffer.readVarInt(),
-                buffer.readVarInt()
+                buffer.readVarInt(),
+                buffer.readEnum(VisualEvent.class),
+                buffer.readFloat(),
+                buffer.readFloat(),
+                buffer.readFloat()
         );
+    }
+
+    public enum VisualEvent {
+        SYNC,
+        ACTIVATED,
+        SHIELD_GAINED,
+        SHIELD_BLOCKED
     }
 }

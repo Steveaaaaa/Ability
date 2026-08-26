@@ -29,9 +29,21 @@ public final class GolemReinforcementClientState {
         }
         ClientboundGolemReinforcementPayload payload;
         while ((payload = ClientGolemReinforcementQueue.poll()) != null) {
+            long tick = minecraft.level.getGameTime();
+            State previous = STATES.get(payload.golemId());
+            long animationTick = payload.visualEvent() == ClientboundGolemReinforcementPayload.VisualEvent.SYNC
+                    && previous != null ? previous.animationTick : tick;
+            ClientboundGolemReinforcementPayload.VisualEvent visualEvent =
+                    payload.visualEvent() == ClientboundGolemReinforcementPayload.VisualEvent.SYNC && previous != null
+                            ? previous.visualEvent : payload.visualEvent();
+            boolean preserveAnimation = payload.visualEvent() == ClientboundGolemReinforcementPayload.VisualEvent.SYNC
+                    && previous != null;
             STATES.put(payload.golemId(), new State(
                     payload.ownerId(), payload.charge(), payload.chargeThreshold(),
-                    payload.shields(), payload.maxShields()
+                    payload.shields(), payload.maxShields(), visualEvent, animationTick,
+                    preserveAnimation ? previous.impactX : payload.impactX(),
+                    preserveAnimation ? previous.impactY : payload.impactY(),
+                    preserveAnimation ? previous.impactZ : payload.impactZ()
             ));
         }
     }
@@ -50,6 +62,17 @@ public final class GolemReinforcementClientState {
         ClientGolemReinforcementQueue.clear();
     }
 
-    public record State(UUID ownerId, int charge, int chargeThreshold, int shields, int maxShields) {
+    public record State(
+            UUID ownerId,
+            int charge,
+            int chargeThreshold,
+            int shields,
+            int maxShields,
+            ClientboundGolemReinforcementPayload.VisualEvent visualEvent,
+            long animationTick,
+            float impactX,
+            float impactY,
+            float impactZ
+    ) {
     }
 }

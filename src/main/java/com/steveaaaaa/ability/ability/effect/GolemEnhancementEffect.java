@@ -38,6 +38,7 @@ import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.Snowball;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.phys.AABB;
@@ -84,7 +85,7 @@ public final class GolemEnhancementEffect {
             if (!player.getAbilities().instabuild) event.getItemStack().shrink(component.config().itemCost());
             if (component.type().equals(OBSIDIAN_REINFORCEMENT) && target instanceof IronGolem golem) {
                 playActivationEffect(golem);
-                syncObsidianState(golem);
+                syncObsidianState(golem, ClientboundGolemReinforcementPayload.VisualEvent.ACTIVATED, Vec3.ZERO);
             }
             event.setCancellationResult(InteractionResult.SUCCESS); event.setCanceled(true); return;
         }
@@ -103,8 +104,12 @@ public final class GolemEnhancementEffect {
         entity.heal((float) (entity.getMaxHealth() * state.getDouble("heal_percent") / 100.0D));
         event.setCanceled(true);
         if (entity instanceof IronGolem golem) {
-            playShieldBreakEffect(golem);
-            syncObsidianState(golem);
+            Vec3 source = event.getSource().getSourcePosition();
+            Vec3 direction = source == null
+                    ? Vec3.directionFromRotation(0.0F, golem.getYRot()).scale(-1.0D)
+                    : source.subtract(golem.getX(), golem.getY() + golem.getBbHeight() * 0.5D, golem.getZ()).normalize();
+            playShieldBreakEffect(golem, direction);
+            syncObsidianState(golem, ClientboundGolemReinforcementPayload.VisualEvent.SHIELD_BLOCKED, direction);
         }
     }
 
@@ -138,11 +143,12 @@ public final class GolemEnhancementEffect {
                         state.putInt("shields", state.getInt("shields") + 1);
                         charge = 0;
                         playShieldGainedEffect(golem);
+                        syncObsidianState(golem, ClientboundGolemReinforcementPayload.VisualEvent.SHIELD_GAINED, Vec3.ZERO);
                     } else {
                         playChargeEffect(golem);
                     }
                     state.putInt("charge", charge);
-                    syncObsidianState(golem);
+                    if (charge != 0) syncObsidianState(golem);
                 } else if (state.getInt("charge") != 0) {
                     state.putInt("charge", 0);
                     syncObsidianState(golem);
@@ -244,15 +250,31 @@ public final class GolemEnhancementEffect {
         }
     }
     private static void syncObsidianState(IronGolem golem) {
+        syncObsidianState(golem, ClientboundGolemReinforcementPayload.VisualEvent.SYNC, Vec3.ZERO);
+    }
+    private static void syncObsidianState(
+            IronGolem golem,
+            ClientboundGolemReinforcementPayload.VisualEvent visualEvent,
+            Vec3 impactDirection
+    ) {
         CompoundTag state = state(golem, OBSIDIAN_REINFORCEMENT);
         if (state != null && state.hasUUID("owner")) {
-            PacketDistributor.sendToPlayersTrackingEntityAndSelf(golem, payload(golem, state));
+            PacketDistributor.sendToPlayersTrackingEntityAndSelf(golem, payload(golem, state, visualEvent, impactDirection));
         }
     }
     private static ClientboundGolemReinforcementPayload payload(IronGolem golem, CompoundTag state) {
+        return payload(golem, state, ClientboundGolemReinforcementPayload.VisualEvent.SYNC, Vec3.ZERO);
+    }
+    private static ClientboundGolemReinforcementPayload payload(
+            IronGolem golem,
+            CompoundTag state,
+            ClientboundGolemReinforcementPayload.VisualEvent visualEvent,
+            Vec3 impactDirection
+    ) {
         return new ClientboundGolemReinforcementPayload(
                 golem.getUUID(), state.getUUID("owner"), state.getInt("charge"), OBSIDIAN_CHARGE_THRESHOLD,
-                state.getInt("shields"), maxShields(state)
+                state.getInt("shields"), maxShields(state), visualEvent,
+                (float) impactDirection.x, (float) impactDirection.y, (float) impactDirection.z
         );
     }
     private static int maxShields(CompoundTag state) {
@@ -275,10 +297,13 @@ public final class GolemEnhancementEffect {
         level.sendParticles(obsidian, golem.getX(), golem.getY() + 1.35D, golem.getZ(), 12, 0.5D, 0.55D, 0.5D, 0.04D);
         level.playSound(null, golem.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.NEUTRAL, 0.65F, 0.55F);
     }
-    private static void playShieldBreakEffect(IronGolem golem) {
+    private static void playShieldBreakEffect(IronGolem golem, Vec3 direction) {
         if (!(golem.level() instanceof ServerLevel level)) return;
         BlockParticleOption obsidian = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.OBSIDIAN.defaultBlockState());
-        level.sendParticles(obsidian, golem.getX(), golem.getY() + 1.25D, golem.getZ(), 24, 0.65D, 0.7D, 0.65D, 0.12D);
+        double x = golem.getX() + direction.x * 0.72D;
+        double y = golem.getY() + 1.25D + direction.y * 0.55D;
+        double z = golem.getZ() + direction.z * 0.72D;
+        level.sendParticles(obsidian, x, y, z, 24, 0.38D, 0.55D, 0.38D, 0.13D);
         level.sendParticles(ParticleTypes.HAPPY_VILLAGER, golem.getX(), golem.getY() + 0.65D, golem.getZ(), 6,
                 0.35D, 0.35D, 0.35D, 0.03D);
         level.playSound(null, golem.blockPosition(), SoundEvents.SHIELD_BLOCK, SoundSource.NEUTRAL, 0.9F, 0.7F);
