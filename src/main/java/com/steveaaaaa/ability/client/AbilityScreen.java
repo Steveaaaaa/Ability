@@ -487,13 +487,22 @@ public final class AbilityScreen extends Screen {
             int size,
             boolean ability
     ) {
-        ResourceLocation texture = ResourceLocation.fromNamespaceAndPath(
+        String iconDirectory = ability ? "ability_icons/" : "skill_icons/";
+        ResourceLocation finishedDiamondTexture = ResourceLocation.fromNamespaceAndPath(
                 definitionId.getNamespace(),
-                "textures/gui/" + (ability ? "ability_icons/" : "skill_icons/")
-                        + definitionId.getPath() + ".png"
+                "textures/gui/" + iconDirectory + "diamond/" + definitionId.getPath() + ".png"
         );
-        if (minecraft.getResourceManager().getResource(texture).isPresent()) {
-            renderRotatedTexture(graphics, texture, centerX, centerY, size);
+        ResourceLocation squareTexture = ResourceLocation.fromNamespaceAndPath(
+                definitionId.getNamespace(),
+                "textures/gui/" + iconDirectory + definitionId.getPath() + ".png"
+        );
+        if (minecraft.getResourceManager().getResource(finishedDiamondTexture).isPresent()) {
+            int finishedSize = Math.round(size * 1.41421356F);
+            graphics.blit(finishedDiamondTexture,
+                    centerX - finishedSize / 2, centerY - finishedSize / 2,
+                    0.0F, 0.0F, finishedSize, finishedSize, finishedSize, finishedSize);
+        } else if (minecraft.getResourceManager().getResource(squareTexture).isPresent()) {
+            renderRotatedTexture(graphics, squareTexture, centerX, centerY, size);
         } else {
             ItemStack stack = BuiltInRegistries.ITEM.getOptional(fallbackItemId)
                     .map(ItemStack::new)

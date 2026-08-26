@@ -97,3 +97,7 @@ PULSE 立即播放一次。START 会立即播放，并在有效持续时间内�
 `assets/ability/textures/gui/dungeon_icon_frame.png` 像素边框。技能图标路径为
 `assets/<namespace>/textures/gui/skill_icons/<path>.png`，能力图标路径为
 `assets/<namespace>/textures/gui/ability_icons/<path>.png`。推荐提供 32×32 或更高的正方形像素素材；完整素材会与槽位一起旋转，边框始终在最上层统一显示。资源不存在时自动回退到定义中 `display.icon` 指向的正向物品图标，外侧仍使用同一菱形边框。替换图标不需要修改 Java 或数据定义。
+
+如果素材本身已经是最终菱形朝向，可分别放入
+`textures/gui/skill_icons/diamond/<path>.png` 或
+`textures/gui/ability_icons/diamond/<path>.png`。该路径优先于普通方形素材，界面不会再次旋转图案，只叠加统一边框。
