@@ -468,47 +468,12 @@ public final class AbilityScreen extends Screen {
             return;
         }
         int visible = visibleAbilityCount();
-        renderAbilityConnections(graphics, abilities, visible);
         if (abilities.size() > visible) {
             int currentPage = abilityScroll / visible + 1;
             int totalPages = (int) Math.ceil(abilities.size() / (double) visible);
             Component position = Component.translatable("gui.ability.page", currentPage, totalPages);
             graphics.drawCenteredString(font, position, centerX + centerWidth / 2,
                     contentBottom - 16, TEXT_MUTED);
-        }
-    }
-
-    private void renderAbilityConnections(
-            GuiGraphics graphics,
-            List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> abilities,
-            int visible
-    ) {
-        int count = Math.min(visible, Math.max(0, abilities.size() - abilityScroll));
-        if (count < 2) {
-            return;
-        }
-        int columns = abilityColumns();
-        int gridTop = contentTop + 55;
-        for (int index = 0; index < count - 1; index++) {
-            int row = index / columns;
-            int nextRow = (index + 1) / columns;
-            if (row != nextRow) {
-                continue;
-            }
-            int leftCenter = abilityTileX(index, count, columns) + ABILITY_TILE_SIZE / 2;
-            int rightCenter = abilityTileX(index + 1, count, columns) + ABILITY_TILE_SIZE / 2;
-            int y = gridTop + row * (ABILITY_TILE_SIZE + TILE_GAP) + 22;
-            ResourceLocation leftId = abilities.get(abilityScroll + index).getKey().location();
-            ResourceLocation rightId = abilities.get(abilityScroll + index + 1).getKey().location();
-            boolean active = lastSnapshot.abilityRank(leftId) > 0 && lastSnapshot.abilityRank(rightId) > 0;
-            int color = active ? BORDER_GOLD : BORDER_DIM;
-            graphics.fill(leftCenter + 18, y - 1, rightCenter - 18, y + 2, 0xFF111211);
-            graphics.fill(leftCenter + 18, y, rightCenter - 18, y + 1, color);
-            int span = Math.max(1, rightCenter - leftCenter - 36);
-            int sparkX = leftCenter + 18 + Math.floorMod(animationTicks / 2 + index * 9, span);
-            graphics.fill(sparkX, y - 1, sparkX + 2, y + 2,
-                    active ? 0xFFFFE6A6 : 0xFF876A3C);
-            pixelDiamond(graphics, (leftCenter + rightCenter) / 2, y, 2, color);
         }
     }
 
