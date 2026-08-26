@@ -32,6 +32,10 @@ public final class ModParticles {
             "crushing_blow_pressure",
             () -> new SimpleParticleType(false)
     );
+    public static final Supplier<SimpleParticleType> CRUSHING_BLOW_FORGE_SPARK = PARTICLE_TYPES.register(
+            "crushing_blow_forge_spark",
+            () -> new SimpleParticleType(false)
+    );
 
     private ModParticles() {
     }

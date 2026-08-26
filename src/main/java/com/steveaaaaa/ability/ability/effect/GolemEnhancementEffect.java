@@ -440,8 +440,8 @@ public final class GolemEnhancementEffect {
         BlockParticleOption anvil = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.ANVIL.defaultBlockState());
         level.sendParticles(anvil, golem.getX(), golem.getY() + 1.2D, golem.getZ(),
                 24, 0.54D, 0.82D, 0.54D, 0.07D);
-        level.sendParticles(ModParticles.CRUSHING_BLOW_PRESSURE.get(), golem.getX(), golem.getY() + 1.35D,
-                golem.getZ(), 10, 0.45D, 0.65D, 0.45D, 0.04D);
+        level.sendParticles(ModParticles.CRUSHING_BLOW_FORGE_SPARK.get(), golem.getX(), golem.getY() + 1.35D,
+                golem.getZ(), 18, 0.42D, 0.58D, 0.42D, 0.12D);
         level.playSound(null, golem.blockPosition(), SoundEvents.ANVIL_LAND, SoundSource.NEUTRAL, 0.9F, 0.78F);
     }
     private static void playCrushingChargeEffect(IronGolem golem, Vec3 direction, int charge, int threshold) {
@@ -449,8 +449,8 @@ public final class GolemEnhancementEffect {
         double x = golem.getX() + direction.x * 0.72D;
         double y = golem.getY() + golem.getBbHeight() * 0.55D + direction.y * 0.35D;
         double z = golem.getZ() + direction.z * 0.72D;
-        level.sendParticles(ModParticles.CRUSHING_BLOW_PRESSURE.get(), x, y, z,
-                7, 0.22D, 0.3D, 0.22D, 0.075D);
+        level.sendParticles(ModParticles.CRUSHING_BLOW_FORGE_SPARK.get(), x, y, z,
+                13, 0.24D, 0.28D, 0.24D, 0.16D);
         float progress = charge / (float) Math.max(1, threshold);
         level.playSound(null, golem.blockPosition(), SoundEvents.ANVIL_HIT, SoundSource.NEUTRAL,
                 0.34F + progress * 0.16F, 1.18F - progress * 0.46F);
