@@ -497,7 +497,7 @@ public final class AbilityScreen extends Screen {
                 "textures/gui/" + iconDirectory + definitionId.getPath() + ".png"
         );
         if (minecraft.getResourceManager().getResource(finishedDiamondTexture).isPresent()) {
-            int finishedSize = Math.round(size * 1.2F);
+            int finishedSize = Math.round(size * 1.08F);
             graphics.blit(finishedDiamondTexture,
                     centerX - finishedSize / 2, centerY - finishedSize / 2,
                     0.0F, 0.0F, finishedSize, finishedSize, finishedSize, finishedSize);
@@ -558,6 +558,19 @@ public final class AbilityScreen extends Screen {
         graphics.pose().mulPose(Axis.ZP.rotationDegrees(45.0F));
         graphics.fill(-size / 2, -size / 2, size / 2, size / 2, color);
         graphics.pose().popPose();
+    }
+
+    private static void renderDiamondSelection(
+            GuiGraphics graphics,
+            int centerX,
+            int centerY,
+            int size
+    ) {
+        int extent = Math.round(size * 0.53F);
+        graphics.fill(centerX - 2, centerY - extent, centerX + 2, centerY - extent + 2, BORDER_BRIGHT);
+        graphics.fill(centerX - 2, centerY + extent - 2, centerX + 2, centerY + extent, BORDER_BRIGHT);
+        graphics.fill(centerX - extent, centerY - 2, centerX - extent + 2, centerY + 2, BORDER_BRIGHT);
+        graphics.fill(centerX + extent - 2, centerY - 2, centerX + extent, centerY + 2, BORDER_BRIGHT);
     }
 
     private PurchaseState purchaseState(ResourceLocation abilityId, AbilityDefinition definition) {
@@ -762,20 +775,22 @@ public final class AbilityScreen extends Screen {
             int fill = purchasedRank > 0 ? 0xFF302A21 : 0xFF191A19;
             int iconX = getX() + getWidth() / 2;
             int iconY = getY() + 22;
-            if (selected || isHovered) {
-                renderRotatedTexture(graphics, DUNGEON_ICON_FRAME,
-                        iconX, iconY, DIAMOND_ICON_SIZE + 5);
-            }
             renderDiamondFill(graphics, iconX, iconY, DIAMOND_ICON_SIZE - 8, fill);
             renderDiamondIcon(graphics, abilityId, definition.display().icon(),
                     iconX, iconY, DIAMOND_ICON_SIZE, true);
             if (purchasedRank <= 0) {
                 renderDiamondShade(graphics, iconX, iconY, DIAMOND_ICON_SIZE - 4, 0x55101010);
             }
+            if (selected) {
+                renderDiamondSelection(graphics, iconX, iconY, DIAMOND_ICON_SIZE);
+            }
             Component name = Component.translatable(definition.display().name());
             String clipped = font.plainSubstrByWidth(name.getString(), getWidth() - 8);
+            int nameColor = selected
+                    ? BORDER_BRIGHT
+                    : purchasedRank > 0 || isHovered ? TEXT_PRIMARY : TEXT_MUTED;
             graphics.drawCenteredString(font, clipped, getX() + getWidth() / 2, getY() + 46,
-                    purchasedRank > 0 ? TEXT_PRIMARY : TEXT_MUTED);
+                    nameColor);
             int maxRank = definition.ranks().values().size();
             if (purchasedRank > 0) {
                 String rank = purchasedRank + "/" + maxRank;
