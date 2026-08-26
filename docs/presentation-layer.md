@@ -93,8 +93,8 @@ PULSE 立即播放一次。START 会立即播放，并在有效持续时间内�
 
 左侧技能分类始终显示滚动轨道；分类超出可见区域时，金色滑块按可见比例缩短并随滚轮移动。右侧能力说明拥有独立的逐行滚动位置和滚动条，鼠标位于详情栏时不会带动中央能力槽。背包界面的能力与环球旅行者入口也使用相同的深色切角和暖金悬停描边。
 
-技能和能力图标现在统一采用旋转 45° 的菱形槽位，并叠加
-`assets/ability/textures/gui/dungeon_icon_frame.png` 像素边框。技能图标路径为
+技能和能力图标现在统一采用旋转 45° 的菱形槽位，并以
+`assets/ability/textures/gui/dungeon_icon_frame.png` 像素边框直接作为按钮轮廓；旧的代码绘制褐色菱形边框不再叠加。选中或悬停时会在外侧再显示一层同款金色边框。技能图标路径为
 `assets/<namespace>/textures/gui/skill_icons/<path>.png`，能力图标路径为
 `assets/<namespace>/textures/gui/ability_icons/<path>.png`。推荐提供 32×32 或更高的正方形像素素材；完整素材会与槽位一起旋转，边框始终在最上层统一显示。资源不存在时自动回退到定义中 `display.icon` 指向的正向物品图标，外侧仍使用同一菱形边框。替换图标不需要修改 Java 或数据定义。
 

@@ -408,7 +408,7 @@ public final class AbilityScreen extends Screen {
         AbilityDefinition definition = selected.definition();
         PurchaseState state = purchaseState(selected.id(), definition);
         int accent = parseColor(definition.display().color(), BORDER_GOLD);
-        renderDiamondBackdrop(graphics, x + 24, contentTop + 32, 37, 0xFF111212, accent, false);
+        renderDiamondFill(graphics, x + 24, contentTop + 32, 26, 0xFF111212);
         renderDiamondIcon(graphics, selected.id(), definition.display().icon(),
                 x + 24, contentTop + 32, 34, true);
 
@@ -497,7 +497,7 @@ public final class AbilityScreen extends Screen {
                 "textures/gui/" + iconDirectory + definitionId.getPath() + ".png"
         );
         if (minecraft.getResourceManager().getResource(finishedDiamondTexture).isPresent()) {
-            int finishedSize = Math.round(size * 1.41421356F);
+            int finishedSize = Math.round(size * 1.2F);
             graphics.blit(finishedDiamondTexture,
                     centerX - finishedSize / 2, centerY - finishedSize / 2,
                     0.0F, 0.0F, finishedSize, finishedSize, finishedSize, finishedSize);
@@ -532,19 +532,17 @@ public final class AbilityScreen extends Screen {
         graphics.pose().popPose();
     }
 
-    private static void renderDiamondBackdrop(
+    private static void renderDiamondFill(
             GuiGraphics graphics,
             int centerX,
             int centerY,
             int size,
-            int fill,
-            int border,
-            boolean doubleBorder
+            int color
     ) {
         graphics.pose().pushPose();
         graphics.pose().translate(centerX, centerY, 0.0F);
         graphics.pose().mulPose(Axis.ZP.rotationDegrees(45.0F));
-        panel(graphics, -size / 2, -size / 2, size, size, fill, border, doubleBorder);
+        graphics.fill(-size / 2, -size / 2, size / 2, size / 2, color);
         graphics.pose().popPose();
     }
 
@@ -761,12 +759,14 @@ public final class AbilityScreen extends Screen {
         @Override
         protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
             int accent = parseColor(definition.display().color(), BORDER_GOLD);
-            int border = selected ? BORDER_BRIGHT : isHovered ? accent : BORDER_DARK;
             int fill = purchasedRank > 0 ? 0xFF302A21 : 0xFF191A19;
             int iconX = getX() + getWidth() / 2;
             int iconY = getY() + 22;
-            renderDiamondBackdrop(graphics, iconX, iconY, DIAMOND_ICON_SIZE + 5,
-                    fill, border, selected || isHovered);
+            if (selected || isHovered) {
+                renderRotatedTexture(graphics, DUNGEON_ICON_FRAME,
+                        iconX, iconY, DIAMOND_ICON_SIZE + 5);
+            }
+            renderDiamondFill(graphics, iconX, iconY, DIAMOND_ICON_SIZE - 8, fill);
             renderDiamondIcon(graphics, abilityId, definition.display().icon(),
                     iconX, iconY, DIAMOND_ICON_SIZE, true);
             if (purchasedRank <= 0) {
