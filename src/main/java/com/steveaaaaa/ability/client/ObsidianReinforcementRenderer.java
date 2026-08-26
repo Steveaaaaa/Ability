@@ -2,7 +2,6 @@ package com.steveaaaaa.ability.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
 import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.network.ClientboundGolemReinforcementPayload;
 import net.minecraft.client.Minecraft;
@@ -27,9 +26,7 @@ public final class ObsidianReinforcementRenderer {
     public static final ResourceLocation SHIELD_TEXTURE =
             AbilityMod.id("textures/entity/iron_golem/obsidian_shield.png");
     private static final ResourceLocation FALLBACK_TEXTURE =
-            ResourceLocation.withDefaultNamespace("textures/block/obsidian.png");
-    private static final int SEGMENTS = 12;
-    private static final int RINGS = 6;
+            ResourceLocation.withDefaultNamespace("textures/particle/bubble.png");
 
     private ObsidianReinforcementRenderer() {
     }
@@ -40,125 +37,37 @@ public final class ObsidianReinforcementRenderer {
         GolemReinforcementClientState.State state = GolemReinforcementClientState.get(golem.getUUID());
         if (state == null) return;
 
-        float time = golem.tickCount + event.getPartialTick();
         float animationAge = animationAge(golem, state, event.getPartialTick());
         boolean recentBlock = state.visualEvent() == ClientboundGolemReinforcementPayload.VisualEvent.SHIELD_BLOCKED
                 && animationAge < 10.0F;
-        if (state.shields() <= 0 && !recentBlock) return;
-
-        if (state.shields() > 0) renderShell(event, state, time, animationAge);
-        if (recentBlock) renderImpactWave(event, state, animationAge);
+        if (state.shields() > 0) renderBubbleShell(event, state, golem.tickCount + event.getPartialTick(), animationAge);
+        if (recentBlock) renderImpactBubble(event, state, animationAge);
     }
 
-    private static void renderShell(RenderLivingEvent.Post<?, ?> event,
+    private static void renderBubbleShell(RenderLivingEvent.Post<?, ?> event,
             GolemReinforcementClientState.State state, float time, float animationAge) {
-        Minecraft minecraft = Minecraft.getInstance();
-        ResourceLocation texture = minecraft.getResourceManager().getResource(SHIELD_TEXTURE).isPresent()
-                ? SHIELD_TEXTURE : FALLBACK_TEXTURE;
-        PoseStack pose = event.getPoseStack();
-        pose.pushPose();
-        pose.translate(0.0D, 1.38D, 0.0D);
-        pose.mulPose(Axis.YP.rotationDegrees(time * 0.32F));
-
-        float scale = 1.0F + Mth.sin(time * 0.09F) * 0.012F;
+        float progressScale = 1.0F;
         float animationAlpha = 1.0F;
         if (state.visualEvent() == ClientboundGolemReinforcementPayload.VisualEvent.ACTIVATED
                 && animationAge < 14.0F) {
             float progress = Mth.clamp(animationAge / 14.0F, 0.0F, 1.0F);
-            scale *= 0.68F + easeOut(progress) * 0.32F;
+            progressScale = 0.68F + easeOut(progress) * 0.32F;
             animationAlpha = progress;
         } else if (state.visualEvent() == ClientboundGolemReinforcementPayload.VisualEvent.SHIELD_GAINED
                 && animationAge < 12.0F) {
             float progress = Mth.clamp(animationAge / 12.0F, 0.0F, 1.0F);
-            scale *= 1.0F + Mth.sin(progress * Mth.PI) * 0.075F;
+            progressScale = 1.0F + Mth.sin(progress * Mth.PI) * 0.09F;
         }
-        pose.scale(scale, scale, scale);
 
-        float strength = state.shields() / (float) Math.max(1, state.maxShields());
-        int alpha = (int) ((30.0F + strength * 30.0F) * animationAlpha);
-        VertexConsumer faces = event.getMultiBufferSource().getBuffer(RenderType.entityTranslucent(texture));
-        renderFacetedSurface(pose, faces, event.getPackedLight(), 1.03F, 1.56F, 0.84F,
-                118, 82, 142, alpha, time * 0.0025F);
-
-        VertexConsumer lines = event.getMultiBufferSource().getBuffer(RenderType.lines());
-        for (int layer = 0; layer < state.shields(); layer++) {
-            float offset = layer * 0.025F;
-            int lineAlpha = (int) ((105.0F - layer * 18.0F) * animationAlpha);
-            renderFacetLines(pose, lines, 1.035F + offset, 1.565F + offset, 0.845F + offset,
-                    126, 88, 158, lineAlpha);
-        }
-        pose.popPose();
+        float breathing = 1.0F + Mth.sin(time * 0.085F) * 0.018F;
+        float layerStrength = state.shields() / (float) Math.max(1, state.maxShields());
+        float shimmer = 0.88F + Mth.sin(time * 0.12F) * 0.12F;
+        int alpha = (int) ((150.0F + layerStrength * 65.0F) * shimmer * animationAlpha);
+        renderBubble(event, 0.0F, 1.38F, 0.0F, 1.68F * breathing * progressScale,
+                176, 153, 199, Mth.clamp(alpha, 0, 235));
     }
 
-    private static void renderFacetedSurface(PoseStack pose, VertexConsumer consumer, int packedLight,
-            float radiusX, float radiusY, float radiusZ, int red, int green, int blue, int alpha, float uvOffset) {
-        for (int ring = 0; ring < RINGS; ring++) {
-            float lat0 = -Mth.HALF_PI + Mth.PI * ring / RINGS;
-            float lat1 = -Mth.HALF_PI + Mth.PI * (ring + 1) / RINGS;
-            for (int segment = 0; segment < SEGMENTS; segment++) {
-                float lon0 = Mth.TWO_PI * segment / SEGMENTS;
-                float lon1 = Mth.TWO_PI * (segment + 1) / SEGMENTS;
-                vertex(pose, consumer, lat0, lon0, radiusX, radiusY, radiusZ, red, green, blue, alpha,
-                        segment / (float) SEGMENTS + uvOffset, ring / (float) RINGS, packedLight);
-                vertex(pose, consumer, lat0, lon1, radiusX, radiusY, radiusZ, red, green, blue, alpha,
-                        (segment + 1) / (float) SEGMENTS + uvOffset, ring / (float) RINGS, packedLight);
-                vertex(pose, consumer, lat1, lon1, radiusX, radiusY, radiusZ, red, green, blue, alpha,
-                        (segment + 1) / (float) SEGMENTS + uvOffset, (ring + 1) / (float) RINGS, packedLight);
-                vertex(pose, consumer, lat1, lon0, radiusX, radiusY, radiusZ, red, green, blue, alpha,
-                        segment / (float) SEGMENTS + uvOffset, (ring + 1) / (float) RINGS, packedLight);
-            }
-        }
-    }
-
-    private static void vertex(PoseStack pose, VertexConsumer consumer, float latitude, float longitude,
-            float radiusX, float radiusY, float radiusZ, int red, int green, int blue, int alpha,
-            float u, float v, int packedLight) {
-        float cosLat = Mth.cos(latitude);
-        float nx = cosLat * Mth.cos(longitude);
-        float ny = Mth.sin(latitude);
-        float nz = cosLat * Mth.sin(longitude);
-        consumer.addVertex(pose.last(), nx * radiusX, ny * radiusY, nz * radiusZ)
-                .setColor(red, green, blue, alpha)
-                .setUv(u, v)
-                .setOverlay(OverlayTexture.NO_OVERLAY)
-                .setLight(packedLight)
-                .setNormal(pose.last(), nx, ny, nz);
-    }
-
-    private static void renderFacetLines(PoseStack pose, VertexConsumer consumer,
-            float radiusX, float radiusY, float radiusZ, int red, int green, int blue, int alpha) {
-        for (int segment = 0; segment < SEGMENTS; segment++) {
-            float longitude = Mth.TWO_PI * segment / SEGMENTS;
-            for (int ring = 0; ring < RINGS; ring++) {
-                lineVertex(pose, consumer, -Mth.HALF_PI + Mth.PI * ring / RINGS, longitude,
-                        radiusX, radiusY, radiusZ, red, green, blue, alpha);
-                lineVertex(pose, consumer, -Mth.HALF_PI + Mth.PI * (ring + 1) / RINGS, longitude,
-                        radiusX, radiusY, radiusZ, red, green, blue, alpha);
-            }
-        }
-        for (int ring = 1; ring < RINGS; ring++) {
-            float latitude = -Mth.HALF_PI + Mth.PI * ring / RINGS;
-            for (int segment = 0; segment < SEGMENTS; segment++) {
-                lineVertex(pose, consumer, latitude, Mth.TWO_PI * segment / SEGMENTS,
-                        radiusX, radiusY, radiusZ, red, green, blue, alpha);
-                lineVertex(pose, consumer, latitude, Mth.TWO_PI * (segment + 1) / SEGMENTS,
-                        radiusX, radiusY, radiusZ, red, green, blue, alpha);
-            }
-        }
-    }
-
-    private static void lineVertex(PoseStack pose, VertexConsumer consumer, float latitude, float longitude,
-            float radiusX, float radiusY, float radiusZ, int red, int green, int blue, int alpha) {
-        float cosLat = Mth.cos(latitude);
-        float nx = cosLat * Mth.cos(longitude);
-        float ny = Mth.sin(latitude);
-        float nz = cosLat * Mth.sin(longitude);
-        consumer.addVertex(pose.last(), nx * radiusX, ny * radiusY, nz * radiusZ)
-                .setColor(red, green, blue, alpha)
-                .setNormal(pose.last(), nx, ny, nz);
-    }
-
-    private static void renderImpactWave(RenderLivingEvent.Post<?, ?> event,
+    private static void renderImpactBubble(RenderLivingEvent.Post<?, ?> event,
             GolemReinforcementClientState.State state, float animationAge) {
         float progress = Mth.clamp(animationAge / 10.0F, 0.0F, 1.0F);
         float dx = state.impactX();
@@ -171,36 +80,40 @@ public final class ObsidianReinforcementRenderer {
         }
         dx /= horizontal;
         dz /= horizontal;
-        float centerX = dx * 1.06F;
-        float centerZ = dz * 0.87F;
-        float centerY = 1.38F + Mth.clamp(state.impactY(), -0.7F, 0.7F) * 0.9F;
-        float tangentX = -dz;
-        float tangentZ = dx;
-        int alpha = (int) ((1.0F - progress) * 230.0F);
-        VertexConsumer lines = event.getMultiBufferSource().getBuffer(RenderType.lines());
-        for (int ring = 0; ring < 3; ring++) {
-            float size = 0.16F + progress * 0.62F + ring * 0.07F;
-            diamond(event.getPoseStack(), lines, centerX, centerY, centerZ, tangentX, tangentZ, size,
-                    206, 157, 231, Math.max(0, alpha - ring * 35));
-        }
+        float x = dx * 0.92F;
+        float y = 1.38F + Mth.clamp(state.impactY(), -0.7F, 0.7F) * 0.9F;
+        float z = dz * 0.72F;
+        float size = 0.22F + easeOut(progress) * 0.62F;
+        int alpha = (int) ((1.0F - progress) * 245.0F);
+        renderBubble(event, x, y, z, size, 226, 210, 239, alpha);
     }
 
-    private static void diamond(PoseStack pose, VertexConsumer consumer, float cx, float cy, float cz,
-            float tx, float tz, float size, int red, int green, int blue, int alpha) {
-        float[][] points = {
-                {cx, cy + size, cz},
-                {cx + tx * size, cy, cz + tz * size},
-                {cx, cy - size, cz},
-                {cx - tx * size, cy, cz - tz * size}
-        };
-        for (int i = 0; i < points.length; i++) {
-            float[] first = points[i];
-            float[] second = points[(i + 1) % points.length];
-            consumer.addVertex(pose.last(), first[0], first[1], first[2]).setColor(red, green, blue, alpha)
-                    .setNormal(pose.last(), 0.0F, 1.0F, 0.0F);
-            consumer.addVertex(pose.last(), second[0], second[1], second[2]).setColor(red, green, blue, alpha)
-                    .setNormal(pose.last(), 0.0F, 1.0F, 0.0F);
-        }
+    private static void renderBubble(RenderLivingEvent.Post<?, ?> event, float x, float y, float z,
+            float radius, int red, int green, int blue, int alpha) {
+        Minecraft minecraft = Minecraft.getInstance();
+        ResourceLocation texture = minecraft.getResourceManager().getResource(SHIELD_TEXTURE).isPresent()
+                ? SHIELD_TEXTURE : FALLBACK_TEXTURE;
+        PoseStack pose = event.getPoseStack();
+        pose.pushPose();
+        pose.translate(x, y, z);
+        pose.mulPose(minecraft.getEntityRenderDispatcher().cameraOrientation());
+        pose.scale(radius, radius, radius);
+        VertexConsumer consumer = event.getMultiBufferSource().getBuffer(RenderType.entityTranslucent(texture));
+        quadVertex(pose, consumer, -1.0F, -1.0F, 0.0F, 1.0F, red, green, blue, alpha, event.getPackedLight());
+        quadVertex(pose, consumer, 1.0F, -1.0F, 1.0F, 1.0F, red, green, blue, alpha, event.getPackedLight());
+        quadVertex(pose, consumer, 1.0F, 1.0F, 1.0F, 0.0F, red, green, blue, alpha, event.getPackedLight());
+        quadVertex(pose, consumer, -1.0F, 1.0F, 0.0F, 0.0F, red, green, blue, alpha, event.getPackedLight());
+        pose.popPose();
+    }
+
+    private static void quadVertex(PoseStack pose, VertexConsumer consumer, float x, float y, float u, float v,
+            int red, int green, int blue, int alpha, int packedLight) {
+        consumer.addVertex(pose.last(), x, y, 0.0F)
+                .setColor(red, green, blue, alpha)
+                .setUv(u, v)
+                .setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(packedLight)
+                .setNormal(pose.last(), 0.0F, 0.0F, 1.0F);
     }
 
     private static float animationAge(IronGolem golem, GolemReinforcementClientState.State state, float partialTick) {

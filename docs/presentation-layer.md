@@ -106,4 +106,4 @@ PULSE 立即播放一次。START 会立即播放，并在有效持续时间内�
 
 强化铁傀儡的完整侵蚀皮肤路径为
 `assets/ability/textures/entity/iron_golem/obsidian_reinforcement.png`。护盾外壳的可替换透明纹理路径为
-`assets/ability/textures/entity/iron_golem/obsidian_shield.png`，推荐使用 32×32 或 64×64 的像素纹理：主体保持大面积透明，只保留暗色像素纹理和少量高光。未提供护盾纹理时会自动使用原版黑曜石纹理作为后备，不影响护盾外壳、呼吸、分层轮廓、生成脉冲和受击波纹。
+`assets/ability/textures/entity/iron_golem/obsidian_shield.png`，推荐使用 32×32 的正面像素气泡纹理：背景与圆内区域透明，以阶梯状圆边和少量方形高光表现球形外壳。渲染时纹理始终朝向镜头，不绘制任何 3D 网格；护盾层数改变亮度，生成时产生整体呼吸脉冲，格挡时在受击方向短暂展开一个小型像素气泡波纹。未提供自定义纹理时会回退到原版气泡粒子纹理。
