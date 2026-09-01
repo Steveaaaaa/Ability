@@ -205,6 +205,7 @@ public final class AbilityEffectEventHandler {
             }
             if (player.tickCount % 10 == 0) {
                 ConditionalMobEffect.process(player);
+                EnchantedEdgeEffect.syncPresentation(player);
             }
             if (player.tickCount % 20 == 0) {
                 AttributeModifierEffect.reconcile(player);

@@ -6,6 +6,8 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -19,11 +21,15 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 public final class EnchantedEdgeEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("enchanted_edge");
+    private static final ResourceLocation WEAPON_AURA_CUE = AbilityMod.id("weapon_aura");
     private static final ResourceKey<DamageType> MAGIC = DamageTypes.MAGIC;
     private static final ResourceKey<DamageType> TRUE = ResourceKey.create(Registries.DAMAGE_TYPE,
             AbilityMod.id("true_damage"));
@@ -31,6 +37,25 @@ public final class EnchantedEdgeEffect {
     private EnchantedEdgeEffect() {}
 
     static boolean isApplyingConvertedDamage() { return APPLYING.get(); }
+
+    public static void syncPresentation(ServerPlayer player) {
+        if (activeFraction(player) <= 0.0D
+                || !isWeapon(player.getMainHandItem()) && !isWeapon(player.getOffhandItem())) return;
+        long instanceId = player.getUUID().getLeastSignificantBits() ^ 0x454E4348414E544CL;
+        AbilityPresentationService.sendTracking(player, AbilityCue.start(
+                TYPE, WEAPON_AURA_CUE, player.getId(), player.getId(), player.position(), Vec3.ZERO,
+                1, 14, instanceId, player.getUUID().getMostSignificantBits()
+        ));
+    }
+
+    public static boolean isWeapon(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        boolean[] weapon = {false};
+        stack.forEachModifier(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+            if (attribute.equals(Attributes.ATTACK_DAMAGE) && modifier.amount() >= 2.0D) weapon[0] = true;
+        });
+        return weapon[0];
+    }
 
     public static void modifyDamage(LivingIncomingDamageEvent event) {
         if (APPLYING.get() || !(event.getSource().getEntity() instanceof ServerPlayer player)

@@ -86,6 +86,7 @@ public final class ClientAbilityPresentationManager {
     private static void accept(ClientLevel level, AbilityCue cue) {
         ChargedLeapImpactRenderer.accept(level, cue);
         WeakPointMarkRenderer.accept(level, cue);
+        EnchantedEdgeWeaponRenderer.accept(level, cue);
         InstanceKey key = InstanceKey.of(cue);
         if (cue.action() == AbilityCue.Action.STOP) {
             ACTIVE.remove(key);
