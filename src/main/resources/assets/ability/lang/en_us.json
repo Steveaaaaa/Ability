@@ -135,7 +135,7 @@
   "ability.ability.ceiling_wire": "Ceiling Wire",
   "ability.ability.ceiling_wire.description": "Double-tap Jump below a continuous sturdy ceiling to cling or detach; open-air edges block movement and non-solid ceilings detach you. Use offhand pointed dripstone to drop a damaging, stunning spike vertically from its intended placement position.",
   "ability.ability.world_traveler": "World Traveler",
-  "ability.ability.world_traveler.description": "Sneak-use an empty main hand on a container to bind it; record items in the 36-slot inventory sidebar and newly acquired matches route into that container. Rank two enables cross-dimensional routing.",
+  "ability.ability.world_traveler.description": "Sneak-use an empty main hand on a container to bind it; record items in the 36-slot inventory sidebar and matching items picked up from the world route into that container. Inventory and container interactions never trigger routing. Rank two enables cross-dimensional routing.",
   "ability.ability.crushing_blow": "Crushing Blow",
   "ability.ability.crushing_blow.description": "Strengthen an iron golem with an anvil; damage builds charge that heals it and crushes nearby enemies.",
   "ability.ability.enchanted_edge": "Enchanted Edge",

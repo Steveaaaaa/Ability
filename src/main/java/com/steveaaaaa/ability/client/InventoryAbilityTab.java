@@ -26,6 +26,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class InventoryAbilityTab {
     private static final ResourceLocation WORLD_TRAVELER = AbilityMod.id("world_traveler");
+    private static final int PANEL_WIDTH = 176;
+    private static final int PANEL_HEIGHT = 116;
+    private static final int SCREEN_MARGIN = 2;
     private static boolean travelerPanelVisible;
     private InventoryAbilityTab() {
     }
@@ -69,10 +72,12 @@ public final class InventoryAbilityTab {
         if (!travelerPanelVisible || !(event.getScreen() instanceof InventoryScreen inventory)) return;
         GuiGraphics graphics = event.getGuiGraphics();
         int x = panelX(inventory);
-        int y = inventory.getGuiTop();
-        graphics.fill(x, y, x + 176, y + 116, 0xEE20242B);
-        graphics.drawString(Minecraft.getInstance().font,
-                Component.translatable("gui.ability.world_traveler.filters"), x + 7, y + 6, 0xFFFFFF, false);
+        int y = panelY(inventory);
+        graphics.fill(x, y, x + PANEL_WIDTH, y + PANEL_HEIGHT, 0xEE20242B);
+        var font = Minecraft.getInstance().font;
+        String title = font.plainSubstrByWidth(
+                Component.translatable("gui.ability.world_traveler.filters").getString(), PANEL_WIDTH - 14);
+        graphics.drawString(font, title, x + 7, y + 6, 0xFFFFFF, false);
         ItemStack hovered = ItemStack.EMPTY;
         for (int slot = 0; slot < 36; slot++) {
             int sx = x + 7 + (slot % 9) * 18;
@@ -101,7 +106,7 @@ public final class InventoryAbilityTab {
     public static void onMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
         if (!travelerPanelVisible || !(event.getScreen() instanceof InventoryScreen inventory)) return;
         int x = panelX(inventory);
-        int y = inventory.getGuiTop();
+        int y = panelY(inventory);
         if (inside(event.getMouseX(), event.getMouseY(), x + 136, y + 91, 34, 19)) {
             send(ServerboundWorldTravelerPayload.Action.OPEN_REMOTE, -1);
             event.setCanceled(true);
@@ -117,12 +122,22 @@ public final class InventoryAbilityTab {
             event.setCanceled(true);
             return;
         }
-        if (inside(event.getMouseX(), event.getMouseY(), x, y, 176, 116)) event.setCanceled(true);
+        if (inside(event.getMouseX(), event.getMouseY(), x, y, PANEL_WIDTH, PANEL_HEIGHT)) event.setCanceled(true);
     }
 
     private static int panelX(InventoryScreen screen) {
-        int left = screen.getGuiLeft() - 180;
-        return left >= 2 ? left : screen.getGuiLeft() + screen.getXSize() + 30;
+        int left = screen.getGuiLeft() - PANEL_WIDTH - 4;
+        if (left >= SCREEN_MARGIN) return left;
+        int right = screen.getGuiLeft() + screen.getXSize() + 30;
+        int screenWidth = Minecraft.getInstance().getWindow().getGuiScaledWidth();
+        if (right + PANEL_WIDTH <= screenWidth - SCREEN_MARGIN) return right;
+        return Math.max(SCREEN_MARGIN, screenWidth - PANEL_WIDTH - SCREEN_MARGIN);
+    }
+
+    private static int panelY(InventoryScreen screen) {
+        int screenHeight = Minecraft.getInstance().getWindow().getGuiScaledHeight();
+        return Math.max(SCREEN_MARGIN,
+                Math.min(screen.getGuiTop(), screenHeight - PANEL_HEIGHT - SCREEN_MARGIN));
     }
 
     private static boolean inside(double mouseX, double mouseY, int x, int y, int width, int height) {

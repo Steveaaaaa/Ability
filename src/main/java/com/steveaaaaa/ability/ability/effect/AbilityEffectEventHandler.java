@@ -198,9 +198,6 @@ public final class AbilityEffectEventHandler {
             SupportAuraEffect.processTick(player);
             CeilingWireEffect.processTick(player);
             if (player.tickCount % 5 == 0) {
-                WorldTravelerEffect.processInventoryRouting(player);
-            }
-            if (player.tickCount % 5 == 0) {
                 StealthEffect.processTick(player);
             }
             if (player.tickCount % 10 == 0) {
@@ -243,7 +240,6 @@ public final class AbilityEffectEventHandler {
             SupportAuraEffect.forget(player.getUUID());
             WolfPackEffect.forgetOwner(player.getUUID());
             CeilingWireEffect.forget(player);
-            WorldTravelerEffect.forget(player);
         }
     }
 
@@ -275,7 +271,6 @@ public final class AbilityEffectEventHandler {
             SupportAuraEffect.forget(player.getUUID());
             WolfPackEffect.forgetOwner(player.getUUID());
             CeilingWireEffect.forget(player);
-            WorldTravelerEffect.forget(player);
         }
     }
 
@@ -292,7 +287,6 @@ public final class AbilityEffectEventHandler {
             SupportAuraEffect.forget(player.getUUID());
             WolfPackEffect.forgetOwner(player.getUUID());
             CeilingWireEffect.forget(player);
-            WorldTravelerEffect.forget(player);
         }
     }
 

@@ -135,7 +135,7 @@
   "ability.ability.ceiling_wire": "威亚",
   "ability.ability.ceiling_wire.description": "在连续坚固天花板下双击跳跃吸附或脱离；无法移入头顶为空气的区域，遇到非固体顶面会脱离；吸附时副手使用滴水石锥，可从实际放置位置开始垂直投下造成伤害与眩晕的钟乳石。",
   "ability.ability.world_traveler": "环球旅行者",
-  "ability.ability.world_traveler.description": "潜行并用空主手右击容器进行绑定；在背包侧栏的36格过滤面板记录物品，之后获得的匹配物品会自动存入该容器。第二阶允许跨维度路由。",
+  "ability.ability.world_traveler.description": "潜行并用空主手右击容器进行绑定；在背包侧栏的36格过滤面板记录物品，之后从世界中拾取的匹配物品会自动存入该容器。背包和容器内的物品操作不会触发传送。第二阶允许跨维度路由。",
   "ability.ability.crushing_blow": "压碎",
   "ability.ability.crushing_blow.description": "用铁砧强化铁傀儡；承伤积攒充能，满充能时治疗自身并压碎附近敌人。",
   "ability.ability.enchanted_edge": "缠魔剑锋",

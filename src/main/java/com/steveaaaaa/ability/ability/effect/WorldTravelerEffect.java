@@ -17,10 +17,7 @@ import com.steveaaaaa.ability.progress.WorldTravelerState;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Registry;
 import net.minecraft.network.chat.Component;
@@ -40,7 +37,6 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class WorldTravelerEffect {
     public static final net.minecraft.resources.ResourceLocation TYPE = AbilityMod.id("world_traveler");
-    private static final Map<UUID, int[]> INVENTORY_SNAPSHOTS = new ConcurrentHashMap<>();
     private WorldTravelerEffect() {}
 
     public static void bind(PlayerInteractEvent.RightClickBlock event) {
@@ -52,7 +48,6 @@ public final class WorldTravelerEffect {
         if (handler == null || handler.getSlots() <= 0) return;
         WorldTravelerState updated = state(player).bind(GlobalPos.of(player.level().dimension(), event.getPos()));
         player.setData(ModAttachments.WORLD_TRAVELER_STATE, updated);
-        INVENTORY_SNAPSHOTS.remove(player.getUUID());
         sync(player);
         sendVisual(player, component, ClientboundWorldTravelerVisualPayload.Action.BIND,
                 new Target((ServerLevel) player.level(), event.getPos(), handler), Items.AIR, 0);
@@ -94,42 +89,7 @@ public final class WorldTravelerEffect {
         if (!clear && exemplar.isEmpty()) return;
         WorldTravelerState updated = state(player).setFilter(slot, exemplar);
         player.setData(ModAttachments.WORLD_TRAVELER_STATE, updated);
-        INVENTORY_SNAPSHOTS.remove(player.getUUID());
         sync(player);
-    }
-
-    public static void processInventoryRouting(ServerPlayer player) {
-        ActiveComponent component = activeComponent(player).orElse(null);
-        WorldTravelerState state = state(player);
-        if (component == null || state.boundContainer().isEmpty() || state.filters().isEmpty()) {
-            INVENTORY_SNAPSHOTS.remove(player.getUUID());
-            return;
-        }
-        int[] current = inventoryCounts(player, state);
-        int[] previous = INVENTORY_SNAPSHOTS.put(player.getUUID(), current);
-        if (previous == null) return;
-        ArrayList<PendingRoute> pending = new ArrayList<>();
-        for (WorldTravelerState.FilterEntry entry : state.filters()) {
-            if (state.filters().stream().anyMatch(previousEntry -> previousEntry.slot() < entry.slot()
-                    && previousEntry.item() == entry.item())) continue;
-            int acquired = Math.max(0, current[entry.slot()] - previous[entry.slot()]);
-            if (acquired > 0) pending.add(new PendingRoute(entry.item(), acquired));
-        }
-        if (pending.isEmpty()) return;
-        Target target = target(player, state.boundContainer().get(), component.rank().crossDimension()).orElse(null);
-        if (target == null) return;
-        for (PendingRoute route : pending) {
-            int inserted = routeFromInventory(player, target.handler(), route.item(), route.count());
-            if (inserted > 0) {
-                sendVisual(player, component, ClientboundWorldTravelerVisualPayload.Action.ROUTE,
-                        target, route.item(), inserted);
-            }
-        }
-        INVENTORY_SNAPSHOTS.put(player.getUUID(), inventoryCounts(player, state));
-    }
-
-    public static void forget(ServerPlayer player) {
-        INVENTORY_SNAPSHOTS.remove(player.getUUID());
     }
 
     public static void openRemote(ServerPlayer player) {
@@ -159,33 +119,6 @@ public final class WorldTravelerEffect {
         return candidate.is(filter);
     }
 
-    private static int[] inventoryCounts(ServerPlayer player, WorldTravelerState state) {
-        int[] counts = new int[WorldTravelerState.FILTER_SLOTS];
-        for (WorldTravelerState.FilterEntry entry : state.filters()) {
-            counts[entry.slot()] = player.getInventory().items.stream()
-                    .filter(stack -> matches(entry.item(), stack))
-                    .mapToInt(ItemStack::getCount).sum();
-        }
-        return counts;
-    }
-
-    private static int routeFromInventory(ServerPlayer player, IItemHandler handler,
-            net.minecraft.world.item.Item filter, int maximum) {
-        int remaining = maximum;
-        for (ItemStack inventoryStack : player.getInventory().items) {
-            if (remaining <= 0) break;
-            if (!matches(filter, inventoryStack)) continue;
-            int offered = Math.min(remaining, inventoryStack.getCount());
-            ItemStack remainder = ItemHandlerHelper.insertItemStacked(handler,
-                    inventoryStack.copyWithCount(offered), false);
-            int inserted = offered - remainder.getCount();
-            inventoryStack.shrink(inserted);
-            remaining -= inserted;
-            if (inserted == 0) break;
-        }
-        player.getInventory().setChanged();
-        return maximum - remaining;
-    }
 
     private static void sendVisual(ServerPlayer player, ActiveComponent component,
             ClientboundWorldTravelerVisualPayload.Action action, Target target,
@@ -295,5 +228,4 @@ public final class WorldTravelerEffect {
             Rank rank
     ) {}
     private record Target(ServerLevel level, net.minecraft.core.BlockPos position, IItemHandler handler) {}
-    private record PendingRoute(net.minecraft.world.item.Item item, int count) {}
 }
