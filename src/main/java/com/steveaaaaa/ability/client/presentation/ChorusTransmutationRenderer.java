@@ -6,34 +6,32 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.network.ClientTransmutationQueue;
 import com.steveaaaaa.ability.network.ClientboundTransmutationPayload;
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.RenderTypeHelper;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import net.neoforged.neoforge.client.model.data.ModelData;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class ChorusTransmutationRenderer {
@@ -75,9 +73,17 @@ public final class ChorusTransmutationRenderer {
                     payload.rank(),
                     payload.randomSeed()
             ));
+            hideConvertedBlock(level, payload.position());
         }
         long gameTime = level.getGameTime();
-        ACTIVE.removeIf(active -> gameTime - active.startedAt() >= DURATION_TICKS);
+        ACTIVE.removeIf(active -> {
+            if (gameTime - active.startedAt() >= DURATION_TICKS) {
+                revealConvertedBlock(level, active);
+                return true;
+            }
+            hideConvertedBlock(level, active.position());
+            return false;
+        });
     }
 
     @SubscribeEvent
@@ -98,15 +104,15 @@ public final class ChorusTransmutationRenderer {
         Vec3 cameraPosition = camera.getPosition();
         PoseStack poseStack = event.getPoseStack();
         MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
-        BlockRenderDispatcher dispatcher = minecraft.getBlockRenderer();
-        Set<RenderType> usedRenderTypes = new HashSet<>();
+        RenderType fragmentType = RenderType.entityTranslucent(InventoryMenu.BLOCK_ATLAS);
+        VertexConsumer fragmentVertices = buffers.getBuffer(fragmentType);
 
         for (Transmutation transmutation : ACTIVE) {
             float progress = progress(visualTime, transmutation.startedAt());
-            renderFragments(poseStack, buffers, dispatcher, usedRenderTypes, level,
+            renderFragments(poseStack, fragmentVertices, minecraft, level,
                     cameraPosition, transmutation, progress);
         }
-        usedRenderTypes.forEach(buffers::endBatch);
+        buffers.endBatch(fragmentType);
 
         VertexConsumer pixels = buffers.getBuffer(RenderType.lightning());
         for (Transmutation transmutation : ACTIVE) {
@@ -116,15 +122,17 @@ public final class ChorusTransmutationRenderer {
         buffers.endBatch(RenderType.lightning());
     }
 
-    private static void renderFragments(PoseStack poseStack, MultiBufferSource.BufferSource buffers,
-            BlockRenderDispatcher dispatcher, Set<RenderType> usedRenderTypes, ClientLevel level,
+    private static void renderFragments(PoseStack poseStack, VertexConsumer vertices,
+            Minecraft minecraft, ClientLevel level,
             Vec3 cameraPosition, Transmutation transmutation, float progress) {
         BlockState state = progress < 0.5F ? transmutation.inputState() : transmutation.outputState();
-        if (state.getRenderShape() != RenderShape.MODEL) return;
+        BakedModel model = minecraft.getBlockRenderer().getBlockModel(state);
+        TextureAtlasSprite sprite = model.getParticleIcon();
         float burst = Mth.sin(progress * Mth.PI);
         float reform = Math.abs(progress - 0.5F) * 2.0F;
-        float fragmentScale = 0.255F + reform * 0.035F;
+        float fragmentScale = 0.282F + reform * 0.018F;
         BlockPos pos = transmutation.position();
+        int packedLight = LevelRenderer.getLightColor(level, pos);
 
         for (int index = 0; index < 27; index++) {
             int gridX = index % 3 - 1;
@@ -145,26 +153,118 @@ public final class ChorusTransmutationRenderer {
                     pos.getZ() + 0.5D + offset.z - cameraPosition.z
             );
             poseStack.scale(fragmentScale, fragmentScale, fragmentScale);
-            poseStack.translate(-0.5D, -0.5D, -0.5D);
-            renderBlock(dispatcher, level, state, pos, poseStack, buffers, usedRenderTypes,
-                    transmutation.seed() + index);
+            renderFragment(poseStack, vertices, sprite, gridX, gridY, gridZ, packedLight);
             poseStack.popPose();
         }
     }
 
-    private static void renderBlock(BlockRenderDispatcher dispatcher, ClientLevel level, BlockState state,
-            BlockPos pos, PoseStack poseStack, MultiBufferSource.BufferSource buffers,
-            Set<RenderType> usedRenderTypes, long seed) {
-        BakedModel model = dispatcher.getBlockModel(state);
-        ModelData modelData = model.getModelData(level, pos, state, ModelData.EMPTY);
-        for (RenderType sourceType : model.getRenderTypes(state, RandomSource.create(seed), modelData)) {
-            RenderType movingType = RenderTypeHelper.getMovingBlockRenderType(sourceType);
-            dispatcher.getModelRenderer().tesselateBlock(
-                    level, model, state, pos, poseStack, buffers.getBuffer(movingType), false,
-                    RandomSource.create(seed), seed, OverlayTexture.NO_OVERLAY, modelData, sourceType
-            );
-            usedRenderTypes.add(movingType);
+    private static void renderFragment(PoseStack poseStack, VertexConsumer vertices, TextureAtlasSprite sprite,
+            int gridX, int gridY, int gridZ, int packedLight) {
+        fragmentFace(poseStack, vertices, sprite, Direction.NORTH, gridX, gridY, gridZ,
+                gridZ == -1, packedLight);
+        fragmentFace(poseStack, vertices, sprite, Direction.SOUTH, gridX, gridY, gridZ,
+                gridZ == 1, packedLight);
+        fragmentFace(poseStack, vertices, sprite, Direction.WEST, gridX, gridY, gridZ,
+                gridX == -1, packedLight);
+        fragmentFace(poseStack, vertices, sprite, Direction.EAST, gridX, gridY, gridZ,
+                gridX == 1, packedLight);
+        fragmentFace(poseStack, vertices, sprite, Direction.UP, gridX, gridY, gridZ,
+                gridY == 1, packedLight);
+        fragmentFace(poseStack, vertices, sprite, Direction.DOWN, gridX, gridY, gridZ,
+                gridY == -1, packedLight);
+    }
+
+    private static void fragmentFace(PoseStack poseStack, VertexConsumer vertices, TextureAtlasSprite sprite,
+            Direction face, int gridX, int gridY, int gridZ, boolean exterior, int packedLight) {
+        float u0;
+        float u1;
+        float v0;
+        float v1;
+        if (exterior) {
+            int uCell;
+            int vCell;
+            if (face.getAxis() == Direction.Axis.Z) {
+                uCell = face == Direction.NORTH ? 1 - gridX : gridX + 1;
+                vCell = 1 - gridY;
+            } else if (face.getAxis() == Direction.Axis.X) {
+                uCell = face == Direction.EAST ? 1 - gridZ : gridZ + 1;
+                vCell = 1 - gridY;
+            } else {
+                uCell = gridX + 1;
+                vCell = face == Direction.UP ? gridZ + 1 : 1 - gridZ;
+            }
+            u0 = uCell / 3.0F;
+            u1 = (uCell + 1) / 3.0F;
+            v0 = vCell / 3.0F;
+            v1 = (vCell + 1) / 3.0F;
+        } else {
+            u0 = 0.43F;
+            u1 = 0.57F;
+            v0 = 0.43F;
+            v1 = 0.57F;
         }
+        int red = exterior ? 255 : 112;
+        int green = exterior ? 255 : 52;
+        int blue = exterior ? 255 : 145;
+        texturedFace(poseStack, vertices, sprite, face, u0, u1, v0, v1,
+                red, green, blue, packedLight);
+    }
+
+    private static void texturedFace(PoseStack poseStack, VertexConsumer vertices, TextureAtlasSprite sprite,
+            Direction face, float u0, float u1, float v0, float v1,
+            int red, int green, int blue, int packedLight) {
+        float min = -0.5F;
+        float max = 0.5F;
+        float atlasU0 = Mth.lerp(u0, sprite.getU0(), sprite.getU1());
+        float atlasU1 = Mth.lerp(u1, sprite.getU0(), sprite.getU1());
+        float atlasV0 = Mth.lerp(v0, sprite.getV0(), sprite.getV1());
+        float atlasV1 = Mth.lerp(v1, sprite.getV0(), sprite.getV1());
+        switch (face) {
+            case NORTH -> texturedQuad(poseStack, vertices,
+                    min, min, min, max, min, min, max, max, min, min, max, min,
+                    atlasU0, atlasU1, atlasV0, atlasV1, red, green, blue, packedLight, 0, 0, -1);
+            case SOUTH -> texturedQuad(poseStack, vertices,
+                    max, min, max, min, min, max, min, max, max, max, max, max,
+                    atlasU0, atlasU1, atlasV0, atlasV1, red, green, blue, packedLight, 0, 0, 1);
+            case WEST -> texturedQuad(poseStack, vertices,
+                    min, min, max, min, min, min, min, max, min, min, max, max,
+                    atlasU0, atlasU1, atlasV0, atlasV1, red, green, blue, packedLight, -1, 0, 0);
+            case EAST -> texturedQuad(poseStack, vertices,
+                    max, min, min, max, min, max, max, max, max, max, max, min,
+                    atlasU0, atlasU1, atlasV0, atlasV1, red, green, blue, packedLight, 1, 0, 0);
+            case UP -> texturedQuad(poseStack, vertices,
+                    min, max, min, max, max, min, max, max, max, min, max, max,
+                    atlasU0, atlasU1, atlasV0, atlasV1, red, green, blue, packedLight, 0, 1, 0);
+            case DOWN -> texturedQuad(poseStack, vertices,
+                    min, min, max, max, min, max, max, min, min, min, min, min,
+                    atlasU0, atlasU1, atlasV0, atlasV1, red, green, blue, packedLight, 0, -1, 0);
+        }
+    }
+
+    private static void texturedQuad(PoseStack poseStack, VertexConsumer vertices,
+            float x0, float y0, float z0, float x1, float y1, float z1,
+            float x2, float y2, float z2, float x3, float y3, float z3,
+            float u0, float u1, float v0, float v1, int red, int green, int blue,
+            int packedLight, float normalX, float normalY, float normalZ) {
+        texturedVertex(poseStack, vertices, x0, y0, z0, u0, v1, red, green, blue,
+                packedLight, normalX, normalY, normalZ);
+        texturedVertex(poseStack, vertices, x1, y1, z1, u1, v1, red, green, blue,
+                packedLight, normalX, normalY, normalZ);
+        texturedVertex(poseStack, vertices, x2, y2, z2, u1, v0, red, green, blue,
+                packedLight, normalX, normalY, normalZ);
+        texturedVertex(poseStack, vertices, x3, y3, z3, u0, v0, red, green, blue,
+                packedLight, normalX, normalY, normalZ);
+    }
+
+    private static void texturedVertex(PoseStack poseStack, VertexConsumer vertices,
+            float x, float y, float z, float u, float v, int red, int green, int blue,
+            int packedLight, float normalX, float normalY, float normalZ) {
+        vertices.addVertex(poseStack.last(), x, y, z)
+                .setColor(red, green, blue, 255)
+                .setUv(u, v)
+                .setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(packedLight)
+                .setNormal(poseStack.last(), normalX, normalY, normalZ);
     }
 
     private static void renderPixelMagic(PoseStack poseStack, VertexConsumer vertices, Vec3 cameraPosition,
@@ -276,6 +376,18 @@ public final class ChorusTransmutationRenderer {
 
     private static float smooth(float value) {
         return value * value * (3.0F - 2.0F * value);
+    }
+
+    private static void hideConvertedBlock(ClientLevel level, BlockPos position) {
+        if (!level.getBlockState(position).isAir()) {
+            level.setBlock(position, Blocks.AIR.defaultBlockState(), 19, 512);
+        }
+    }
+
+    private static void revealConvertedBlock(ClientLevel level, Transmutation transmutation) {
+        if (level.getBlockState(transmutation.position()).isAir()) {
+            level.setBlock(transmutation.position(), transmutation.outputState(), 19, 512);
+        }
     }
 
     private static void clear() {
