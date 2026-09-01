@@ -40,6 +40,7 @@ public final class WorldTravelerVisualRenderer {
             AbilityMod.id("textures/effect/world_traveler_portal_frame.png");
     private static final ResourceLocation PORTAL_SURFACE_TEXTURE =
             AbilityMod.id("block/world_traveler_portal");
+    private static final float PORTAL_SCALE = 0.75F;
     private static final int PORTAL_IDLE_TICKS = 20 * 30;
     private static final List<Visual> ACTIVE = new ArrayList<>();
     private static final Map<Integer, PortalState> PORTALS = new HashMap<>();
@@ -248,6 +249,7 @@ public final class WorldTravelerVisualRenderer {
         poseStack.translate(position.x - cameraPosition.x, position.y - cameraPosition.y,
                 position.z - cameraPosition.z);
         poseStack.mulPose(camera.rotation());
+        poseStack.scale(PORTAL_SCALE, PORTAL_SCALE, PORTAL_SCALE);
         float eased = smooth(openAmount);
         float halfSize = 0.012F + eased * 0.275F;
         int alpha = Mth.clamp((int) Mth.lerp(eased, 75.0F, 190.0F), 0, 190);
@@ -265,6 +267,7 @@ public final class WorldTravelerVisualRenderer {
         poseStack.translate(position.x - cameraPosition.x, position.y - cameraPosition.y,
                 position.z - cameraPosition.z);
         poseStack.mulPose(camera.rotation());
+        poseStack.scale(PORTAL_SCALE, PORTAL_SCALE, PORTAL_SCALE);
         float eased = smooth(openAmount);
         float halfWidth = 0.018F + eased * 0.315F;
         float halfHeight = halfWidth;
