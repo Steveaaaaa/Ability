@@ -35,6 +35,24 @@ public final class WorldTravelerRemoteScreen extends AbstractContainerScreen<Wor
             graphics.fill(x, y, x + 18, y + 18, 0xFF5A606A);
             graphics.fill(x + 1, y + 1, x + 17, y + 17, 0xFF171A20);
         }
+        int playerY = 31 + menu.rows() * 18;
+        graphics.fill(leftPos + 4, topPos + playerY - 4,
+                leftPos + imageWidth - 4, topPos + playerY + 77, 0xFF111318);
+        for (int row = 0; row < 3; row++) {
+            for (int column = 0; column < 9; column++) {
+                renderSlotBackground(graphics,
+                        leftPos + 7 + column * 18, topPos + playerY - 1 + row * 18);
+            }
+        }
+        for (int column = 0; column < 9; column++) {
+            renderSlotBackground(graphics,
+                    leftPos + 7 + column * 18, topPos + playerY + 57);
+        }
+    }
+
+    private static void renderSlotBackground(GuiGraphics graphics, int x, int y) {
+        graphics.fill(x, y, x + 18, y + 18, 0xFF5A606A);
+        graphics.fill(x + 1, y + 1, x + 17, y + 17, 0xFF171A20);
     }
 
     @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)

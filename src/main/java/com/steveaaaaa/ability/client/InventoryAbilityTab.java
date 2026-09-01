@@ -31,7 +31,12 @@ public final class InventoryAbilityTab {
     private static final ResourceLocation WORLD_TRAVELER_TAB_ICON =
             AbilityMod.id("textures/gui/world_traveler_tab_icon.png");
     private static final int PANEL_WIDTH = 176;
-    private static final int PANEL_HEIGHT = 116;
+    private static final int PANEL_HEIGHT = 136;
+    private static final int FILTER_GRID_Y = 29;
+    private static final int REMOTE_BUTTON_X = 136;
+    private static final int REMOTE_BUTTON_Y = 107;
+    private static final int REMOTE_BUTTON_WIDTH = 34;
+    private static final int REMOTE_BUTTON_HEIGHT = 20;
     private static final int SCREEN_MARGIN = 2;
     private static boolean travelerPanelVisible;
     private InventoryAbilityTab() {
@@ -91,13 +96,14 @@ public final class InventoryAbilityTab {
         graphics.fill(x, y, x + 1, y + PANEL_HEIGHT, 0xFFE3BC6B);
         graphics.fill(x + PANEL_WIDTH - 1, y, x + PANEL_WIDTH, y + PANEL_HEIGHT, 0xFF6A5030);
         var font = Minecraft.getInstance().font;
-        String title = font.plainSubstrByWidth(
-                Component.translatable("gui.ability.world_traveler.filters").getString(), PANEL_WIDTH - 14);
-        graphics.drawString(font, title, x + 7, y + 6, 0xFFFFFF, false);
+        graphics.drawString(font, Component.translatable("gui.ability.world_traveler.filters"),
+                x + 7, y + 6, 0xFFFFFF, false);
+        graphics.drawString(font, Component.translatable("gui.ability.world_traveler.filters.hint"),
+                x + 7, y + 17, 0xFF9EA8B6, false);
         ItemStack hovered = ItemStack.EMPTY;
         for (int slot = 0; slot < 36; slot++) {
             int sx = x + 7 + (slot % 9) * 18;
-            int sy = y + 19 + (slot / 9) * 18;
+            int sy = y + FILTER_GRID_Y + (slot / 9) * 18;
             graphics.fill(sx, sy, sx + 18, sy + 18, 0xFF5A606A);
             graphics.fill(sx + 1, sy + 1, sx + 17, sy + 17, 0xFF171A20);
             ItemStack filter = ClientWorldTravelerCache.filter(slot);
@@ -106,14 +112,20 @@ public final class InventoryAbilityTab {
                 if (inside(event.getMouseX(), event.getMouseY(), sx, sy, 18, 18)) hovered = filter;
             }
         }
-        Component bound = ClientWorldTravelerCache.boundContainer()
-                .<Component>map(pos -> Component.translatable("gui.ability.world_traveler.bound",
-                        pos.dimension().location().toString(), pos.pos().toShortString()))
-                .orElseGet(() -> Component.translatable("gui.ability.world_traveler.unbound"));
-        graphics.drawString(Minecraft.getInstance().font, bound, x + 7, y + 94, 0xB8C1CC, false);
-        graphics.fill(x + 136, y + 91, x + 170, y + 110, 0xFF475569);
+        ClientWorldTravelerCache.boundContainer().ifPresentOrElse(pos -> {
+            String dimension = font.plainSubstrByWidth(pos.dimension().location().toString(), 124);
+            String coordinates = font.plainSubstrByWidth(pos.pos().toShortString(), 124);
+            graphics.drawString(font, dimension, x + 7, y + 106, 0xB8C1CC, false);
+            graphics.drawString(font, coordinates, x + 7, y + 117, 0xB8C1CC, false);
+        }, () -> graphics.drawString(font,
+                Component.translatable("gui.ability.world_traveler.unbound"),
+                x + 7, y + 111, 0xB8C1CC, false));
+        graphics.fill(x + REMOTE_BUTTON_X, y + REMOTE_BUTTON_Y,
+                x + REMOTE_BUTTON_X + REMOTE_BUTTON_WIDTH,
+                y + REMOTE_BUTTON_Y + REMOTE_BUTTON_HEIGHT, 0xFF475569);
         graphics.drawCenteredString(Minecraft.getInstance().font,
-                Component.translatable("gui.ability.world_traveler.remote"), x + 153, y + 97, 0xFFFFFF);
+                Component.translatable("gui.ability.world_traveler.remote"),
+                x + REMOTE_BUTTON_X + REMOTE_BUTTON_WIDTH / 2, y + REMOTE_BUTTON_Y + 6, 0xFFFFFF);
         if (!hovered.isEmpty())
             graphics.renderTooltip(Minecraft.getInstance().font, hovered, event.getMouseX(), event.getMouseY());
         graphics.pose().popPose();
@@ -124,14 +136,16 @@ public final class InventoryAbilityTab {
         if (!travelerPanelVisible || !(event.getScreen() instanceof InventoryScreen inventory)) return;
         int x = panelX(inventory);
         int y = panelY(inventory);
-        if (inside(event.getMouseX(), event.getMouseY(), x + 136, y + 91, 34, 19)) {
+        if (inside(event.getMouseX(), event.getMouseY(),
+                x + REMOTE_BUTTON_X, y + REMOTE_BUTTON_Y,
+                REMOTE_BUTTON_WIDTH, REMOTE_BUTTON_HEIGHT)) {
             send(ServerboundWorldTravelerPayload.Action.OPEN_REMOTE, -1);
             event.setCanceled(true);
             return;
         }
         for (int slot = 0; slot < 36; slot++) {
             int sx = x + 7 + (slot % 9) * 18;
-            int sy = y + 19 + (slot / 9) * 18;
+            int sy = y + FILTER_GRID_Y + (slot / 9) * 18;
             if (!inside(event.getMouseX(), event.getMouseY(), sx, sy, 18, 18)) continue;
             if (event.getButton() == 1) send(ServerboundWorldTravelerPayload.Action.CLEAR_FILTER, slot);
             else if (event.getButton() == 0 && !inventory.getMenu().getCarried().isEmpty())
