@@ -15,19 +15,19 @@
     "ability:trigger": {
       "particles": [
         {
-          "type": "minecraft:crit",
+          "type": "ability:ambush_blood_splash",
           "anchor": "position",
-          "count": 12,
-          "spread": [0.12, 0.16, 0.12],
-          "direction_speed": 0.16,
+          "count": 72,
+          "spread": [0.32, 0.45, 0.32],
+          "direction_speed": 0.42,
           "force": false
         }
       ],
       "sound": {
         "event": "minecraft:entity.player.attack.crit",
         "anchor": "position",
-        "volume": 0.72,
-        "pitch": 0.92,
+        "volume": 0.82,
+        "pitch": 0.78,
         "pitch_random": 0.05
       }
     }

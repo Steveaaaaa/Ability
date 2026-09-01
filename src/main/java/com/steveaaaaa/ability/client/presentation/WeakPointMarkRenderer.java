@@ -2,81 +2,76 @@ package com.steveaaaaa.ability.client.presentation;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
 import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.presentation.AbilityCue;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import net.minecraft.client.Camera;
+import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import org.joml.Matrix4f;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class WeakPointMarkRenderer {
-    private static final double TAU = Math.PI * 2.0D;
+    private static final ResourceLocation[] WOUNDS = {
+            AbilityMod.id("textures/particle/weak_point_wound_sword.png"),
+            AbilityMod.id("textures/particle/weak_point_wound_axe.png"),
+            AbilityMod.id("textures/particle/weak_point_wound_puncture.png"),
+            AbilityMod.id("textures/particle/weak_point_wound_blunt.png")
+    };
+    private static final ResourceLocation BLOOD_POOL =
+            AbilityMod.id("textures/particle/weak_point_blood_pool.png");
     private static final Map<MarkKey, MarkVisual> MARKS = new HashMap<>();
-    private static final List<HitFlash> HIT_FLASHES = new ArrayList<>();
-    private static final List<TriggerBurst> TRIGGER_BURSTS = new ArrayList<>();
+    private static final List<BloodDecal> BLOOD_DECALS = new ArrayList<>();
     private static ClientLevel activeLevel;
 
     private WeakPointMarkRenderer() {
     }
 
     static void accept(ClientLevel level, AbilityCue cue) {
-        if (!cue.abilityId().equals(AbilityMod.id("weak_point"))) {
-            return;
-        }
-        if (activeLevel != level) {
-            clear(level);
-        }
+        if (!cue.abilityId().equals(AbilityMod.id("weak_point"))) return;
+        if (activeLevel != level) clear(level);
         MarkKey key = new MarkKey(cue.sourceEntityId(), cue.targetEntityId(), cue.instanceId());
         if (cue.cueId().equals(AbilityMod.id("marks"))) {
             if (cue.action() == AbilityCue.Action.STOP) {
                 MARKS.remove(key);
             } else if (cue.action() == AbilityCue.Action.START) {
+                int count = Mth.clamp(cue.rank(), 1, 32);
+                int newStyle = weaponStyle(cue.randomSeed());
+                MarkVisual previous = MARKS.get(key);
+                ArrayList<Integer> styles = new ArrayList<>();
+                if (previous != null) styles.addAll(previous.styles());
+                if (styles.size() > count) styles.subList(count, styles.size()).clear();
+                while (styles.size() < count) styles.add(newStyle);
                 long duration = cue.durationTicks() == AbilityCue.USE_DEFINITION_DURATION
-                        ? AbilityCue.MAX_DURATION_TICKS
-                        : cue.durationTicks();
-                MARKS.put(key, new MarkVisual(
-                        cue,
-                        level.getGameTime() + Math.max(1L, duration)
-                ));
+                        ? AbilityCue.MAX_DURATION_TICKS : cue.durationTicks();
+                MARKS.put(key, new MarkVisual(cue, List.copyOf(styles),
+                        level.getGameTime() + Math.max(1L, duration), level.getGameTime()));
             }
             return;
         }
-        if (cue.action() != AbilityCue.Action.PULSE) {
-            return;
-        }
-        if (cue.cueId().equals(AbilityMod.id("mark_hit"))) {
-            HIT_FLASHES.add(new HitFlash(
-                    cue.targetEntityId(),
-                    localOffset(level, cue),
-                    cue.position(),
-                    cue.rank() / 255.0F,
-                    level.getGameTime()
-            ));
-        } else if (cue.cueId().equals(AbilityMod.id("trigger"))) {
+        if (cue.action() == AbilityCue.Action.PULSE && cue.cueId().equals(AbilityMod.id("trigger"))) {
             MARKS.remove(key);
-            TRIGGER_BURSTS.add(new TriggerBurst(
-                    cue.targetEntityId(),
-                    localOffset(level, cue),
-                    cue.position(),
-                    cue.randomSeed(),
-                    level.getGameTime()
-            ));
+            createBloodPools(level, cue);
         }
     }
 
@@ -87,226 +82,159 @@ public final class WeakPointMarkRenderer {
             clear(level);
             return;
         }
-        long gameTime = level.getGameTime();
-        MARKS.entrySet().removeIf(entry -> gameTime >= entry.getValue().expiresAt()
+        long time = level.getGameTime();
+        MARKS.entrySet().removeIf(entry -> time >= entry.getValue().expiresAt()
                 || missing(level, entry.getValue().cue().targetEntityId()));
-        HIT_FLASHES.removeIf(flash -> gameTime - flash.startedAt() >= 8L);
-        TRIGGER_BURSTS.removeIf(burst -> gameTime - burst.startedAt() >= 12L);
+        BLOOD_DECALS.removeIf(decal -> time >= decal.expiresAt());
     }
 
     @SubscribeEvent
     public static void render(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES
-                || MARKS.isEmpty() && HIT_FLASHES.isEmpty() && TRIGGER_BURSTS.isEmpty()) {
-            return;
-        }
+                || MARKS.isEmpty() && BLOOD_DECALS.isEmpty()) return;
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
-        if (level == null || level != activeLevel) {
-            return;
-        }
+        if (level == null || level != activeLevel) return;
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         double visualTime = level.getGameTime() + partialTick;
-        Camera camera = event.getCamera();
-        Vec3 cameraPosition = camera.getPosition();
+        Vec3 cameraPosition = event.getCamera().getPosition();
         PoseStack poseStack = event.getPoseStack();
         MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
-        VertexConsumer vertices = buffers.getBuffer(RenderType.debugQuads());
-
+        Set<RenderType> usedTypes = new HashSet<>();
         for (MarkVisual mark : MARKS.values()) {
-            renderMarks(level, mark, visualTime, partialTick, camera, cameraPosition, poseStack, vertices);
+            renderWounds(level, mark, visualTime, partialTick, cameraPosition, poseStack, buffers, usedTypes);
         }
-        for (HitFlash flash : HIT_FLASHES) {
-            renderHitFlash(level, flash, visualTime, partialTick, camera, cameraPosition, poseStack, vertices);
+        for (BloodDecal decal : BLOOD_DECALS) {
+            renderBloodPool(level, decal, visualTime, cameraPosition, poseStack, buffers, usedTypes);
         }
-        for (TriggerBurst burst : TRIGGER_BURSTS) {
-            renderTrigger(level, burst, visualTime, partialTick, camera, cameraPosition, poseStack, vertices);
-        }
-        buffers.endBatch(RenderType.debugQuads());
+        usedTypes.forEach(buffers::endBatch);
     }
 
-    private static void renderMarks(
-            ClientLevel level,
-            MarkVisual visual,
-            double visualTime,
-            float partialTick,
-            Camera camera,
-            Vec3 cameraPosition,
-            PoseStack poseStack,
-            VertexConsumer vertices
-    ) {
+    private static void renderWounds(ClientLevel level, MarkVisual visual, double visualTime, float partialTick,
+            Vec3 cameraPosition, PoseStack poseStack, MultiBufferSource.BufferSource buffers,
+            Set<RenderType> usedTypes) {
         Entity target = level.getEntity(visual.cue().targetEntityId());
-        if (target == null) {
-            return;
-        }
-        float progress = Math.clamp(visual.cue().rank() / 255.0F, 0.0F, 1.0F);
-        int count = Mth.clamp((int) Math.floor(progress * 5.0F + 0.01F), 1, 5);
-        float warmth = smoothStep(Math.clamp((progress - 0.35F) / 0.65F, 0.0F, 1.0F));
-        int red = Mth.lerpInt(warmth, 112, 255);
-        int green = Mth.lerpInt(warmth, 16, 108);
-        int blue = Mth.lerpInt(warmth, 24, 20);
-        double radius = (0.35D + target.getBbWidth() * 0.52D) * (1.0D - progress * 0.27D);
-        double speed = 0.25D + progress * 0.55D;
-        double phase = seedPhase(visual.cue().randomSeed()) + visualTime * speed * TAU / 20.0D;
+        if (target == null) return;
         double x = Mth.lerp(partialTick, target.xo, target.getX());
-        double y = Mth.lerp(partialTick, target.yo, target.getY()) + target.getBbHeight() * 0.62D;
+        double y = Mth.lerp(partialTick, target.yo, target.getY());
         double z = Mth.lerp(partialTick, target.zo, target.getZ());
-        for (int index = 0; index < count; index++) {
-            double angle = phase + index * TAU / count;
-            Vec3 position = new Vec3(
-                    x + Math.cos(angle) * radius,
-                    y + Math.sin(angle * 1.7D) * 0.11D,
-                    z + Math.sin(angle) * radius
-            );
-            renderPixelMark(
-                    poseStack,
-                    vertices,
-                    camera,
-                    position.subtract(cameraPosition),
-                    (float) angle + 0.78F,
-                    0.075F + progress * 0.025F,
-                    0.22F + progress * 0.06F,
-                    red,
-                    green,
-                    blue,
-                    205
-            );
-        }
-    }
-
-    private static void renderHitFlash(
-            ClientLevel level,
-            HitFlash flash,
-            double visualTime,
-            float partialTick,
-            Camera camera,
-            Vec3 cameraPosition,
-            PoseStack poseStack,
-            VertexConsumer vertices
-    ) {
-        double age = visualTime - flash.startedAt();
-        float progress = (float) Math.clamp(age / 8.0D, 0.0D, 1.0D);
-        Vec3 position = anchoredPosition(level, flash.targetEntityId(), flash.localOffset(), flash.fallback(), partialTick);
-        int alpha = Math.round(235.0F * (1.0F - progress));
-        int green = Mth.lerpInt(flash.markProgress(), 18, 102);
-        float length = 0.27F + progress * 0.18F;
-        renderPixelMark(poseStack, vertices, camera, position.subtract(cameraPosition), 0.72F,
-                0.055F, length, 230, green, 25, alpha);
-        renderPixelMark(poseStack, vertices, camera, position.subtract(cameraPosition), -0.72F,
-                0.035F, length * 0.72F, 255, 78, 30, alpha);
-    }
-
-    private static void renderTrigger(
-            ClientLevel level,
-            TriggerBurst burst,
-            double visualTime,
-            float partialTick,
-            Camera camera,
-            Vec3 cameraPosition,
-            PoseStack poseStack,
-            VertexConsumer vertices
-    ) {
-        double age = visualTime - burst.startedAt();
-        float progress = (float) Math.clamp(age / 12.0D, 0.0D, 1.0D);
-        Vec3 impact = anchoredPosition(level, burst.targetEntityId(), burst.localOffset(), burst.fallback(), partialTick);
-        if (progress < 0.58F) {
-            float collapse = progress / 0.58F;
-            double radius = (1.0D - smoothStep(collapse)) * 0.72D;
-            for (int index = 0; index < 5; index++) {
-                double angle = seedPhase(burst.seed()) + index * TAU / 5.0D + age * 0.16D;
-                Vec3 shard = impact.add(
-                        Math.cos(angle) * radius,
-                        Math.sin(angle * 1.4D) * radius * 0.38D,
-                        Math.sin(angle) * radius
-                );
-                renderPixelMark(poseStack, vertices, camera, shard.subtract(cameraPosition), (float) angle,
-                        0.07F, 0.27F, 255, 82, 24, 230);
+        float yawDegrees = target instanceof LivingEntity living
+                ? Mth.rotLerp(partialTick, living.yBodyRotO, living.yBodyRot) : target.getYRot();
+        double yaw = yawDegrees * Mth.DEG_TO_RAD;
+        Vec3 front = new Vec3(-Math.sin(yaw), 0.0D, Math.cos(yaw));
+        Vec3 right = new Vec3(Math.cos(yaw), 0.0D, Math.sin(yaw));
+        double halfWidth = Math.max(0.1D, target.getBbWidth() * 0.5D);
+        double height = Math.max(0.25D, target.getBbHeight());
+        long seed = visual.cue().randomSeed();
+        for (int index = 0; index < visual.styles().size(); index++) {
+            int side = Math.floorMod(index + (int) (seed >>> 5), 4);
+            Vec3 normal = switch (side) {
+                case 1 -> right;
+                case 2 -> front.scale(-1.0D);
+                case 3 -> right.scale(-1.0D);
+                default -> front;
+            };
+            Vec3 tangent = new Vec3(normal.z, 0.0D, -normal.x);
+            double verticalFraction = 0.34D + Math.floorMod(seed + index * 37L, 47L) / 100.0D;
+            double horizontal = (Math.floorMod(seed >>> (index % 12), 101L) / 100.0D - 0.5D)
+                    * halfWidth * 0.72D;
+            Vec3 center = new Vec3(x, y + height * verticalFraction, z)
+                    .add(normal.scale(halfWidth + 0.018D)).add(tangent.scale(horizontal));
+            int style = visual.styles().get(index);
+            float baseSize = switch (style) {
+                case 1 -> 0.42F;
+                case 2 -> 0.28F;
+                case 3 -> 0.32F;
+                default -> 0.37F;
+            };
+            float size = Mth.clamp(baseSize * Math.max(0.72F, target.getBbWidth()), 0.17F, 0.58F);
+            double highlightAge = visualTime - visual.lastChangedAt();
+            if (index == visual.styles().size() - 1 && highlightAge < 7.0D) {
+                size *= 1.0F + Mth.sin((float) (highlightAge / 7.0D * Math.PI)) * 0.18F;
             }
-            return;
+            float rotation = (Math.floorMod(seed + index * 19L, 5L) - 2L) * 0.12F;
+            ResourceLocation texture = WOUNDS[Mth.clamp(style, 0, WOUNDS.length - 1)];
+            RenderType type = RenderType.entityTranslucent(texture);
+            renderSurfaceQuad(poseStack, buffers.getBuffer(type), center.subtract(cameraPosition),
+                    tangent, new Vec3(0.0D, 1.0D, 0.0D), normal, size, rotation, 255,
+                    LevelRenderer.getLightColor(level, target.blockPosition()));
+            usedTypes.add(type);
         }
-        float burstProgress = (progress - 0.58F) / 0.42F;
-        int alpha = Math.round(255.0F * (1.0F - burstProgress));
-        float length = 0.28F + burstProgress * 0.65F;
-        renderPixelMark(poseStack, vertices, camera, impact.subtract(cameraPosition), 0.78F,
-                0.07F, length, 255, 45, 30, alpha);
-        renderPixelMark(poseStack, vertices, camera, impact.subtract(cameraPosition), -0.78F,
-                0.07F, length, 255, 122, 32, alpha);
-        renderPixelMark(poseStack, vertices, camera, impact.subtract(cameraPosition), 0.0F,
-                0.10F, 0.18F + burstProgress * 0.18F, 255, 245, 220, alpha);
     }
 
-    private static void renderPixelMark(
-            PoseStack poseStack,
-            VertexConsumer vertices,
-            Camera camera,
-            Vec3 relativePosition,
-            float rotation,
-            float halfWidth,
-            float halfHeight,
-            int red,
-            int green,
-            int blue,
-            int alpha
-    ) {
-        if (alpha <= 0) {
-            return;
-        }
+    private static void renderBloodPool(ClientLevel level, BloodDecal decal, double visualTime,
+            Vec3 cameraPosition, PoseStack poseStack, MultiBufferSource.BufferSource buffers,
+            Set<RenderType> usedTypes) {
+        if (visualTime < decal.appearsAt()) return;
+        double remaining = decal.expiresAt() - visualTime;
+        int alpha = remaining >= 20.0D ? 225 : Mth.clamp((int) (remaining / 20.0D * 225.0D), 0, 225);
+        RenderType type = RenderType.entityTranslucent(BLOOD_POOL);
+        Vec3 right = new Vec3(Math.cos(decal.rotation()), 0.0D, Math.sin(decal.rotation()));
+        Vec3 forward = new Vec3(-Math.sin(decal.rotation()), 0.0D, Math.cos(decal.rotation()));
+        renderSurfaceQuad(poseStack, buffers.getBuffer(type), decal.position().subtract(cameraPosition),
+                right, forward, new Vec3(0.0D, 1.0D, 0.0D), decal.size(), 0.0F, alpha,
+                LevelRenderer.getLightColor(level, BlockPos.containing(decal.position())));
+        usedTypes.add(type);
+    }
+
+    private static void renderSurfaceQuad(PoseStack poseStack, VertexConsumer vertices, Vec3 center,
+            Vec3 horizontal, Vec3 vertical, Vec3 normal, float size, float rotation, int alpha, int light) {
+        float cos = Mth.cos(rotation);
+        float sin = Mth.sin(rotation);
+        Vec3 axisX = horizontal.scale(cos).add(vertical.scale(sin)).scale(size * 0.5D);
+        Vec3 axisY = vertical.scale(cos).subtract(horizontal.scale(sin)).scale(size * 0.5D);
         poseStack.pushPose();
-        poseStack.translate(relativePosition.x, relativePosition.y, relativePosition.z);
-        poseStack.mulPose(camera.rotation());
-        float rotationStep = (float) (Math.PI / 4.0D);
-        poseStack.mulPose(Axis.ZP.rotation(Math.round(rotation / rotationStep) * rotationStep));
-        Matrix4f pose = poseStack.last().pose();
-        float pixelSize = Math.max(0.018F, Math.min(halfWidth * 0.9F, halfHeight / 5.0F));
-        int steps = Mth.clamp(Math.round(halfHeight * 2.0F / pixelSize), 5, 31);
-        if ((steps & 1) == 0) {
-            steps++;
-        }
-        float cellSize = pixelSize * 0.82F;
-        float halfCell = cellSize * 0.5F;
-        int center = steps / 2;
-        for (int row = 0; row < steps; row++) {
-            int pattern = Math.floorMod(row, 8);
-            int xStep = pattern <= 1 ? -1 : pattern <= 4 ? 0 : pattern <= 5 ? 1 : 0;
-            float x = xStep * pixelSize * 0.62F;
-            float y = (row - center) * pixelSize;
-            float shade = pattern == 0 || pattern == 5 ? 0.72F : pattern == 2 || pattern == 7 ? 0.88F : 1.0F;
-            int pixelRed = Math.round(red * shade);
-            int pixelGreen = Math.round(green * shade);
-            int pixelBlue = Math.round(blue * shade);
-            vertices.addVertex(pose, x - halfCell, y + halfCell, 0.0F)
-                    .setColor(pixelRed, pixelGreen, pixelBlue, alpha);
-            vertices.addVertex(pose, x + halfCell, y + halfCell, 0.0F)
-                    .setColor(pixelRed, pixelGreen, pixelBlue, alpha);
-            vertices.addVertex(pose, x + halfCell, y - halfCell, 0.0F)
-                    .setColor(pixelRed, pixelGreen, pixelBlue, alpha);
-            vertices.addVertex(pose, x - halfCell, y - halfCell, 0.0F)
-                    .setColor(pixelRed, pixelGreen, pixelBlue, alpha);
-        }
+        poseStack.translate(center.x, center.y, center.z);
+        vertex(poseStack, vertices, axisX.scale(-1).add(axisY), 0.0F, 0.0F, normal, alpha, light);
+        vertex(poseStack, vertices, axisX.add(axisY), 1.0F, 0.0F, normal, alpha, light);
+        vertex(poseStack, vertices, axisX.subtract(axisY), 1.0F, 1.0F, normal, alpha, light);
+        vertex(poseStack, vertices, axisX.scale(-1).subtract(axisY), 0.0F, 1.0F, normal, alpha, light);
         poseStack.popPose();
     }
 
-    private static Vec3 localOffset(ClientLevel level, AbilityCue cue) {
-        Entity target = level.getEntity(cue.targetEntityId());
-        return target == null ? Vec3.ZERO : cue.position().subtract(target.position());
+    private static void vertex(PoseStack poseStack, VertexConsumer vertices, Vec3 point,
+            float u, float v, Vec3 normal, int alpha, int light) {
+        vertices.addVertex(poseStack.last(), (float) point.x, (float) point.y, (float) point.z)
+                .setColor(255, 255, 255, alpha).setUv(u, v).setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(light).setNormal(poseStack.last(), (float) normal.x, (float) normal.y, (float) normal.z);
     }
 
-    private static Vec3 anchoredPosition(
-            ClientLevel level,
-            int targetEntityId,
-            Vec3 localOffset,
-            Vec3 fallback,
-            float partialTick
-    ) {
-        Entity target = level.getEntity(targetEntityId);
-        if (target == null) {
-            return fallback;
+    private static void createBloodPools(ClientLevel level, AbilityCue cue) {
+        RandomSource random = RandomSource.create(cue.randomSeed() ^ 0x5EEDB100DL);
+        for (int index = 0; index < 15; index++) {
+            double angle = random.nextDouble() * Math.PI * 2.0D;
+            double radius = 0.25D + Math.sqrt(random.nextDouble()) * 2.35D;
+            double x = cue.position().x + Math.cos(angle) * radius;
+            double z = cue.position().z + Math.sin(angle) * radius;
+            Vec3 surface = findGround(level, x, cue.position().y, z);
+            if (surface == null) continue;
+            long delay = 3L + random.nextInt(11);
+            BLOOD_DECALS.add(new BloodDecal(surface, random.nextFloat() * Mth.TWO_PI,
+                    0.32F + random.nextFloat() * 0.6F, level.getGameTime() + delay,
+                    level.getGameTime() + delay + 100L));
         }
-        return new Vec3(
-                Mth.lerp(partialTick, target.xo, target.getX()),
-                Mth.lerp(partialTick, target.yo, target.getY()),
-                Mth.lerp(partialTick, target.zo, target.getZ())
-        ).add(localOffset);
+    }
+
+    private static Vec3 findGround(ClientLevel level, double x, double y, double z) {
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        int blockX = Mth.floor(x);
+        int blockZ = Mth.floor(z);
+        for (int blockY = Mth.floor(y) + 2; blockY >= Mth.floor(y) - 6; blockY--) {
+            cursor.set(blockX, blockY, blockZ);
+            if (!level.hasChunkAt(cursor)) continue;
+            BlockState state = level.getBlockState(cursor);
+            BlockPos above = cursor.above();
+            if (!state.getCollisionShape(level, cursor).isEmpty() && state.getFluidState().isEmpty()
+                    && level.getBlockState(above).getCollisionShape(level, above).isEmpty()) {
+                double top = state.getCollisionShape(level, cursor).max(net.minecraft.core.Direction.Axis.Y);
+                return new Vec3(x, blockY + top + 0.012D, z);
+            }
+        }
+        return null;
+    }
+
+    private static int weaponStyle(long seed) {
+        return (int) (seed & 3L);
     }
 
     private static boolean missing(ClientLevel level, int entityId) {
@@ -314,42 +242,18 @@ public final class WeakPointMarkRenderer {
         return entity == null || entity.isRemoved();
     }
 
-    private static float smoothStep(float value) {
-        return value * value * (3.0F - 2.0F * value);
-    }
-
-    private static double seedPhase(long seed) {
-        return Math.floorMod(seed, 65_536L) / 65_536.0D * TAU;
-    }
-
     private static void clear(ClientLevel level) {
         MARKS.clear();
-        HIT_FLASHES.clear();
-        TRIGGER_BURSTS.clear();
+        BLOOD_DECALS.clear();
         activeLevel = level;
     }
 
     private record MarkKey(int sourceEntityId, int targetEntityId, long instanceId) {
     }
 
-    private record MarkVisual(AbilityCue cue, long expiresAt) {
+    private record MarkVisual(AbilityCue cue, List<Integer> styles, long expiresAt, long lastChangedAt) {
     }
 
-    private record HitFlash(
-            int targetEntityId,
-            Vec3 localOffset,
-            Vec3 fallback,
-            float markProgress,
-            long startedAt
-    ) {
-    }
-
-    private record TriggerBurst(
-            int targetEntityId,
-            Vec3 localOffset,
-            Vec3 fallback,
-            long seed,
-            long startedAt
-    ) {
+    private record BloodDecal(Vec3 position, float rotation, float size, long appearsAt, long expiresAt) {
     }
 }

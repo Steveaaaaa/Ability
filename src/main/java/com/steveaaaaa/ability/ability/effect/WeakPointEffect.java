@@ -23,9 +23,12 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
@@ -36,6 +39,12 @@ public final class WeakPointEffect {
     private static final ResourceLocation TRIGGER_CUE = AbilityMod.id("trigger");
     private static final Set<String> RANK_KEYS = Set.of("mark_threshold", "damage_multiplier", "stun_ticks");
     private static final Set<String> LOGGED_INVALID_DEFINITIONS = ConcurrentHashMap.newKeySet();
+    private static final TagKey<Item> COMMON_SPEARS = ItemTags.create(
+            ResourceLocation.fromNamespaceAndPath("c", "tools/spears"));
+    private static final TagKey<Item> COMMON_HAMMERS = ItemTags.create(
+            ResourceLocation.fromNamespaceAndPath("c", "tools/hammers"));
+    private static final TagKey<Item> COMMON_MACES = ItemTags.create(
+            ResourceLocation.fromNamespaceAndPath("c", "tools/maces"));
 
     private WeakPointEffect() {
     }
@@ -83,7 +92,7 @@ public final class WeakPointEffect {
                             target,
                             config.markId(),
                             result,
-                            rank.markThreshold()
+                            weaponStyle(attacker.getMainHandItem(), !event.getSource().isDirect())
                     );
                     if (!result.triggered()) {
                         continue;
@@ -109,13 +118,13 @@ public final class WeakPointEffect {
             LivingEntity target,
             ResourceLocation markId,
             CombatStatusTracker.MarkResult result,
-            int threshold
+            int weaponStyle
     ) {
         Vec3 targetCenter = target.getBoundingBox().getCenter();
         Vec3 hitPosition = surfacePointFacing(target, attacker.getEyePosition());
         Vec3 direction = hitPosition.subtract(targetCenter);
         long instanceId = markInstanceId(attacker, target, markId);
-        long seed = attacker.level().getGameTime() ^ instanceId;
+        long seed = ((attacker.level().getGameTime() ^ instanceId) & ~3L) | weaponStyle;
         if (result.triggered()) {
             AbilityCue marks = AbilityCue.start(
                     abilityId,
@@ -143,11 +152,7 @@ public final class WeakPointEffect {
             return;
         }
 
-        int progress = Math.clamp(
-                Math.round((float) result.remainingCount() / threshold * 255.0F),
-                1,
-                254
-        );
+        int markCount = Math.clamp(result.remainingCount(), 1, 254);
         AbilityPresentationService.sendTracking(target, AbilityCue.start(
                 abilityId,
                 MARKS_CUE,
@@ -155,7 +160,7 @@ public final class WeakPointEffect {
                 target.getId(),
                 hitPosition,
                 direction,
-                progress,
+                markCount,
                 AbilityCue.MAX_DURATION_TICKS,
                 instanceId,
                 seed
@@ -167,9 +172,16 @@ public final class WeakPointEffect {
                 target.getId(),
                 hitPosition,
                 direction,
-                progress,
+                markCount,
                 seed
         ));
+    }
+
+    private static int weaponStyle(ItemStack weapon, boolean indirect) {
+        if (indirect || weapon.is(ItemTags.TRIDENT_ENCHANTABLE) || weapon.is(COMMON_SPEARS)) return 2;
+        if (weapon.is(ItemTags.AXES)) return 1;
+        if (weapon.is(ItemTags.MACE_ENCHANTABLE) || weapon.is(COMMON_HAMMERS) || weapon.is(COMMON_MACES)) return 3;
+        return 0;
     }
 
     private static Vec3 surfacePointFacing(LivingEntity target, Vec3 attackerEyePosition) {
