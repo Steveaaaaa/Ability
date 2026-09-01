@@ -25,7 +25,7 @@ public final class SurvivorShieldRippleRenderer {
     private static final net.minecraft.resources.ResourceLocation SURVIVOR = AbilityMod.id("survivor");
     private static final net.minecraft.resources.ResourceLocation SHIELD_IMPACT = AbilityMod.id("shield_impact");
     private static final int DURATION_TICKS = 15;
-    private static final int SEGMENTS = 20;
+    private static final int SEGMENTS = 16;
     private static final List<Ripple> RIPPLES = new ArrayList<>();
     private static ClientLevel activeLevel;
 
@@ -41,9 +41,18 @@ public final class SurvivorShieldRippleRenderer {
             RIPPLES.clear();
             activeLevel = level;
         }
-        Vec3 normal = cue.direction().lengthSqr() < 1.0E-8D
+        Entity target = level.getEntity(cue.targetEntityId());
+        float radiusX = target == null ? 0.42F : Math.max(0.42F, target.getBbWidth() * 0.68F);
+        float radiusY = target == null ? 0.88F : Math.max(0.88F, target.getBbHeight() * 0.58F);
+        Vec3 hitOffset = cue.direction();
+        Vec3 localSurfacePoint = new Vec3(
+                hitOffset.x / radiusX,
+                hitOffset.y / radiusY,
+                hitOffset.z / radiusX
+        );
+        Vec3 normal = localSurfacePoint.lengthSqr() < 1.0E-8D
                 ? new Vec3(0.0D, 0.0D, 1.0D)
-                : cue.direction().normalize();
+                : localSurfacePoint.normalize();
         if (RIPPLES.size() >= 32) {
             RIPPLES.remove(0);
         }
@@ -106,14 +115,14 @@ public final class SurvivorShieldRippleRenderer {
         float mainAngle = 0.08F + eased * 0.92F;
         sphereRing(poseStack, vertices, normal, tangent, bitangent,
                 radiusX, radiusY, radiusZ, mainAngle, 0.055F,
-                122, 211, 255, alpha, 1.0F, age * 0.035F);
+                218, 191, 255, alpha, 0.68F, age * 0.035F);
         sphereRing(poseStack, vertices, normal, tangent, bitangent,
                 radiusX, radiusY, radiusZ, Math.max(0.04F, mainAngle - 0.20F), 0.026F,
-                188, 142, 255, alpha * 2 / 3, 0.68F, -age * 0.025F);
+                169, 132, 226, alpha * 2 / 3, 0.52F, -age * 0.025F);
         if (rank >= 4) {
             sphereRing(poseStack, vertices, normal, tangent, bitangent,
                     radiusX, radiusY, radiusZ, Math.max(0.04F, mainAngle - 0.36F), 0.018F,
-                    224, 213, 255, alpha / 2, 0.5F, age * 0.02F);
+                    244, 231, 255, alpha / 2, 0.42F, age * 0.02F);
         }
         renderRunes(poseStack, vertices, normal, tangent, bitangent,
                 radiusX, radiusY, radiusZ, mainAngle * 0.62F,
@@ -129,10 +138,12 @@ public final class SurvivorShieldRippleRenderer {
         if (alpha <= 0) return;
         float inner = Math.max(0.015F, angle - thickness);
         float outer = angle + thickness;
+        float halfSegment = Mth.PI / SEGMENTS;
+        float visibleHalf = halfSegment * Mth.clamp(fill, 0.15F, 0.9F);
         for (int segment = 0; segment < SEGMENTS; segment++) {
-            if (fill < 0.99F && ((segment * 37) % 100) / 100.0F > fill) continue;
-            float a0 = rotation + Mth.TWO_PI * segment / SEGMENTS;
-            float a1 = rotation + Mth.TWO_PI * (segment + 1) / SEGMENTS;
+            float center = rotation + Mth.TWO_PI * (segment + 0.5F) / SEGMENTS;
+            float a0 = center - visibleHalf;
+            float a1 = center + visibleHalf;
             shieldVertex(poseStack, vertices, sphereDirection(normal, tangent, bitangent, inner, a0),
                     radiusX, radiusY, radiusZ, red, green, blue, alpha);
             shieldVertex(poseStack, vertices, sphereDirection(normal, tangent, bitangent, outer, a0),
@@ -156,10 +167,10 @@ public final class SurvivorShieldRippleRenderer {
             Vec3 right = sphereDirection(normal, tangent, bitangent, angle, center + halfWidth);
             Vec3 outer = sphereDirection(normal, tangent, bitangent, angle + halfHeight, center);
             Vec3 left = sphereDirection(normal, tangent, bitangent, angle, center - halfWidth);
-            shieldVertex(poseStack, vertices, inner, radiusX, radiusY, radiusZ, 207, 184, 255, alpha);
-            shieldVertex(poseStack, vertices, right, radiusX, radiusY, radiusZ, 207, 184, 255, alpha);
-            shieldVertex(poseStack, vertices, outer, radiusX, radiusY, radiusZ, 207, 184, 255, alpha);
-            shieldVertex(poseStack, vertices, left, radiusX, radiusY, radiusZ, 207, 184, 255, alpha);
+            shieldVertex(poseStack, vertices, inner, radiusX, radiusY, radiusZ, 230, 211, 255, alpha);
+            shieldVertex(poseStack, vertices, right, radiusX, radiusY, radiusZ, 230, 211, 255, alpha);
+            shieldVertex(poseStack, vertices, outer, radiusX, radiusY, radiusZ, 230, 211, 255, alpha);
+            shieldVertex(poseStack, vertices, left, radiusX, radiusY, radiusZ, 230, 211, 255, alpha);
         }
     }
 
