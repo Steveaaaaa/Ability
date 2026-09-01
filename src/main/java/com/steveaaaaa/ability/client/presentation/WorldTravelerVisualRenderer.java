@@ -2,7 +2,6 @@ package com.steveaaaaa.ability.client.presentation;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
 import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.network.ClientWorldTravelerVisualQueue;
 import com.steveaaaaa.ability.network.ClientboundWorldTravelerVisualPayload;
@@ -18,10 +17,12 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -37,8 +38,8 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 public final class WorldTravelerVisualRenderer {
     private static final ResourceLocation PORTAL_FRAME_TEXTURE =
             AbilityMod.id("textures/effect/world_traveler_portal_frame.png");
-    private static final ResourceLocation PORTAL_SWIRL_TEXTURE =
-            AbilityMod.id("textures/effect/world_traveler_portal_swirl.png");
+    private static final ResourceLocation PORTAL_SURFACE_TEXTURE =
+            AbilityMod.id("block/world_traveler_portal");
     private static final int PORTAL_IDLE_TICKS = 20 * 30;
     private static final List<Visual> ACTIVE = new ArrayList<>();
     private static final Map<Integer, PortalState> PORTALS = new HashMap<>();
@@ -118,18 +119,20 @@ public final class WorldTravelerVisualRenderer {
             }
         }
 
-        RenderType swirlType = RenderType.entityTranslucentEmissive(PORTAL_SWIRL_TEXTURE);
-        VertexConsumer swirlTexture = buffers.getBuffer(swirlType);
+        RenderType surfaceType = RenderType.entityTranslucentEmissive(InventoryMenu.BLOCK_ATLAS);
+        VertexConsumer surfaceVertices = buffers.getBuffer(surfaceType);
+        TextureAtlasSprite surfaceSprite = minecraft.getTextureAtlas(InventoryMenu.BLOCK_ATLAS)
+                .apply(PORTAL_SURFACE_TEXTURE);
         for (Map.Entry<Integer, PortalState> entry : PORTALS.entrySet()) {
             Entity player = level.getEntity(entry.getKey());
             if (player == null || player.isRemoved()) continue;
             float open = Mth.lerp(partialTick, entry.getValue().previousOpenAmount(),
                     entry.getValue().openAmount());
             Vec3 portal = portalPosition(player, partialTick);
-            renderPortalSwirl(poseStack, swirlTexture, camera, cameraPosition, portal, open,
-                    visualTime, entry.getValue().seed());
+            renderPortalSurface(poseStack, surfaceVertices, surfaceSprite, camera,
+                    cameraPosition, portal, open);
         }
-        buffers.endBatch(swirlType);
+        buffers.endBatch(surfaceType);
 
         RenderType frameType = RenderType.entityTranslucentEmissive(PORTAL_FRAME_TEXTURE);
         VertexConsumer frameTexture = buffers.getBuffer(frameType);
@@ -237,21 +240,21 @@ public final class WorldTravelerVisualRenderer {
         // exclusively to successful item routes guarantees one small persistent portal per player.
     }
 
-    private static void renderPortalSwirl(PoseStack poseStack, VertexConsumer vertices, Camera camera,
-            Vec3 cameraPosition, Vec3 position, float openAmount, double visualTime, long seed) {
+    private static void renderPortalSurface(PoseStack poseStack, VertexConsumer vertices,
+            TextureAtlasSprite sprite, Camera camera, Vec3 cameraPosition,
+            Vec3 position, float openAmount) {
         if (openAmount <= 0.001F) return;
         poseStack.pushPose();
         poseStack.translate(position.x - cameraPosition.x, position.y - cameraPosition.y,
                 position.z - cameraPosition.z);
         poseStack.mulPose(camera.rotation());
         float eased = smooth(openAmount);
-        float pulse = 1.0F + Mth.sin((float) visualTime * 0.16F + seed * 0.001F) * 0.035F;
-        float halfSize = (0.025F + eased * 0.245F) * pulse;
-        float seedAngle = (seed & 255L) / 255.0F * 360.0F;
-        poseStack.mulPose(Axis.ZP.rotationDegrees((float) visualTime * 2.4F + seedAngle));
-        int alpha = Mth.clamp((int) Mth.lerp(eased, 70.0F, 185.0F), 0, 190);
-        portalQuad(poseStack, vertices, -halfSize, -halfSize, halfSize, halfSize, -0.002F, alpha);
-        portalQuad(poseStack, vertices, halfSize, -halfSize, -halfSize, halfSize, -0.002F, alpha);
+        float halfSize = 0.012F + eased * 0.275F;
+        int alpha = Mth.clamp((int) Mth.lerp(eased, 75.0F, 190.0F), 0, 190);
+        portalQuad(poseStack, vertices, -halfSize, -halfSize, halfSize, halfSize,
+                -0.002F, sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1(), alpha);
+        portalQuad(poseStack, vertices, halfSize, -halfSize, -halfSize, halfSize,
+                -0.002F, sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1(), alpha);
         poseStack.popPose();
     }
 
@@ -264,19 +267,22 @@ public final class WorldTravelerVisualRenderer {
         poseStack.mulPose(camera.rotation());
         float eased = smooth(openAmount);
         float halfWidth = 0.018F + eased * 0.315F;
-        float halfHeight = 0.065F + eased * 0.355F;
+        float halfHeight = halfWidth;
         int alpha = Mth.clamp((int) Mth.lerp(eased, 105.0F, 220.0F), 0, 220);
-        portalQuad(poseStack, vertices, -halfWidth, -halfHeight, halfWidth, halfHeight, 0.0F, alpha);
-        portalQuad(poseStack, vertices, halfWidth, -halfHeight, -halfWidth, halfHeight, 0.0F, alpha);
+        portalQuad(poseStack, vertices, -halfWidth, -halfHeight, halfWidth, halfHeight,
+                0.0F, 0.0F, 0.0F, 1.0F, 1.0F, alpha);
+        portalQuad(poseStack, vertices, halfWidth, -halfHeight, -halfWidth, halfHeight,
+                0.0F, 0.0F, 0.0F, 1.0F, 1.0F, alpha);
         poseStack.popPose();
     }
 
     private static void portalQuad(PoseStack poseStack, VertexConsumer vertices,
-            float left, float bottom, float right, float top, float depth, int alpha) {
-        portalVertex(poseStack, vertices, left, bottom, depth, 0.0F, 1.0F, alpha);
-        portalVertex(poseStack, vertices, right, bottom, depth, 1.0F, 1.0F, alpha);
-        portalVertex(poseStack, vertices, right, top, depth, 1.0F, 0.0F, alpha);
-        portalVertex(poseStack, vertices, left, top, depth, 0.0F, 0.0F, alpha);
+            float left, float bottom, float right, float top, float depth,
+            float u0, float v0, float u1, float v1, int alpha) {
+        portalVertex(poseStack, vertices, left, bottom, depth, u0, v1, alpha);
+        portalVertex(poseStack, vertices, right, bottom, depth, u1, v1, alpha);
+        portalVertex(poseStack, vertices, right, top, depth, u1, v0, alpha);
+        portalVertex(poseStack, vertices, left, top, depth, u0, v0, alpha);
     }
 
     private static void portalVertex(PoseStack poseStack, VertexConsumer vertices,
