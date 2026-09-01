@@ -17,7 +17,6 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -29,6 +28,8 @@ public final class InventoryAbilityTab {
     private static final ResourceLocation WORLD_TRAVELER = AbilityMod.id("world_traveler");
     private static final ResourceLocation ABILITY_TAB_ICON =
             AbilityMod.id("textures/gui/ability_tab_icon.png");
+    private static final ResourceLocation WORLD_TRAVELER_TAB_ICON =
+            AbilityMod.id("textures/gui/world_traveler_tab_icon.png");
     private static final int PANEL_WIDTH = 176;
     private static final int PANEL_HEIGHT = 116;
     private static final int SCREEN_MARGIN = 2;
@@ -54,8 +55,7 @@ public final class InventoryAbilityTab {
                 Component.translatable("gui.ability.tab"),
                 () -> false,
                 () -> Minecraft.getInstance().setScreen(new AbilityScreen(screen)),
-                ABILITY_TAB_ICON,
-                ItemStack.EMPTY
+                ABILITY_TAB_ICON
         );
         tab.setTooltip(Tooltip.create(Component.translatable("gui.ability.tab")));
         event.addListener(tab);
@@ -70,8 +70,7 @@ public final class InventoryAbilityTab {
                         travelerPanelVisible = !travelerPanelVisible;
                         if (travelerPanelVisible) send(ServerboundWorldTravelerPayload.Action.REQUEST, -1);
                     },
-                    null,
-                    new ItemStack(Items.LODESTONE)
+                    WORLD_TRAVELER_TAB_ICON
             );
             traveler.setTooltip(Tooltip.create(Component.translatable("gui.ability.world_traveler.tab")));
             event.addListener(traveler);
@@ -172,7 +171,6 @@ public final class InventoryAbilityTab {
         private final BooleanSupplier selected;
         private final Runnable action;
         private final ResourceLocation texture;
-        private final ItemStack itemIcon;
 
         private DungeonTabButton(
                 int x,
@@ -180,14 +178,12 @@ public final class InventoryAbilityTab {
                 Component message,
                 BooleanSupplier selected,
                 Runnable action,
-                ResourceLocation texture,
-                ItemStack itemIcon
+                ResourceLocation texture
         ) {
             super(x, y, WIDTH, HEIGHT, message);
             this.selected = selected;
             this.action = action;
             this.texture = texture;
-            this.itemIcon = itemIcon;
         }
 
         @Override
@@ -197,23 +193,9 @@ public final class InventoryAbilityTab {
 
         @Override
         protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-            boolean highlighted = selected.getAsBoolean() || isHovered();
-            int border = highlighted ? 0xFFE3BC6B : 0xFF6A5030;
-            int fill = selected.getAsBoolean() ? 0xFF493720 : highlighted ? 0xFF332B20 : 0xFF1E201F;
-            graphics.fill(getX() + 2, getY(), getX() + getWidth() - 2, getY() + getHeight(), fill);
-            graphics.fill(getX(), getY() + 2, getX() + getWidth(), getY() + getHeight() - 2, fill);
-            graphics.fill(getX() + 2, getY(), getX() + getWidth() - 2, getY() + 1, border);
-            graphics.fill(getX() + 2, getY() + getHeight() - 1,
-                    getX() + getWidth() - 2, getY() + getHeight(), border);
-            graphics.fill(getX(), getY() + 2, getX() + 1, getY() + getHeight() - 2, border);
-            graphics.fill(getX() + getWidth() - 1, getY() + 2,
-                    getX() + getWidth(), getY() + getHeight() - 2, border);
-            if (texture != null) {
-                graphics.blit(texture, getX() + 2, getY() + 2,
-                        0.0F, 0.0F, 16, 16, 16, 16);
-            } else if (!itemIcon.isEmpty()) {
-                graphics.renderItem(itemIcon, getX() + 2, getY() + 2);
-            }
+            int iconY = getY() - ((selected.getAsBoolean() || isHovered()) ? 1 : 0);
+            graphics.blit(texture, getX(), iconY,
+                    0.0F, 0.0F, WIDTH, HEIGHT, WIDTH, HEIGHT);
         }
 
         @Override
