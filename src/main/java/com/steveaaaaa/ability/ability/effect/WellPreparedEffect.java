@@ -9,6 +9,8 @@ import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
 import com.steveaaaaa.ability.progress.AbilityDailyState;
 import com.steveaaaaa.ability.progress.ModAttachments;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -79,6 +81,19 @@ public final class WellPreparedEffect {
                 player.getUUID(),
                 player.level().getGameTime() + component.rank().invulnerabilityTicks()
         );
+        long gameTime = player.level().getGameTime();
+        AbilityPresentationService.sendTracking(player, AbilityCue.start(
+                component.abilityId(),
+                AbilityMod.id("salvation"),
+                player.getId(),
+                player.getId(),
+                player.position(),
+                player.getLookAngle(),
+                component.abilityRank(),
+                40,
+                (gameTime << 20) ^ player.getId(),
+                player.getRandom().nextLong()
+        ));
     }
 
     static long gameDay(long dayTime, long dayLengthTicks) {
@@ -180,7 +195,8 @@ public final class WellPreparedEffect {
                     result.add(new ActiveComponent(
                             abilityId,
                             config,
-                            resolve(mergeRanks(projected))
+                            resolve(mergeRanks(projected)),
+                            projected.rank()
                     ));
                 }
             } catch (RuntimeException exception) {
@@ -256,7 +272,8 @@ public final class WellPreparedEffect {
     private record ActiveComponent(
             ResourceLocation abilityId,
             Config config,
-            ResolvedRank rank
+            ResolvedRank rank,
+            int abilityRank
     ) {
     }
 }

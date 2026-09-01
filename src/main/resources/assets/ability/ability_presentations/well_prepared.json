@@ -1,0 +1,14 @@
+{
+  "cues": {
+    "ability:salvation": {
+      "duration_ticks": 40,
+      "sound": {
+        "event": "minecraft:block.beacon.activate",
+        "anchor": "target",
+        "volume": 0.72,
+        "pitch": 1.38,
+        "pitch_random": 0.04
+      }
+    }
+  }
+}
