@@ -56,6 +56,8 @@ public final class AbilityEffectEventHandler {
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onSpecialDamage(LivingIncomingDamageEvent event) {
         if (EnchantedEdgeEffect.isApplyingConvertedDamage()) return;
+        GolemEnhancementEffect.blockDuringCrushingRelease(event);
+        if (event.isCanceled()) return;
         BlastExcavationEffect.reduceSelfDamage(event);
         IronCavalryEffect.modifyOutgoingDamage(event);
         WolfPackEffect.modifyDamage(event);

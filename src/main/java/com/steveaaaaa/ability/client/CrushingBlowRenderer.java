@@ -6,9 +6,12 @@ import com.mojang.math.Axis;
 import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.network.ClientboundCrushingBlowPayload;
 import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.IronGolemModel;
+import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.IronGolemRenderer;
@@ -31,6 +34,7 @@ import net.neoforged.neoforge.client.event.RenderLivingEvent;
 public final class CrushingBlowRenderer {
     private static final ResourceLocation PRESSURE = AbilityMod.id("textures/particle/crushing_blow_pressure.png");
     private static final Set<UUID> COMPRESSED = ConcurrentHashMap.newKeySet();
+    private static final Map<UUID, ArmPose> ARM_POSES = new ConcurrentHashMap<>();
     private static final double TAU = Math.PI * 2.0D;
 
     private CrushingBlowRenderer() {
@@ -40,13 +44,26 @@ public final class CrushingBlowRenderer {
     public static void compressOnRelease(RenderLivingEvent.Pre<?, ?> event) {
         if (!(event.getEntity() instanceof IronGolem golem)) return;
         CrushingBlowClientState.State state = CrushingBlowClientState.get(golem.getUUID());
-        if (state == null || state.visualEvent() != ClientboundCrushingBlowPayload.VisualEvent.RELEASED) return;
+        if (state == null) return;
         float age = animationAge(golem, state, event.getPartialTick());
-        if (age >= 8.0F) return;
-        float wave = Mth.sin(Mth.clamp(age / 8.0F, 0.0F, 1.0F) * Mth.PI);
-        event.getPoseStack().pushPose();
-        event.getPoseStack().scale(1.0F + wave * 0.045F, 1.0F - wave * 0.095F, 1.0F + wave * 0.045F);
-        COMPRESSED.add(golem.getUUID());
+        if (state.visualEvent() == ClientboundCrushingBlowPayload.VisualEvent.WINDUP
+                && event.getRenderer() instanceof IronGolemRenderer renderer) {
+            IronGolemModel<IronGolem> model = renderer.getModel();
+            ModelPart right = model.root().getChild("right_arm");
+            ModelPart left = model.root().getChild("left_arm");
+            ARM_POSES.put(golem.getUUID(), new ArmPose(right, left,
+                    right.xRot, right.yRot, right.zRot, left.xRot, left.yRot, left.zRot));
+            float progress = smoothStep(Mth.clamp(age / 40.0F, 0.0F, 1.0F));
+            right.xRot = Mth.lerp(progress, right.xRot, -0.18F);
+            left.xRot = Mth.lerp(progress, left.xRot, -0.18F);
+            right.zRot = Mth.lerp(progress, right.zRot, 1.23F);
+            left.zRot = Mth.lerp(progress, left.zRot, -1.23F);
+        } else if (state.visualEvent() == ClientboundCrushingBlowPayload.VisualEvent.RELEASED && age < 8.0F) {
+            float wave = Mth.sin(Mth.clamp(age / 8.0F, 0.0F, 1.0F) * Mth.PI);
+            event.getPoseStack().pushPose();
+            event.getPoseStack().scale(1.0F + wave * 0.045F, 1.0F - wave * 0.095F, 1.0F + wave * 0.045F);
+            COMPRESSED.add(golem.getUUID());
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -60,22 +77,17 @@ public final class CrushingBlowRenderer {
             }
         }
         if (COMPRESSED.remove(golem.getUUID())) event.getPoseStack().popPose();
+        ArmPose pose = ARM_POSES.remove(golem.getUUID());
+        if (pose != null) pose.restore();
     }
 
     private static void renderRelease(RenderLivingEvent.Post<?, ?> event, float age) {
-        float progress = Mth.clamp(age / 15.0F, 0.0F, 1.0F);
-        float leadRadius = easeOut(progress) * 7.5F;
+        float progress = Mth.clamp(age / 20.0F, 0.0F, 1.0F);
+        float leadRadius = progress * 7.5F;
         int leadAlpha = (int) ((1.0F - progress) * 245.0F);
         renderGroundRing(event, leadRadius, 64, 0.38F, leadAlpha, 0.08F);
         renderGroundRing(event, Math.max(0.0F, leadRadius - 0.58F), 56, 0.31F,
                 (int) (leadAlpha * 0.72F), 0.11F);
-
-        float secondProgress = Mth.clamp((age - 2.0F) / 15.0F, 0.0F, 1.0F);
-        if (age >= 2.0F) {
-            float secondRadius = easeOut(secondProgress) * 7.5F;
-            renderGroundRing(event, secondRadius, 52, 0.3F,
-                    (int) ((1.0F - secondProgress) * 190.0F), 0.055F);
-        }
 
         for (int i = 0; i < 36; i++) {
             double angle = i * TAU / 36.0D;
@@ -156,6 +168,22 @@ public final class CrushingBlowRenderer {
     private static float easeOut(float value) {
         float inverse = 1.0F - value;
         return 1.0F - inverse * inverse * inverse;
+    }
+
+    private static float smoothStep(float value) {
+        return value * value * (3.0F - 2.0F * value);
+    }
+
+    private record ArmPose(ModelPart right, ModelPart left,
+            float rightX, float rightY, float rightZ, float leftX, float leftY, float leftZ) {
+        private void restore() {
+            right.xRot = rightX;
+            right.yRot = rightY;
+            right.zRot = rightZ;
+            left.xRot = leftX;
+            left.yRot = leftY;
+            left.zRot = leftZ;
+        }
     }
 
     @SubscribeEvent

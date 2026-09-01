@@ -127,10 +127,16 @@ public final class GolemEnhancementEffect {
         }
     }
 
+    public static void blockDuringCrushingRelease(LivingIncomingDamageEvent event) {
+        if (!(event.getEntity() instanceof IronGolem golem) || event.isCanceled()) return;
+        CompoundTag state = state(golem, CRUSHING_BLOW);
+        if (state != null && state.getInt("release_ticks") > 0) event.setCanceled(true);
+    }
+
     public static void processFinalDamage(LivingDamageEvent.Post event) {
         if (!(event.getEntity() instanceof IronGolem golem) || event.getNewDamage() <= 0) return;
         CompoundTag state = state(golem, CRUSHING_BLOW);
-        if (state == null) return;
+        if (state == null || state.getInt("release_ticks") > 0) return;
         int charge = state.getInt("charge") + 1;
         int threshold = Math.max(1, (int) state.getDouble("charge_threshold"));
         Vec3 source = event.getSource().getSourcePosition();
@@ -143,26 +149,7 @@ public final class GolemEnhancementEffect {
             syncCrushingState(golem, ClientboundCrushingBlowPayload.VisualEvent.CHARGED, direction);
             return;
         }
-        state.putInt("charge", 0);
-        golem.heal(golem.getMaxHealth() * 0.05F);
-        ServerPlayer owner = owner(golem, state);
-        if (owner == null || !(golem.level() instanceof ServerLevel level)) {
-            syncCrushingState(golem);
-            return;
-        }
-        float damage = (float) (owner.getAttributeValue(Attributes.ATTACK_DAMAGE)
-                * state.getDouble("damage_percent") / 100.0D);
-        List<LivingEntity> affected = level.getEntitiesOfClass(LivingEntity.class,
-                new AABB(golem.blockPosition()).inflate(7.5D),
-                living -> living != golem && living.isAlive() && !(living instanceof IronGolem)
-                        && !(living instanceof AbstractVillager));
-        affected.forEach(living -> {
-            living.invulnerableTime = 0;
-            living.hurt(golem.damageSources().mobAttack(golem), damage);
-            playCrushingTargetEffect(level, living);
-        });
-        playCrushingReleaseEffect(golem);
-        syncCrushingState(golem, ClientboundCrushingBlowPayload.VisualEvent.RELEASED, direction);
+        beginCrushingRelease(golem, state);
     }
 
     public static void processTick(Entity entity) {
@@ -171,7 +158,9 @@ public final class GolemEnhancementEffect {
             return;
         }
         if (!(entity instanceof LivingEntity living) || !(entity instanceof IronGolem || entity instanceof SnowGolem)) return;
-        if (entity instanceof IronGolem golem && golem.tickCount % 20 == 0 && golem.getTarget() != null) {
+        boolean crushingReleasing = entity instanceof IronGolem golem && processCrushingTick(golem);
+        if (entity instanceof IronGolem golem && !crushingReleasing
+                && golem.tickCount % 20 == 0 && golem.getTarget() != null) {
             CompoundTag state = state(golem, OBSIDIAN_REINFORCEMENT);
             if (state != null) {
                 int maxShields = maxShields(state);
@@ -194,6 +183,67 @@ public final class GolemEnhancementEffect {
             }
         }
         if (entity instanceof SnowGolem snow) processCold(snow);
+    }
+
+    private static boolean processCrushingTick(IronGolem golem) {
+        CompoundTag state = state(golem, CRUSHING_BLOW);
+        if (state == null || !(golem.level() instanceof ServerLevel level)) return false;
+        int releaseTicks = state.getInt("release_ticks");
+        int charge = state.getInt("charge");
+        if (releaseTicks <= 0) {
+            if (charge > 0 && golem.tickCount % 6 == 0) playCrushingSteam(golem, charge, false);
+            return false;
+        }
+
+        golem.getNavigation().stop();
+        golem.setDeltaMovement(Vec3.ZERO);
+        golem.setPos(state.getDouble("release_x"), state.getDouble("release_y"), state.getDouble("release_z"));
+        if (releaseTicks % 2 == 0) playCrushingSteam(golem, Math.max(charge, crushingThreshold(state)), true);
+        if (releaseTicks == 40) releaseCrushingBlow(golem, state);
+        if (releaseTicks >= 60) {
+            state.putInt("release_ticks", 0);
+            state.putInt("charge", 0);
+            syncCrushingState(golem, ClientboundCrushingBlowPayload.VisualEvent.FINISHED, Vec3.ZERO);
+            return false;
+        }
+        state.putInt("release_ticks", releaseTicks + 1);
+        return true;
+    }
+
+    private static void beginCrushingRelease(IronGolem golem, CompoundTag state) {
+        state.putInt("charge", crushingThreshold(state));
+        state.putInt("release_ticks", 1);
+        state.putDouble("release_x", golem.getX());
+        state.putDouble("release_y", golem.getY());
+        state.putDouble("release_z", golem.getZ());
+        golem.getNavigation().stop();
+        golem.setDeltaMovement(Vec3.ZERO);
+        syncCrushingState(golem, ClientboundCrushingBlowPayload.VisualEvent.WINDUP, Vec3.ZERO);
+    }
+
+    private static void releaseCrushingBlow(IronGolem golem, CompoundTag state) {
+        golem.heal(golem.getMaxHealth() * 0.05F);
+        if (!(golem.level() instanceof ServerLevel level)) return;
+        ServerPlayer owner = owner(golem, state);
+        if (owner != null) {
+            float damage = (float) (owner.getAttributeValue(Attributes.ATTACK_DAMAGE)
+                    * state.getDouble("damage_percent") / 100.0D);
+            List<LivingEntity> affected = level.getEntitiesOfClass(LivingEntity.class,
+                    new AABB(golem.blockPosition()).inflate(7.5D),
+                    living -> living != golem && living.isAlive() && !(living instanceof IronGolem)
+                            && !(living instanceof AbstractVillager));
+            affected.forEach(living -> {
+                living.invulnerableTime = 0;
+                living.hurt(golem.damageSources().mobAttack(golem), damage);
+                playCrushingTargetEffect(level, living);
+            });
+        }
+        playCrushingReleaseEffect(golem);
+        syncCrushingState(golem, ClientboundCrushingBlowPayload.VisualEvent.RELEASED, golem.position());
+    }
+
+    private static int crushingThreshold(CompoundTag state) {
+        return Math.max(1, (int) state.getDouble("charge_threshold"));
     }
 
     public static void processSnowballImpact(ProjectileImpactEvent event) {
@@ -394,11 +444,19 @@ public final class GolemEnhancementEffect {
     }
     private static ClientboundCrushingBlowPayload crushingPayload(IronGolem golem, CompoundTag state,
             ClientboundCrushingBlowPayload.VisualEvent visualEvent, Vec3 impactDirection) {
+        int releaseTicks = state.getInt("release_ticks");
+        ClientboundCrushingBlowPayload.VisualEvent resolvedEvent = visualEvent;
+        if (visualEvent == ClientboundCrushingBlowPayload.VisualEvent.SYNC && releaseTicks > 0) {
+            resolvedEvent = releaseTicks <= 40 ? ClientboundCrushingBlowPayload.VisualEvent.WINDUP
+                    : ClientboundCrushingBlowPayload.VisualEvent.RELEASED;
+        }
+        Vec3 eventVector = resolvedEvent == ClientboundCrushingBlowPayload.VisualEvent.RELEASED
+                && impactDirection.lengthSqr() < 1.0E-8D ? golem.position() : impactDirection;
         return new ClientboundCrushingBlowPayload(
                 golem.getUUID(), state.getUUID("owner"), state.getInt("charge"),
                 Math.max(1, (int) state.getDouble("charge_threshold")),
-                Math.max(0, (int) state.getDouble("damage_percent")), visualEvent,
-                (float) impactDirection.x, (float) impactDirection.y, (float) impactDirection.z
+                Math.max(0, (int) state.getDouble("damage_percent")), releaseTicks, resolvedEvent,
+                (float) eventVector.x, (float) eventVector.y, (float) eventVector.z
         );
     }
     private static void syncObsidianState(
@@ -455,27 +513,23 @@ public final class GolemEnhancementEffect {
         level.playSound(null, golem.blockPosition(), SoundEvents.ANVIL_HIT, SoundSource.NEUTRAL,
                 0.34F + progress * 0.16F, 1.18F - progress * 0.46F);
     }
+    private static void playCrushingSteam(IronGolem golem, int charge, boolean releasing) {
+        if (!(golem.level() instanceof ServerLevel level)) return;
+        int count = releasing ? Math.min(14, 5 + charge * 2) : Math.min(10, 1 + charge * 2);
+        level.sendParticles(ParticleTypes.CLOUD, golem.getX(), golem.getY() + 1.18D, golem.getZ(),
+                count, 0.56D, 0.78D, 0.56D, releasing ? 0.045D : 0.025D);
+        if (releasing && golem.tickCount % 6 == 0) {
+            level.sendParticles(ParticleTypes.POOF, golem.getX(), golem.getY() + 0.5D, golem.getZ(),
+                    Math.max(3, charge), 0.48D, 0.62D, 0.48D, 0.035D);
+        }
+    }
     private static void playCrushingReleaseEffect(IronGolem golem) {
         if (!(golem.level() instanceof ServerLevel level)) return;
         BlockParticleOption stone = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.STONE.defaultBlockState());
-        int[] counts = {24, 36, 52};
-        double[] radii = {2.5D, 5.0D, 7.5D};
-        for (int ring = 0; ring < radii.length; ring++) {
-            for (int i = 0; i < counts[ring]; i++) {
-                double angle = Math.PI * 2.0D * i / counts[ring];
-                double radius = radii[ring];
-                double x = golem.getX() + Math.cos(angle) * radius;
-                double z = golem.getZ() + Math.sin(angle) * radius;
-                level.sendParticles(stone, x, golem.getY() + 0.12D, z,
-                        ring == 2 ? 2 : 1, 0.16D, 0.1D, 0.16D, 0.055D);
-                if (ring > 0 && i % 2 == 0) {
-                    level.sendParticles(ParticleTypes.CLOUD, x, golem.getY() + 0.08D, z,
-                            1, 0.08D, 0.025D, 0.08D, 0.015D);
-                }
-            }
-        }
+        level.sendParticles(stone, golem.getX(), golem.getY() + 0.12D, golem.getZ(),
+                42, 0.9D, 0.16D, 0.9D, 0.14D);
         level.sendParticles(ModParticles.CRUSHING_BLOW_PRESSURE.get(), golem.getX(), golem.getY() + 0.18D,
-                golem.getZ(), 68, 4.8D, 0.22D, 4.8D, 0.16D);
+                golem.getZ(), 30, 0.95D, 0.16D, 0.95D, 0.14D);
         level.playSound(null, golem.blockPosition(), SoundEvents.ANVIL_LAND, SoundSource.NEUTRAL, 1.2F, 0.54F);
         level.playSound(null, golem.blockPosition(), SoundEvents.GENERIC_EXPLODE.value(),
                 SoundSource.NEUTRAL, 0.42F, 0.62F);

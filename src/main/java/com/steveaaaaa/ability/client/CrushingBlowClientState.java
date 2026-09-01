@@ -3,6 +3,7 @@ package com.steveaaaaa.ability.client;
 import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.network.ClientCrushingBlowQueue;
 import com.steveaaaaa.ability.network.ClientboundCrushingBlowPayload;
+import com.steveaaaaa.ability.client.presentation.CrushingBlowGroundRenderer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -32,10 +33,19 @@ public final class CrushingBlowClientState {
             State previous = STATES.get(payload.golemId());
             boolean preserve = payload.visualEvent() == ClientboundCrushingBlowPayload.VisualEvent.SYNC
                     && previous != null;
+            long animationTick = preserve ? previous.animationTick() : minecraft.level.getGameTime();
+            if (!preserve && payload.visualEvent() == ClientboundCrushingBlowPayload.VisualEvent.WINDUP) {
+                animationTick -= Math.max(0, payload.releaseTicks() - 1);
+            } else if (!preserve && payload.visualEvent() == ClientboundCrushingBlowPayload.VisualEvent.RELEASED) {
+                animationTick -= Math.max(0, payload.releaseTicks() - 40);
+                CrushingBlowGroundRenderer.accept(minecraft.level,
+                        payload.impactX(), payload.impactY(), payload.impactZ());
+            }
             STATES.put(payload.golemId(), new State(
                     payload.ownerId(), payload.charge(), payload.chargeThreshold(), payload.damagePercent(),
+                    payload.releaseTicks(),
                     preserve ? previous.visualEvent() : payload.visualEvent(),
-                    preserve ? previous.animationTick() : minecraft.level.getGameTime(),
+                    animationTick,
                     preserve ? previous.impactX() : payload.impactX(),
                     preserve ? previous.impactY() : payload.impactY(),
                     preserve ? previous.impactZ() : payload.impactZ()
@@ -62,6 +72,7 @@ public final class CrushingBlowClientState {
             int charge,
             int chargeThreshold,
             int damagePercent,
+            int releaseTicks,
             ClientboundCrushingBlowPayload.VisualEvent visualEvent,
             long animationTick,
             float impactX,
