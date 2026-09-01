@@ -20,6 +20,7 @@ public abstract class ItemRendererMixin {
     private void ability$renderEnchantedEdgeAura(ItemStack stack, ItemDisplayContext displayContext,
             boolean leftHand, PoseStack poseStack, MultiBufferSource buffers, int light,
             int overlay, BakedModel model, CallbackInfo callback) {
-        EnchantedEdgeWeaponRenderer.renderCurrentItem(poseStack, buffers);
+        EnchantedEdgeWeaponRenderer.renderCurrentItem(
+                (ItemRenderer) (Object) this, poseStack, buffers, stack, model, overlay);
     }
 }
