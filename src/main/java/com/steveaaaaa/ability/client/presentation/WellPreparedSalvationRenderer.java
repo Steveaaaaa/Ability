@@ -123,14 +123,11 @@ public final class WellPreparedSalvationRenderer {
 
         RenderType angelMaterialType = RenderType.entityTranslucentEmissive(ANGEL_MATERIAL);
         RenderType angelColorType = RenderType.entityTranslucentEmissive(WHITE_TEXTURE);
-        VertexConsumer angelMaterial = buffers.getBuffer(angelMaterialType);
-        VertexConsumer angelColors = buffers.getBuffer(angelColorType);
         int angelAlpha = Mth.clamp((int) ((132.0F + prayerPulse * 50.0F) * visibility), 0, 190);
         float yaw = Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot());
-        renderAngelModel(poseStack, angelMaterial, angelColors, relativeX,
-                angelBaseY - cameraPosition.y, relativeZ, angelScale, yaw, age, angelAlpha);
-        buffers.endBatch(angelMaterialType);
-        buffers.endBatch(angelColorType);
+        renderAngelModel(poseStack, buffers, angelMaterialType, angelColorType,
+                relativeX, angelBaseY - cameraPosition.y, relativeZ,
+                angelScale, yaw, age, angelAlpha);
 
         RenderType ringType = RenderType.lightning();
         VertexConsumer ringVertices = buffers.getBuffer(ringType);
@@ -139,16 +136,19 @@ public final class WellPreparedSalvationRenderer {
         buffers.endBatch(ringType);
     }
 
-    private static void renderAngelModel(PoseStack poseStack, VertexConsumer material,
-            VertexConsumer colors, double x, double y, double z, float scale,
-            float yaw, float age, int alpha) {
+    private static void renderAngelModel(PoseStack poseStack, MultiBufferSource.BufferSource buffers,
+            RenderType materialType, RenderType colorType, double x, double y, double z,
+            float scale, float yaw, float age, int alpha) {
         if (alpha <= 0) return;
         poseStack.pushPose();
         poseStack.translate(x, y, z);
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - yaw));
         poseStack.scale(-scale, -scale, scale);
         ANGEL_MODEL.setupAnimation(age);
-        ANGEL_MODEL.render(poseStack, material, colors, alpha);
+        ANGEL_MODEL.renderMaterial(poseStack, buffers.getBuffer(materialType), alpha);
+        buffers.endBatch(materialType);
+        ANGEL_MODEL.renderColors(poseStack, buffers.getBuffer(colorType), alpha);
+        buffers.endBatch(colorType);
         poseStack.popPose();
     }
 

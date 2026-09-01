@@ -120,7 +120,7 @@ final class WellPreparedAngelModel {
         halo.yRot = age * 0.018F;
     }
 
-    void render(PoseStack poseStack, VertexConsumer material, VertexConsumer white, int alpha) {
+    void renderMaterial(PoseStack poseStack, VertexConsumer material, int alpha) {
         int robeColor = argb(alpha, 255, 247, 220);
         robe.render(poseStack, material, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, robeColor);
         torso.render(poseStack, material, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, robeColor);
@@ -130,7 +130,9 @@ final class WellPreparedAngelModel {
                 argb(alpha, 255, 252, 236));
         rightWing.render(poseStack, material, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY,
                 argb(alpha, 255, 252, 236));
+    }
 
+    void renderColors(PoseStack poseStack, VertexConsumer white, int alpha) {
         head.render(poseStack, white, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY,
                 argb(alpha, 250, 210, 184));
         hands.render(poseStack, white, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY,
