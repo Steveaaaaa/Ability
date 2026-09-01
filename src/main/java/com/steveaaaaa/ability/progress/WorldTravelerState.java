@@ -4,8 +4,10 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Item;
@@ -23,8 +25,10 @@ public record WorldTravelerState(Optional<GlobalPos> boundContainer, List<Filter
         boundContainer = boundContainer == null ? Optional.empty() : boundContainer;
         ArrayList<FilterEntry> sanitized = new ArrayList<>();
         boolean[] occupied = new boolean[FILTER_SLOTS];
+        Set<Item> recordedItems = new HashSet<>();
         for (FilterEntry entry : filters) {
-            if (entry.slot() < 0 || entry.slot() >= FILTER_SLOTS || occupied[entry.slot()]) continue;
+            if (entry.slot() < 0 || entry.slot() >= FILTER_SLOTS || occupied[entry.slot()]
+                    || !recordedItems.add(entry.item())) continue;
             occupied[entry.slot()] = true;
             sanitized.add(new FilterEntry(entry.slot(), entry.item()));
         }
@@ -43,6 +47,8 @@ public record WorldTravelerState(Optional<GlobalPos> boundContainer, List<Filter
 
     public WorldTravelerState setFilter(int slot, ItemStack stack) {
         if (slot < 0 || slot >= FILTER_SLOTS) return this;
+        if (!stack.isEmpty() && filters.stream().anyMatch(entry ->
+                entry.slot() != slot && entry.item() == stack.getItem())) return this;
         ArrayList<FilterEntry> updated = new ArrayList<>(filters);
         updated.removeIf(entry -> entry.slot() == slot);
         if (!stack.isEmpty()) updated.add(new FilterEntry(slot, stack.getItem()));

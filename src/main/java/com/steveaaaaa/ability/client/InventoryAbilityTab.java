@@ -17,6 +17,7 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -26,6 +27,8 @@ import net.neoforged.neoforge.network.PacketDistributor;
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class InventoryAbilityTab {
     private static final ResourceLocation WORLD_TRAVELER = AbilityMod.id("world_traveler");
+    private static final ResourceLocation ABILITY_TAB_ICON =
+            AbilityMod.id("textures/gui/ability_tab_icon.png");
     private static final int PANEL_WIDTH = 176;
     private static final int PANEL_HEIGHT = 116;
     private static final int SCREEN_MARGIN = 2;
@@ -40,27 +43,35 @@ public final class InventoryAbilityTab {
             return;
         }
         AbstractContainerScreen<?> inventoryScreen = (AbstractContainerScreen<?>) screen;
+        boolean survivalInventory = screen instanceof InventoryScreen;
+        int buttonX = survivalInventory
+                ? inventoryScreen.getGuiLeft() + 77
+                : inventoryScreen.getGuiLeft() + inventoryScreen.getXSize() + 2;
 
         DungeonTabButton tab = new DungeonTabButton(
-                inventoryScreen.getGuiLeft() + inventoryScreen.getXSize() + 2,
-                inventoryScreen.getGuiTop() + 8,
-                Component.translatable("gui.ability.tab.short"),
+                buttonX,
+                inventoryScreen.getGuiTop() + 7,
+                Component.translatable("gui.ability.tab"),
                 () -> false,
-                () -> Minecraft.getInstance().setScreen(new AbilityScreen(screen))
+                () -> Minecraft.getInstance().setScreen(new AbilityScreen(screen)),
+                ABILITY_TAB_ICON,
+                ItemStack.EMPTY
         );
         tab.setTooltip(Tooltip.create(Component.translatable("gui.ability.tab")));
         event.addListener(tab);
         travelerPanelVisible = false;
-        if (ClientProgressCache.snapshot().purchasedAbilities().contains(WORLD_TRAVELER)) {
+        if (survivalInventory && ClientProgressCache.snapshot().purchasedAbilities().contains(WORLD_TRAVELER)) {
             DungeonTabButton traveler = new DungeonTabButton(
-                    inventoryScreen.getGuiLeft() + inventoryScreen.getXSize() + 2,
-                    inventoryScreen.getGuiTop() + 32,
-                    Component.translatable("gui.ability.world_traveler.tab.short"),
+                    buttonX,
+                    inventoryScreen.getGuiTop() + 29,
+                    Component.translatable("gui.ability.world_traveler.tab"),
                     () -> travelerPanelVisible,
                     () -> {
                         travelerPanelVisible = !travelerPanelVisible;
                         if (travelerPanelVisible) send(ServerboundWorldTravelerPayload.Action.REQUEST, -1);
-                    }
+                    },
+                    null,
+                    new ItemStack(Items.LODESTONE)
             );
             traveler.setTooltip(Tooltip.create(Component.translatable("gui.ability.world_traveler.tab")));
             event.addListener(traveler);
@@ -73,7 +84,13 @@ public final class InventoryAbilityTab {
         GuiGraphics graphics = event.getGuiGraphics();
         int x = panelX(inventory);
         int y = panelY(inventory);
-        graphics.fill(x, y, x + PANEL_WIDTH, y + PANEL_HEIGHT, 0xEE20242B);
+        graphics.pose().pushPose();
+        graphics.pose().translate(0.0F, 0.0F, 300.0F);
+        graphics.fill(x, y, x + PANEL_WIDTH, y + PANEL_HEIGHT, 0xFF20242B);
+        graphics.fill(x, y, x + PANEL_WIDTH, y + 1, 0xFFE3BC6B);
+        graphics.fill(x, y + PANEL_HEIGHT - 1, x + PANEL_WIDTH, y + PANEL_HEIGHT, 0xFF6A5030);
+        graphics.fill(x, y, x + 1, y + PANEL_HEIGHT, 0xFFE3BC6B);
+        graphics.fill(x + PANEL_WIDTH - 1, y, x + PANEL_WIDTH, y + PANEL_HEIGHT, 0xFF6A5030);
         var font = Minecraft.getInstance().font;
         String title = font.plainSubstrByWidth(
                 Component.translatable("gui.ability.world_traveler.filters").getString(), PANEL_WIDTH - 14);
@@ -100,6 +117,7 @@ public final class InventoryAbilityTab {
                 Component.translatable("gui.ability.world_traveler.remote"), x + 153, y + 97, 0xFFFFFF);
         if (!hovered.isEmpty())
             graphics.renderTooltip(Minecraft.getInstance().font, hovered, event.getMouseX(), event.getMouseY());
+        graphics.pose().popPose();
     }
 
     @SubscribeEvent
@@ -149,21 +167,27 @@ public final class InventoryAbilityTab {
     }
 
     private static final class DungeonTabButton extends AbstractButton {
-        private static final int WIDTH = 24;
+        private static final int WIDTH = 20;
         private static final int HEIGHT = 20;
         private final BooleanSupplier selected;
         private final Runnable action;
+        private final ResourceLocation texture;
+        private final ItemStack itemIcon;
 
         private DungeonTabButton(
                 int x,
                 int y,
                 Component message,
                 BooleanSupplier selected,
-                Runnable action
+                Runnable action,
+                ResourceLocation texture,
+                ItemStack itemIcon
         ) {
             super(x, y, WIDTH, HEIGHT, message);
             this.selected = selected;
             this.action = action;
+            this.texture = texture;
+            this.itemIcon = itemIcon;
         }
 
         @Override
@@ -184,13 +208,12 @@ public final class InventoryAbilityTab {
             graphics.fill(getX(), getY() + 2, getX() + 1, getY() + getHeight() - 2, border);
             graphics.fill(getX() + getWidth() - 1, getY() + 2,
                     getX() + getWidth(), getY() + getHeight() - 2, border);
-            graphics.drawCenteredString(
-                    Minecraft.getInstance().font,
-                    getMessage(),
-                    getX() + getWidth() / 2,
-                    getY() + 6,
-                    highlighted ? 0xFFFFE6A6 : 0xFFD6CCB4
-            );
+            if (texture != null) {
+                graphics.blit(texture, getX() + 2, getY() + 2,
+                        0.0F, 0.0F, 16, 16, 16, 16);
+            } else if (!itemIcon.isEmpty()) {
+                graphics.renderItem(itemIcon, getX() + 2, getY() + 2);
+            }
         }
 
         @Override
