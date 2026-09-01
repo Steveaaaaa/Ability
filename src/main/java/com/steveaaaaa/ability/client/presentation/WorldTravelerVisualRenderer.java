@@ -6,8 +6,9 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.network.ClientWorldTravelerVisualQueue;
 import com.steveaaaaa.ability.network.ClientboundWorldTravelerVisualPayload;
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -17,6 +18,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -32,7 +34,11 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class WorldTravelerVisualRenderer {
+    private static final ResourceLocation NETHER_PORTAL_TEXTURE =
+            ResourceLocation.withDefaultNamespace("textures/block/nether_portal.png");
+    private static final int PORTAL_IDLE_TICKS = 20 * 30;
     private static final List<Visual> ACTIVE = new ArrayList<>();
+    private static final Map<Integer, PortalState> PORTALS = new HashMap<>();
     private static ClientLevel activeLevel;
     private static long remoteOpenStartedAt = Long.MIN_VALUE;
 
@@ -60,12 +66,27 @@ public final class WorldTravelerVisualRenderer {
                 case REMOTE_OPEN -> 14;
             };
             ACTIVE.add(new Visual(payload, level.getGameTime(), duration));
+            if (payload.action() == ClientboundWorldTravelerVisualPayload.Action.ROUTE) {
+                PortalState current = PORTALS.get(payload.playerId());
+                float open = current == null ? 0.0F : current.openAmount();
+                PORTALS.put(payload.playerId(), new PortalState(
+                        level.getGameTime(), open, open, payload.randomSeed()
+                ));
+            }
             if (payload.action() == ClientboundWorldTravelerVisualPayload.Action.REMOTE_OPEN) {
                 remoteOpenStartedAt = level.getGameTime();
             }
         }
         long gameTime = level.getGameTime();
         ACTIVE.removeIf(visual -> gameTime - visual.startedAt() >= visual.durationTicks());
+        PORTALS.entrySet().removeIf(entry -> {
+            PortalState portal = entry.getValue();
+            float next = gameTime - portal.lastRouteAt() <= PORTAL_IDLE_TICKS
+                    ? Math.min(1.0F, portal.openAmount() + 1.0F / 14.0F)
+                    : Math.max(0.0F, portal.openAmount() - 1.0F / 18.0F);
+            entry.setValue(new PortalState(portal.lastRouteAt(), portal.openAmount(), next, portal.seed()));
+            return next <= 0.0F && gameTime - portal.lastRouteAt() > PORTAL_IDLE_TICKS;
+        });
     }
 
     @SubscribeEvent
@@ -93,6 +114,29 @@ public final class WorldTravelerVisualRenderer {
             }
         }
 
+        RenderType portalType = RenderType.entityTranslucentEmissive(NETHER_PORTAL_TEXTURE);
+        VertexConsumer portalTexture = buffers.getBuffer(portalType);
+        for (Map.Entry<Integer, PortalState> entry : PORTALS.entrySet()) {
+            Entity player = level.getEntity(entry.getKey());
+            if (player == null || player.isRemoved()) continue;
+            float open = Mth.lerp(partialTick, entry.getValue().previousOpenAmount(),
+                    entry.getValue().openAmount());
+            Vec3 portal = portalPosition(player, partialTick);
+            renderPortalSurface(poseStack, portalTexture, camera, cameraPosition, portal, open,
+                    176, 145);
+        }
+        for (Visual visual : ACTIVE) {
+            if (visual.payload().action() != ClientboundWorldTravelerVisualPayload.Action.REMOTE_OPEN) continue;
+            Entity player = level.getEntity(visual.payload().playerId());
+            if (player == null) continue;
+            float progress = visual.progress(visualTime);
+            float open = Mth.sin(progress * Mth.PI);
+            renderPortalSurface(poseStack, portalTexture, camera, cameraPosition,
+                    interpolatedCenter(player, partialTick).add(0.0D, 0.35D, 0.0D),
+                    open, 150, 125);
+        }
+        buffers.endBatch(portalType);
+
         VertexConsumer pixels = buffers.getBuffer(RenderType.lightning());
         for (Visual visual : ACTIVE) {
             float progress = visual.progress(visualTime);
@@ -102,6 +146,14 @@ public final class WorldTravelerVisualRenderer {
                 case REMOTE_OPEN -> renderRemotePortal(level, poseStack, pixels, camera,
                         cameraPosition, visual, progress, partialTick);
             }
+        }
+        for (Map.Entry<Integer, PortalState> entry : PORTALS.entrySet()) {
+            Entity player = level.getEntity(entry.getKey());
+            if (player == null || player.isRemoved()) continue;
+            float open = Mth.lerp(partialTick, entry.getValue().previousOpenAmount(),
+                    entry.getValue().openAmount());
+            renderPortalBorder(poseStack, pixels, camera, cameraPosition,
+                    portalPosition(player, partialTick), open, 220);
         }
         buffers.endBatch(RenderType.lightning());
     }
@@ -165,10 +217,8 @@ public final class WorldTravelerVisualRenderer {
                 Mth.sin(player.getYRot() * Mth.DEG_TO_RAD));
         Vec3 portal = center.add(right.scale(0.72D)).add(0.0D, 0.22D, 0.0D);
         int alpha = fadeAlpha(progress, 220);
-        renderBillboardPortal(poseStack, vertices, camera, cameraPosition, portal,
-                progress, visual.payload().crossDimension(), alpha);
         renderCompressedPixels(poseStack, vertices, cameraPosition, center, portal,
-                progress, visual.payload().crossDimension(), alpha, visual.payload().randomSeed());
+                progress, false, alpha, visual.payload().randomSeed());
 
         if (sameDimension(level, visual.payload())
                 && center.distanceToSqr(visual.payload().destination().getCenter()) <= 48.0D * 48.0D) {
@@ -188,25 +238,60 @@ public final class WorldTravelerVisualRenderer {
         Entity player = level.getEntity(visual.payload().playerId());
         if (player == null) return;
         Vec3 center = interpolatedCenter(player, partialTick).add(0.0D, 0.35D, 0.0D);
-        renderBillboardPortal(poseStack, vertices, camera, cameraPosition, center,
-                progress, visual.payload().crossDimension(), fadeAlpha(progress, 190));
+        renderPortalBorder(poseStack, vertices, camera, cameraPosition, center,
+                Mth.sin(progress * Mth.PI), fadeAlpha(progress, 190));
     }
 
-    private static void renderBillboardPortal(PoseStack poseStack, VertexConsumer vertices, Camera camera,
-            Vec3 cameraPosition, Vec3 position, float progress, boolean crossDimension, int alpha) {
+    private static void renderPortalSurface(PoseStack poseStack, VertexConsumer vertices, Camera camera,
+            Vec3 cameraPosition, Vec3 position, float openAmount, int maximumAlpha, int minimumAlpha) {
+        if (openAmount <= 0.001F) return;
         poseStack.pushPose();
         poseStack.translate(position.x - cameraPosition.x, position.y - cameraPosition.y,
                 position.z - cameraPosition.z);
         poseStack.mulPose(camera.rotation());
-        float scale = 0.24F + smooth(progress) * 0.22F;
-        int red = crossDimension ? 183 : 231;
-        int green = crossDimension ? 126 : 190;
-        int blue = crossDimension ? 255 : 92;
+        float eased = smooth(openAmount);
+        float halfWidth = 0.055F + eased * 0.38F;
+        float halfHeight = 0.12F + eased * 0.62F;
+        int alpha = Mth.clamp((int) Mth.lerp(eased, minimumAlpha, maximumAlpha), 0, 220);
+        portalQuad(poseStack, vertices, -halfWidth, -halfHeight, halfWidth, halfHeight, alpha);
+        portalQuad(poseStack, vertices, halfWidth, -halfHeight, -halfWidth, halfHeight, alpha);
+        poseStack.popPose();
+    }
+
+    private static void portalQuad(PoseStack poseStack, VertexConsumer vertices,
+            float left, float bottom, float right, float top, int alpha) {
+        portalVertex(poseStack, vertices, left, bottom, 0.0F, 0.0F, 1.0F, alpha);
+        portalVertex(poseStack, vertices, right, bottom, 0.0F, 1.0F, 1.0F, alpha);
+        portalVertex(poseStack, vertices, right, top, 0.0F, 1.0F, 0.0F, alpha);
+        portalVertex(poseStack, vertices, left, top, 0.0F, 0.0F, 0.0F, alpha);
+    }
+
+    private static void portalVertex(PoseStack poseStack, VertexConsumer vertices,
+            float x, float y, float z, float u, float v, int alpha) {
+        vertices.addVertex(poseStack.last(), x, y, z)
+                .setColor(255, 226, 153, alpha)
+                .setUv(u, v)
+                .setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(LightTexture.FULL_BRIGHT)
+                .setNormal(poseStack.last(), 0.0F, 0.0F, 1.0F);
+    }
+
+    private static void renderPortalBorder(PoseStack poseStack, VertexConsumer vertices, Camera camera,
+            Vec3 cameraPosition, Vec3 position, float openAmount, int maximumAlpha) {
+        if (openAmount <= 0.001F) return;
+        poseStack.pushPose();
+        poseStack.translate(position.x - cameraPosition.x, position.y - cameraPosition.y,
+                position.z - cameraPosition.z);
+        poseStack.mulPose(camera.rotation());
+        float eased = smooth(openAmount);
+        float halfWidth = 0.075F + eased * 0.40F;
+        float halfHeight = 0.14F + eased * 0.65F;
+        int alpha = Mth.clamp((int) (maximumAlpha * eased), 0, maximumAlpha);
         for (int side = -1; side <= 1; side += 2) {
-            solidBox(poseStack, vertices, side * scale, 0.0F, 0.0F,
-                    0.045F, scale * 1.75F, 0.026F, red, green, blue, alpha);
-            solidBox(poseStack, vertices, 0.0F, side * scale, 0.0F,
-                    scale * 1.75F, 0.045F, 0.026F, red, green, blue, alpha);
+            solidBox(poseStack, vertices, side * halfWidth, 0.0F, 0.005F,
+                    0.035F, halfHeight * 1.78F, 0.022F, 255, 226, 153, alpha);
+            solidBox(poseStack, vertices, 0.0F, side * halfHeight, 0.005F,
+                    halfWidth * 1.78F, 0.035F, 0.022F, 255, 238, 184, alpha);
         }
         poseStack.popPose();
     }
@@ -223,9 +308,9 @@ public final class WorldTravelerVisualRenderer {
                     ((index >> 2 & 1) - 0.5D) * 0.36D
             );
             Vec3 position = start.lerp(portal, travel).subtract(cameraPosition);
-            int red = crossDimension ? 189 : 239;
-            int green = crossDimension ? 137 : 204;
-            int blue = crossDimension ? 255 : 112;
+            int red = 247;
+            int green = 214;
+            int blue = 139;
             poseStack.pushPose();
             poseStack.translate(position.x, position.y, position.z);
             float size = 0.045F * (1.0F - travel * 0.65F);
@@ -344,6 +429,13 @@ public final class WorldTravelerVisualRenderer {
         );
     }
 
+    private static Vec3 portalPosition(Entity player, float partialTick) {
+        Vec3 center = interpolatedCenter(player, partialTick);
+        Vec3 right = new Vec3(Mth.cos(player.getYRot() * Mth.DEG_TO_RAD), 0.0D,
+                Mth.sin(player.getYRot() * Mth.DEG_TO_RAD));
+        return center.add(right.scale(0.72D)).add(0.0D, 0.22D, 0.0D);
+    }
+
     private static boolean sameDimension(ClientLevel level, ClientboundWorldTravelerVisualPayload payload) {
         return level.dimension().location().equals(payload.destinationDimension());
     }
@@ -359,6 +451,7 @@ public final class WorldTravelerVisualRenderer {
 
     private static void clear() {
         ACTIVE.clear();
+        PORTALS.clear();
         activeLevel = null;
         remoteOpenStartedAt = Long.MIN_VALUE;
         ClientWorldTravelerVisualQueue.clear();
@@ -368,5 +461,8 @@ public final class WorldTravelerVisualRenderer {
         float progress(double visualTime) {
             return Mth.clamp((float) ((visualTime - startedAt) / durationTicks), 0.0F, 1.0F);
         }
+    }
+
+    private record PortalState(long lastRouteAt, float previousOpenAmount, float openAmount, long seed) {
     }
 }
