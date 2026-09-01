@@ -7,6 +7,8 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -21,6 +23,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.phys.Vec3;
 
 public final class SurvivalSkillsEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("survival_skills");
@@ -44,10 +47,35 @@ public final class SurvivalSkillsEffect {
         if (thresholdTicks <= 0) {
             return;
         }
+        ActiveComponent presentation = due.stream()
+                .max(Comparator.comparingInt(component -> component.rank().durationThresholdSeconds()))
+                .orElseThrow();
+        ArrayList<Integer> removedColors = new ArrayList<>();
         for (MobEffectInstance effect : List.copyOf(player.getActiveEffects())) {
             if (shouldRemove(effect, thresholdTicks)) {
-                player.removeEffect(effect.getEffect());
+                int color = effect.getEffect().value().getColor();
+                if (player.removeEffect(effect.getEffect())) {
+                    removedColors.add(color);
+                }
             }
+        }
+        for (int index = 0; index < removedColors.size(); index++) {
+            int color = removedColors.get(index);
+            Vec3 encodedColor = new Vec3(
+                    ((color >> 16) & 0xFF) / 255.0D,
+                    ((color >> 8) & 0xFF) / 255.0D,
+                    (color & 0xFF) / 255.0D
+            );
+            AbilityPresentationService.sendTracking(player, AbilityCue.pulse(
+                    presentation.abilityId(),
+                    AbilityMod.id(index == 0 ? "purification" : "purification_layer"),
+                    player.getId(),
+                    player.getId(),
+                    player.position(),
+                    encodedColor,
+                    presentation.abilityRank(),
+                    player.getRandom().nextLong()
+            ));
         }
     }
 
@@ -132,7 +160,12 @@ public final class SurvivalSkillsEffect {
                 for (CompositeEffect.ComponentView component : components) {
                     AbilityService.ActiveAbility projected = CompositeEffect.projectActive(active.get(), component);
                     Config config = parse(Config.CODEC, projected.definition().effect().config(), "effect.config");
-                    result.add(new ActiveComponent(config, resolve(mergeRanks(projected))));
+                    result.add(new ActiveComponent(
+                            abilityId,
+                            projected.rank(),
+                            config,
+                            resolve(mergeRanks(projected))
+                    ));
                 }
             } catch (RuntimeException exception) {
                 logInvalidOnce(abilityId, exception.getMessage());
@@ -190,6 +223,11 @@ public final class SurvivalSkillsEffect {
     public record ResolvedRank(int durationThresholdSeconds) {
     }
 
-    private record ActiveComponent(Config config, ResolvedRank rank) {
+    private record ActiveComponent(
+            ResourceLocation abilityId,
+            int abilityRank,
+            Config config,
+            ResolvedRank rank
+    ) {
     }
 }

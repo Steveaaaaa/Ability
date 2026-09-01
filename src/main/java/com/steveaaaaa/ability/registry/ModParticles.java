@@ -40,6 +40,10 @@ public final class ModParticles {
             "crushing_blow_forge_spark",
             () -> new SimpleParticleType(false)
     );
+    public static final Supplier<SimpleParticleType> SURVIVAL_CLEANSE_SHARD = PARTICLE_TYPES.register(
+            "survival_cleanse_shard",
+            () -> new SimpleParticleType(false)
+    );
 
     private ModParticles() {
     }
