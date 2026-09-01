@@ -9,6 +9,9 @@ import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
 import com.steveaaaaa.ability.menu.WorldTravelerRemoteMenu;
 import com.steveaaaaa.ability.network.ClientboundWorldTravelerStatePayload;
+import com.steveaaaaa.ability.network.ClientboundWorldTravelerVisualPayload;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import com.steveaaaaa.ability.progress.ModAttachments;
 import com.steveaaaaa.ability.progress.WorldTravelerState;
 import java.util.ArrayList;
@@ -27,6 +30,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
@@ -42,13 +46,16 @@ public final class WorldTravelerEffect {
     public static void bind(PlayerInteractEvent.RightClickBlock event) {
         if (!(event.getEntity() instanceof ServerPlayer player) || event.getHand() != InteractionHand.MAIN_HAND
                 || !player.isShiftKeyDown() || !event.getItemStack().isEmpty()) return;
-        if (activeComponent(player).isEmpty()) return;
+        ActiveComponent component = activeComponent(player).orElse(null);
+        if (component == null) return;
         IItemHandler handler = findHandler((ServerLevel) event.getLevel(), event.getPos());
         if (handler == null || handler.getSlots() <= 0) return;
         WorldTravelerState updated = state(player).bind(GlobalPos.of(player.level().dimension(), event.getPos()));
         player.setData(ModAttachments.WORLD_TRAVELER_STATE, updated);
         INVENTORY_SNAPSHOTS.remove(player.getUUID());
         sync(player);
+        sendVisual(player, component, ClientboundWorldTravelerVisualPayload.Action.BIND,
+                new Target((ServerLevel) player.level(), event.getPos(), handler), Items.AIR, 0);
         player.displayClientMessage(Component.translatable("message.ability.world_traveler.bound",
                 event.getPos().getX(), event.getPos().getY(), event.getPos().getZ()), true);
         event.setCancellationResult(InteractionResult.SUCCESS);
@@ -65,8 +72,14 @@ public final class WorldTravelerEffect {
                 || state.filters().stream().noneMatch(entry -> matches(entry.item(), picked))) return;
         Target target = target(player, state.boundContainer().get(), component.rank().crossDimension()).orElse(null);
         if (target == null) return;
+        net.minecraft.world.item.Item routedItem = picked.getItem();
         ItemStack remainder = ItemHandlerHelper.insertItemStacked(target.handler(), picked.copy(), false);
+        int inserted = picked.getCount() - remainder.getCount();
         picked.setCount(remainder.getCount());
+        if (inserted > 0) {
+            sendVisual(player, component, ClientboundWorldTravelerVisualPayload.Action.ROUTE,
+                    target, routedItem, inserted);
+        }
     }
 
     public static void requestState(ServerPlayer player) {
@@ -105,7 +118,13 @@ public final class WorldTravelerEffect {
         if (pending.isEmpty()) return;
         Target target = target(player, state.boundContainer().get(), component.rank().crossDimension()).orElse(null);
         if (target == null) return;
-        pending.forEach(route -> routeFromInventory(player, target.handler(), route.item(), route.count()));
+        for (PendingRoute route : pending) {
+            int inserted = routeFromInventory(player, target.handler(), route.item(), route.count());
+            if (inserted > 0) {
+                sendVisual(player, component, ClientboundWorldTravelerVisualPayload.Action.ROUTE,
+                        target, route.item(), inserted);
+            }
+        }
         INVENTORY_SNAPSHOTS.put(player.getUUID(), inventoryCounts(player, state));
     }
 
@@ -123,6 +142,8 @@ public final class WorldTravelerEffect {
             return;
         }
         int slots = Math.min(54, target.handler().getSlots());
+        sendVisual(player, component, ClientboundWorldTravelerVisualPayload.Action.REMOTE_OPEN,
+                target, Items.AIR, 0);
         player.openMenu(new SimpleMenuProvider(
                 (id, inventory, ignored) -> new WorldTravelerRemoteMenu(id, inventory, target.handler(), slots,
                         () -> activeComponent(player).isPresent() && target.level().hasChunkAt(target.position())),
@@ -148,7 +169,7 @@ public final class WorldTravelerEffect {
         return counts;
     }
 
-    private static void routeFromInventory(ServerPlayer player, IItemHandler handler,
+    private static int routeFromInventory(ServerPlayer player, IItemHandler handler,
             net.minecraft.world.item.Item filter, int maximum) {
         int remaining = maximum;
         for (ItemStack inventoryStack : player.getInventory().items) {
@@ -163,6 +184,38 @@ public final class WorldTravelerEffect {
             if (inserted == 0) break;
         }
         player.getInventory().setChanged();
+        return maximum - remaining;
+    }
+
+    private static void sendVisual(ServerPlayer player, ActiveComponent component,
+            ClientboundWorldTravelerVisualPayload.Action action, Target target,
+            net.minecraft.world.item.Item item, int count) {
+        boolean crossDimension = !player.level().dimension().equals(target.level().dimension());
+        long seed = player.getRandom().nextLong();
+        PacketDistributor.sendToPlayersTrackingEntityAndSelf(player,
+                new ClientboundWorldTravelerVisualPayload(
+                        action,
+                        player.getId(),
+                        target.level().dimension().location(),
+                        target.position(),
+                        net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item),
+                        count,
+                        crossDimension,
+                        seed
+                ));
+        net.minecraft.resources.ResourceLocation cueId = switch (action) {
+            case BIND -> AbilityMod.id("bind");
+            case ROUTE -> AbilityMod.id("route");
+            case REMOTE_OPEN -> AbilityMod.id("remote_open");
+        };
+        AbilityPresentationService.sendTracking(player, AbilityCue.pulse(
+                component.abilityId(), cueId, player.getId(), player.getId(),
+                action == ClientboundWorldTravelerVisualPayload.Action.BIND
+                        ? target.position().getCenter() : player.position(),
+                net.minecraft.world.phys.Vec3.ZERO,
+                component.abilityRank(),
+                seed
+        ));
     }
 
     static List<String> validateDefinition(AbilityDefinition definition) {
@@ -206,8 +259,12 @@ public final class WorldTravelerEffect {
             if (active.isEmpty()) return;
             for (CompositeEffect.ComponentView view : CompositeEffect.componentsOfType(entry.getValue(), TYPE)) {
                 AbilityService.ActiveAbility projected = CompositeEffect.projectActive(active.get(), view);
-                result.add(new ActiveComponent(parse(Config.CODEC, view.config(), "effect.config"),
-                        parse(Rank.CODEC, projected.unlockedRankValues().getLast(), "rank")));
+                result.add(new ActiveComponent(
+                        entry.getKey().location(),
+                        projected.rank(),
+                        parse(Config.CODEC, view.config(), "effect.config"),
+                        parse(Rank.CODEC, projected.unlockedRankValues().getLast(), "rank")
+                ));
             }
         });
         return result.stream().findFirst();
@@ -231,7 +288,12 @@ public final class WorldTravelerEffect {
                 Codec.BOOL.optionalFieldOf("cross_dimension", false).forGetter(Rank::crossDimension)
         ).apply(instance, Rank::new));
     }
-    private record ActiveComponent(Config config, Rank rank) {}
+    private record ActiveComponent(
+            net.minecraft.resources.ResourceLocation abilityId,
+            int abilityRank,
+            Config config,
+            Rank rank
+    ) {}
     private record Target(ServerLevel level, net.minecraft.core.BlockPos position, IItemHandler handler) {}
     private record PendingRoute(net.minecraft.world.item.Item item, int count) {}
 }
