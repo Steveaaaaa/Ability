@@ -22,15 +22,18 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import com.mojang.math.Axis;
 import org.joml.Matrix4f;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class WellPreparedSalvationRenderer {
     private static final ResourceLocation SALVATION = AbilityMod.id("salvation");
-    private static final ResourceLocation ANGEL_TEXTURE =
-            AbilityMod.id("textures/effect/well_prepared_angel.png");
+    private static final ResourceLocation ANGEL_MATERIAL =
+            AbilityMod.id("textures/effect/well_prepared_angel_material.png");
     private static final ResourceLocation WHITE_TEXTURE =
             ResourceLocation.withDefaultNamespace("textures/misc/white.png");
+    private static final WellPreparedAngelModel ANGEL_MODEL =
+            new WellPreparedAngelModel(WellPreparedAngelModel.createLayer().bakeRoot());
     private static final Map<Integer, ActiveSalvation> ACTIVE = new HashMap<>();
     private static ClientLevel activeLevel;
 
@@ -100,10 +103,11 @@ public final class WellPreparedSalvationRenderer {
         double z = Mth.lerp(partialTick, entity.zo, entity.getZ());
         double headY = y + entity.getBbHeight();
         double bottomOffset = Mth.lerp(descent, 1.55D, 0.38D);
-        float angelWidth = (1.12F + prayerPulse * 0.035F) * (0.82F + fadeIn * 0.18F);
-        float angelHeight = angelWidth * 1.5F;
-        double angelCenterY = headY + bottomOffset + angelHeight * 0.5D
+        float angelScale = (0.82F + prayerPulse * 0.018F) * (0.82F + fadeIn * 0.18F);
+        float angelHeight = 2.0F * angelScale;
+        double angelBaseY = headY + bottomOffset
                 + (descent >= 1.0F ? Mth.sin(age * 0.14F) * 0.035F : 0.0F);
+        double angelCenterY = angelBaseY + angelHeight * 0.5D;
         double relativeX = x - cameraPosition.x;
         double relativeY = y - cameraPosition.y;
         double relativeZ = z - cameraPosition.z;
@@ -117,19 +121,35 @@ public final class WellPreparedSalvationRenderer {
                 entity.getBbHeight(), age, visibility, active.seed());
         buffers.endBatch(lightType);
 
-        RenderType angelType = RenderType.entityTranslucentEmissive(ANGEL_TEXTURE);
-        VertexConsumer angelVertices = buffers.getBuffer(angelType);
+        RenderType angelMaterialType = RenderType.entityTranslucentEmissive(ANGEL_MATERIAL);
+        RenderType angelColorType = RenderType.entityTranslucentEmissive(WHITE_TEXTURE);
+        VertexConsumer angelMaterial = buffers.getBuffer(angelMaterialType);
+        VertexConsumer angelColors = buffers.getBuffer(angelColorType);
         int angelAlpha = Mth.clamp((int) ((132.0F + prayerPulse * 50.0F) * visibility), 0, 190);
-        renderBillboard(poseStack, angelVertices, camera, relativeX,
-                angelCenterY - cameraPosition.y, relativeZ, angelWidth, angelHeight,
-                255, 248, 220, angelAlpha);
-        buffers.endBatch(angelType);
+        float yaw = Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot());
+        renderAngelModel(poseStack, angelMaterial, angelColors, relativeX,
+                angelBaseY - cameraPosition.y, relativeZ, angelScale, yaw, age, angelAlpha);
+        buffers.endBatch(angelMaterialType);
+        buffers.endBatch(angelColorType);
 
         RenderType ringType = RenderType.lightning();
         VertexConsumer ringVertices = buffers.getBuffer(ringType);
         renderGroundRings(poseStack, ringVertices, relativeX, relativeY + 0.035D,
                 relativeZ, progress, age, visibility);
         buffers.endBatch(ringType);
+    }
+
+    private static void renderAngelModel(PoseStack poseStack, VertexConsumer material,
+            VertexConsumer colors, double x, double y, double z, float scale,
+            float yaw, float age, int alpha) {
+        if (alpha <= 0) return;
+        poseStack.pushPose();
+        poseStack.translate(x, y, z);
+        poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - yaw));
+        poseStack.scale(-scale, -scale, scale);
+        ANGEL_MODEL.setupAnimation(age);
+        ANGEL_MODEL.render(poseStack, material, colors, alpha);
+        poseStack.popPose();
     }
 
     private static void renderLightShafts(PoseStack poseStack, VertexConsumer vertices, Camera camera,

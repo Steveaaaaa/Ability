@@ -90,7 +90,7 @@ public final class WellPreparedEffect {
                 player.position(),
                 player.getLookAngle(),
                 component.abilityRank(),
-                40,
+                component.rank().invulnerabilityTicks(),
                 (gameTime << 20) ^ player.getId(),
                 player.getRandom().nextLong()
         ));
