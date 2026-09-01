@@ -80,9 +80,9 @@ public final class EnchantedEdgeWeaponRenderer {
         double time = System.nanoTime() / 50_000_000.0D;
         VertexConsumer vertices = buffers.getBuffer(RenderType.lightning());
         if (context.shape() == WeaponShape.AXE_HEAD) {
-            renderHeadEnvelope(poseStack, vertices, time, new Vec3(-0.2D, 0.2D, 0.0D), 0.22D, 0.16D);
+            renderHeadEnvelope(poseStack, vertices, time, new Vec3(0.3D, 0.7D, 0.5D), 0.22D, 0.16D);
         } else if (context.shape() == WeaponShape.HEAVY_HEAD) {
-            renderHeadEnvelope(poseStack, vertices, time, new Vec3(0.0D, 0.27D, 0.0D), 0.21D, 0.14D);
+            renderHeadEnvelope(poseStack, vertices, time, new Vec3(0.5D, 0.77D, 0.5D), 0.21D, 0.14D);
         } else {
             renderBladeRings(poseStack, vertices, time, context.shape() == WeaponShape.SPEAR);
         }
@@ -93,7 +93,7 @@ public final class EnchantedEdgeWeaponRenderer {
         Vec3 axis = new Vec3(1.0D, 1.0D, 0.0D).normalize();
         Vec3 across = new Vec3(1.0D, -1.0D, 0.0D).normalize();
         Vec3 depth = new Vec3(0.0D, 0.0D, 1.0D);
-        Vec3 center = narrow ? new Vec3(0.2D, 0.2D, 0.0D) : new Vec3(0.14D, 0.14D, 0.0D);
+        Vec3 center = narrow ? new Vec3(0.7D, 0.7D, 0.5D) : new Vec3(0.64D, 0.64D, 0.5D);
         double[] positions = narrow ? new double[]{-0.05D, 0.14D, 0.31D}
                 : new double[]{-0.16D, 0.06D, 0.27D};
         for (int ring = 0; ring < positions.length; ring++) {
