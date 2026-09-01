@@ -4,31 +4,27 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.registry.ModParticles;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class WeakPointMarkRenderer {
@@ -38,10 +34,7 @@ public final class WeakPointMarkRenderer {
             AbilityMod.id("textures/particle/weak_point_wound_puncture.png"),
             AbilityMod.id("textures/particle/weak_point_wound_blunt.png")
     };
-    private static final ResourceLocation BLOOD_POOL =
-            AbilityMod.id("textures/particle/weak_point_blood_pool.png");
     private static final Map<MarkKey, MarkVisual> MARKS = new HashMap<>();
-    private static final List<BloodDecal> BLOOD_DECALS = new ArrayList<>();
     private static ClientLevel activeLevel;
 
     private WeakPointMarkRenderer() {
@@ -58,20 +51,20 @@ public final class WeakPointMarkRenderer {
                 int count = Mth.clamp(cue.rank(), 1, 32);
                 int newStyle = weaponStyle(cue.randomSeed());
                 MarkVisual previous = MARKS.get(key);
-                ArrayList<Integer> styles = new ArrayList<>();
-                if (previous != null) styles.addAll(previous.styles());
-                if (styles.size() > count) styles.subList(count, styles.size()).clear();
-                while (styles.size() < count) styles.add(newStyle);
+                ArrayList<Wound> wounds = new ArrayList<>();
+                if (previous != null) wounds.addAll(previous.wounds());
+                if (wounds.size() > count) wounds.subList(count, wounds.size()).clear();
+                while (wounds.size() < count) wounds.add(createWound(level, cue, newStyle, wounds.size()));
                 long duration = cue.durationTicks() == AbilityCue.USE_DEFINITION_DURATION
                         ? AbilityCue.MAX_DURATION_TICKS : cue.durationTicks();
-                MARKS.put(key, new MarkVisual(cue, List.copyOf(styles),
+                MARKS.put(key, new MarkVisual(cue, List.copyOf(wounds),
                         level.getGameTime() + Math.max(1L, duration), level.getGameTime()));
             }
             return;
         }
         if (cue.action() == AbilityCue.Action.PULSE && cue.cueId().equals(AbilityMod.id("trigger"))) {
             MARKS.remove(key);
-            createBloodPools(level, cue);
+            emitLingeringBlood(level, cue);
         }
     }
 
@@ -85,152 +78,81 @@ public final class WeakPointMarkRenderer {
         long time = level.getGameTime();
         MARKS.entrySet().removeIf(entry -> time >= entry.getValue().expiresAt()
                 || missing(level, entry.getValue().cue().targetEntityId()));
-        BLOOD_DECALS.removeIf(decal -> time >= decal.expiresAt());
     }
 
-    @SubscribeEvent
-    public static void render(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES
-                || MARKS.isEmpty() && BLOOD_DECALS.isEmpty()) return;
-        Minecraft minecraft = Minecraft.getInstance();
-        ClientLevel level = minecraft.level;
-        if (level == null || level != activeLevel) return;
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+    static <T extends LivingEntity> void renderWounds(EntityModel<T> model, PoseStack poseStack,
+            MultiBufferSource buffers, int packedLight, T target, float partialTick) {
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null || level != activeLevel || target.isInvisible()) return;
+        List<MarkVisual> visuals = MARKS.values().stream()
+                .filter(mark -> mark.cue().targetEntityId() == target.getId()).toList();
+        if (visuals.isEmpty()) return;
+
         double visualTime = level.getGameTime() + partialTick;
-        Vec3 cameraPosition = event.getCamera().getPosition();
-        PoseStack poseStack = event.getPoseStack();
-        MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
-        Set<RenderType> usedTypes = new HashSet<>();
-        for (MarkVisual mark : MARKS.values()) {
-            renderWounds(level, mark, visualTime, partialTick, cameraPosition, poseStack, buffers, usedTypes);
-        }
-        for (BloodDecal decal : BLOOD_DECALS) {
-            renderBloodPool(level, decal, visualTime, cameraPosition, poseStack, buffers, usedTypes);
-        }
-        usedTypes.forEach(buffers::endBatch);
-    }
-
-    private static void renderWounds(ClientLevel level, MarkVisual visual, double visualTime, float partialTick,
-            Vec3 cameraPosition, PoseStack poseStack, MultiBufferSource.BufferSource buffers,
-            Set<RenderType> usedTypes) {
-        Entity target = level.getEntity(visual.cue().targetEntityId());
-        if (target == null) return;
-        double x = Mth.lerp(partialTick, target.xo, target.getX());
-        double y = Mth.lerp(partialTick, target.yo, target.getY());
-        double z = Mth.lerp(partialTick, target.zo, target.getZ());
-        float yawDegrees = target instanceof LivingEntity living
-                ? Mth.rotLerp(partialTick, living.yBodyRotO, living.yBodyRot) : target.getYRot();
-        double yaw = yawDegrees * Mth.DEG_TO_RAD;
-        Vec3 front = new Vec3(-Math.sin(yaw), 0.0D, Math.cos(yaw));
-        Vec3 right = new Vec3(Math.cos(yaw), 0.0D, Math.sin(yaw));
-        double halfWidth = Math.max(0.1D, target.getBbWidth() * 0.5D);
+        Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        Vec3 origin = new Vec3(
+                Mth.lerp(partialTick, target.xo, target.getX()),
+                Mth.lerp(partialTick, target.yo, target.getY()),
+                Mth.lerp(partialTick, target.zo, target.getZ())
+        ).subtract(camera);
+        float bodyYaw = Mth.rotLerp(partialTick, target.yBodyRotO, target.yBodyRot) * Mth.DEG_TO_RAD;
         double height = Math.max(0.25D, target.getBbHeight());
-        long seed = visual.cue().randomSeed();
-        for (int index = 0; index < visual.styles().size(); index++) {
-            int side = Math.floorMod(index + (int) (seed >>> 5), 4);
-            Vec3 normal = switch (side) {
-                case 1 -> right;
-                case 2 -> front.scale(-1.0D);
-                case 3 -> right.scale(-1.0D);
-                default -> front;
-            };
-            Vec3 tangent = new Vec3(normal.z, 0.0D, -normal.x);
-            double verticalFraction = 0.34D + Math.floorMod(seed + index * 37L, 47L) / 100.0D;
-            double horizontal = (Math.floorMod(seed >>> (index % 12), 101L) / 100.0D - 0.5D)
-                    * halfWidth * 0.72D;
-            Vec3 center = new Vec3(x, y + height * verticalFraction, z)
-                    .add(normal.scale(halfWidth + 0.018D)).add(tangent.scale(horizontal));
-            int style = visual.styles().get(index);
-            float baseSize = switch (style) {
-                case 1 -> 0.42F;
-                case 2 -> 0.28F;
-                case 3 -> 0.32F;
-                default -> 0.37F;
-            };
-            float size = Mth.clamp(baseSize * Math.max(0.72F, target.getBbWidth()), 0.17F, 0.58F);
-            double highlightAge = visualTime - visual.lastChangedAt();
-            if (index == visual.styles().size() - 1 && highlightAge < 7.0D) {
-                size *= 1.0F + Mth.sin((float) (highlightAge / 7.0D * Math.PI)) * 0.18F;
-            }
-            float rotation = (Math.floorMod(seed + index * 19L, 5L) - 2L) * 0.12F;
-            ResourceLocation texture = WOUNDS[Mth.clamp(style, 0, WOUNDS.length - 1)];
-            RenderType type = RenderType.entityTranslucent(texture);
-            renderSurfaceQuad(poseStack, buffers.getBuffer(type), center.subtract(cameraPosition),
-                    tangent, new Vec3(0.0D, 1.0D, 0.0D), normal, size, rotation, 255,
-                    LevelRenderer.getLightColor(level, target.blockPosition()));
-            usedTypes.add(type);
-        }
-    }
+        double width = Math.max(0.2D, target.getBbWidth());
 
-    private static void renderBloodPool(ClientLevel level, BloodDecal decal, double visualTime,
-            Vec3 cameraPosition, PoseStack poseStack, MultiBufferSource.BufferSource buffers,
-            Set<RenderType> usedTypes) {
-        if (visualTime < decal.appearsAt()) return;
-        double remaining = decal.expiresAt() - visualTime;
-        int alpha = remaining >= 20.0D ? 225 : Mth.clamp((int) (remaining / 20.0D * 225.0D), 0, 225);
-        RenderType type = RenderType.entityTranslucent(BLOOD_POOL);
-        Vec3 right = new Vec3(Math.cos(decal.rotation()), 0.0D, Math.sin(decal.rotation()));
-        Vec3 forward = new Vec3(-Math.sin(decal.rotation()), 0.0D, Math.cos(decal.rotation()));
-        renderSurfaceQuad(poseStack, buffers.getBuffer(type), decal.position().subtract(cameraPosition),
-                right, forward, new Vec3(0.0D, 1.0D, 0.0D), decal.size(), 0.0F, alpha,
-                LevelRenderer.getLightColor(level, BlockPos.containing(decal.position())));
-        usedTypes.add(type);
-    }
-
-    private static void renderSurfaceQuad(PoseStack poseStack, VertexConsumer vertices, Vec3 center,
-            Vec3 horizontal, Vec3 vertical, Vec3 normal, float size, float rotation, int alpha, int light) {
-        float cos = Mth.cos(rotation);
-        float sin = Mth.sin(rotation);
-        Vec3 axisX = horizontal.scale(cos).add(vertical.scale(sin)).scale(size * 0.5D);
-        Vec3 axisY = vertical.scale(cos).subtract(horizontal.scale(sin)).scale(size * 0.5D);
-        poseStack.pushPose();
-        poseStack.translate(center.x, center.y, center.z);
-        vertex(poseStack, vertices, axisX.scale(-1).add(axisY), 0.0F, 0.0F, normal, alpha, light);
-        vertex(poseStack, vertices, axisX.add(axisY), 1.0F, 0.0F, normal, alpha, light);
-        vertex(poseStack, vertices, axisX.subtract(axisY), 1.0F, 1.0F, normal, alpha, light);
-        vertex(poseStack, vertices, axisX.scale(-1).subtract(axisY), 0.0F, 1.0F, normal, alpha, light);
-        poseStack.popPose();
-    }
-
-    private static void vertex(PoseStack poseStack, VertexConsumer vertices, Vec3 point,
-            float u, float v, Vec3 normal, int alpha, int light) {
-        vertices.addVertex(poseStack.last(), (float) point.x, (float) point.y, (float) point.z)
-                .setColor(255, 255, 255, alpha).setUv(u, v).setOverlay(OverlayTexture.NO_OVERLAY)
-                .setLight(light).setNormal(poseStack.last(), (float) normal.x, (float) normal.y, (float) normal.z);
-    }
-
-    private static void createBloodPools(ClientLevel level, AbilityCue cue) {
-        RandomSource random = RandomSource.create(cue.randomSeed() ^ 0x5EEDB100DL);
-        for (int index = 0; index < 15; index++) {
-            double angle = random.nextDouble() * Math.PI * 2.0D;
-            double radius = 0.25D + Math.sqrt(random.nextDouble()) * 2.35D;
-            double x = cue.position().x + Math.cos(angle) * radius;
-            double z = cue.position().z + Math.sin(angle) * radius;
-            Vec3 surface = findGround(level, x, cue.position().y, z);
-            if (surface == null) continue;
-            long delay = 3L + random.nextInt(11);
-            BLOOD_DECALS.add(new BloodDecal(surface, random.nextFloat() * Mth.TWO_PI,
-                    0.32F + random.nextFloat() * 0.6F, level.getGameTime() + delay,
-                    level.getGameTime() + delay + 100L));
-        }
-    }
-
-    private static Vec3 findGround(ClientLevel level, double x, double y, double z) {
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        int blockX = Mth.floor(x);
-        int blockZ = Mth.floor(z);
-        for (int blockY = Mth.floor(y) + 2; blockY >= Mth.floor(y) - 6; blockY--) {
-            cursor.set(blockX, blockY, blockZ);
-            if (!level.hasChunkAt(cursor)) continue;
-            BlockState state = level.getBlockState(cursor);
-            BlockPos above = cursor.above();
-            if (!state.getCollisionShape(level, cursor).isEmpty() && state.getFluidState().isEmpty()
-                    && level.getBlockState(above).getCollisionShape(level, above).isEmpty()) {
-                double top = state.getCollisionShape(level, cursor).max(net.minecraft.core.Direction.Axis.Y);
-                return new Vec3(x, blockY + top + 0.012D, z);
+        for (MarkVisual visual : visuals) {
+            for (int index = 0; index < visual.wounds().size(); index++) {
+                Wound wound = visual.wounds().get(index);
+                double angle = bodyYaw + wound.localAngle();
+                Vec3 outward = new Vec3(-Math.sin(angle), 0.0D, Math.cos(angle));
+                Vec3 tangent = new Vec3(outward.z, 0.0D, -outward.x);
+                Vec3 center = origin.add(0.0D, height * wound.verticalFraction(), 0.0D)
+                        .add(tangent.scale(width * wound.horizontalFraction()));
+                float baseSize = switch (wound.style()) {
+                    case 1 -> 0.43F;
+                    case 2 -> 0.29F;
+                    case 3 -> 0.33F;
+                    default -> 0.38F;
+                };
+                float size = Mth.clamp(baseSize * Math.max(0.72F, target.getBbWidth()), 0.17F, 0.6F);
+                double age = visualTime - visual.lastChangedAt();
+                if (index == visual.wounds().size() - 1 && age < 7.0D) {
+                    size *= 1.0F + Mth.sin((float) (age / 7.0D * Math.PI)) * 0.13F;
+                }
+                VertexConsumer base = buffers.getBuffer(
+                        RenderType.entityTranslucent(WOUNDS[Mth.clamp(wound.style(), 0, WOUNDS.length - 1)]));
+                VertexConsumer projected = new ProjectedWoundConsumer(base, center, tangent,
+                        new Vec3(0.0D, 1.0D, 0.0D), outward, size);
+                model.renderToBuffer(poseStack, projected, packedLight, OverlayTexture.NO_OVERLAY, -1);
             }
         }
-        return null;
+    }
+
+    private static Wound createWound(ClientLevel level, AbilityCue cue, int style, int index) {
+        Entity entity = level.getEntity(cue.targetEntityId());
+        float bodyYaw = entity instanceof LivingEntity living ? living.yBodyRot * Mth.DEG_TO_RAD : 0.0F;
+        Vec3 direction = cue.direction();
+        double worldAngle = direction.horizontalDistanceSqr() > 1.0E-6D
+                ? Math.atan2(-direction.x, direction.z) : bodyYaw;
+        float localAngle = Mth.wrapDegrees((float) ((worldAngle - bodyYaw) * Mth.RAD_TO_DEG)) * Mth.DEG_TO_RAD;
+        long seed = cue.randomSeed() + index * 0x9E3779B97F4A7C15L;
+        float vertical = 0.32F + Math.floorMod(seed >>> 11, 49L) / 100.0F;
+        float horizontal = (Math.floorMod(seed >>> 23, 101L) / 100.0F - 0.5F) * 0.5F;
+        return new Wound(style, localAngle, vertical, horizontal);
+    }
+
+    private static void emitLingeringBlood(ClientLevel level, AbilityCue cue) {
+        RandomSource random = RandomSource.create(cue.randomSeed() ^ 0xB100D5EEDL);
+        Vec3 direction = cue.direction().normalize();
+        for (int index = 0; index < 220; index++) {
+            double speed = 0.035D + random.nextDouble() * 0.17D;
+            level.addParticle(ModParticles.WEAK_POINT_BLOOD_DROP.get(),
+                    cue.position().x + random.nextGaussian() * 0.14D,
+                    cue.position().y + random.nextGaussian() * 0.18D,
+                    cue.position().z + random.nextGaussian() * 0.14D,
+                    direction.x * speed + random.nextGaussian() * 0.105D,
+                    0.035D + random.nextDouble() * 0.26D,
+                    direction.z * speed + random.nextGaussian() * 0.105D);
+        }
     }
 
     private static int weaponStyle(long seed) {
@@ -244,16 +166,79 @@ public final class WeakPointMarkRenderer {
 
     private static void clear(ClientLevel level) {
         MARKS.clear();
-        BLOOD_DECALS.clear();
         activeLevel = level;
+    }
+
+    private static final class ProjectedWoundConsumer implements VertexConsumer {
+        private final VertexConsumer delegate;
+        private final Vec3 center;
+        private final Vec3 horizontal;
+        private final Vec3 vertical;
+        private final Vec3 outward;
+        private final float size;
+        private float x;
+        private float y;
+        private float z;
+
+        private ProjectedWoundConsumer(VertexConsumer delegate, Vec3 center, Vec3 horizontal,
+                Vec3 vertical, Vec3 outward, float size) {
+            this.delegate = delegate;
+            this.center = center;
+            this.horizontal = horizontal;
+            this.vertical = vertical;
+            this.outward = outward;
+            this.size = size;
+        }
+
+        @Override
+        public VertexConsumer addVertex(float x, float y, float z) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            delegate.addVertex(x, y, z);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setColor(int red, int green, int blue, int alpha) {
+            delegate.setColor(255, 255, 255, alpha);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setUv(float u, float v) {
+            Vec3 relative = new Vec3(x, y, z).subtract(center);
+            delegate.setUv(0.5F + (float) (relative.dot(horizontal) / size),
+                    0.5F - (float) (relative.dot(vertical) / size));
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setUv1(int u, int v) {
+            delegate.setUv1(u, v);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setUv2(int u, int v) {
+            delegate.setUv2(u, v);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setNormal(float x, float y, float z) {
+            if (new Vec3(x, y, z).dot(outward) < 0.2D) delegate.setColor(255, 255, 255, 0);
+            delegate.setNormal(x, y, z);
+            return this;
+        }
     }
 
     private record MarkKey(int sourceEntityId, int targetEntityId, long instanceId) {
     }
 
-    private record MarkVisual(AbilityCue cue, List<Integer> styles, long expiresAt, long lastChangedAt) {
+    private record MarkVisual(AbilityCue cue, List<Wound> wounds, long expiresAt, long lastChangedAt) {
     }
 
-    private record BloodDecal(Vec3 position, float rotation, float size, long appearsAt, long expiresAt) {
+    private record Wound(int style, float localAngle, float verticalFraction, float horizontalFraction) {
     }
 }
