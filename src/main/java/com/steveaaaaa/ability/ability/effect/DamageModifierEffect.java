@@ -50,16 +50,29 @@ public final class DamageModifierEffect {
         PENDING_HIT.remove();
         float damage = event.getAmount();
         DamageSource source = event.getSource();
+        ArrayList<PresentationCue> pendingCues = new ArrayList<>();
         if (source.getEntity() instanceof ServerPlayer attacker) {
             Adjustment outgoing = collect(attacker, event.getEntity(), source, DAMAGE_MODIFIER);
             damage = applyOutgoing(damage, outgoing.multiplier(), outgoing.flatAmount());
-            if (!outgoing.cues().isEmpty()) {
-                PENDING_HIT.set(new PendingHit(attacker, event.getEntity(), outgoing.cues()));
-            }
+            pendingCues.addAll(outgoing.cues());
         }
         if (event.getEntity() instanceof ServerPlayer victim) {
             Adjustment incoming = collect(victim, victim, source, DAMAGE_REDUCTION);
             damage = applyIncoming(damage, incoming.multiplier(), incoming.flatAmount());
+            pendingCues.addAll(incoming.cues());
+        }
+        Entity attacker = source.getEntity();
+        if (!pendingCues.isEmpty() && attacker != null) {
+            Vec3 hitOrigin = source.getSourcePosition();
+            if (hitOrigin == null) {
+                hitOrigin = attacker.getBoundingBox().getCenter();
+            }
+            PENDING_HIT.set(new PendingHit(
+                    attacker,
+                    event.getEntity(),
+                    hitOrigin,
+                    List.copyOf(pendingCues)
+            ));
         }
         event.setAmount(damage);
     }
@@ -77,7 +90,7 @@ public final class DamageModifierEffect {
             return;
         }
         Vec3 targetCenter = pending.target().getBoundingBox().getCenter();
-        Vec3 hitPosition = surfacePointFacing(pending.target(), pending.attacker().getEyePosition());
+        Vec3 hitPosition = surfacePointFacing(pending.target(), pending.hitOrigin());
         Vec3 direction = hitPosition.subtract(targetCenter);
         for (PresentationCue cue : pending.cues()) {
             AbilityPresentationService.sendTracking(pending.target(), AbilityCue.pulse(
@@ -137,10 +150,6 @@ public final class DamageModifierEffect {
             errors.add(exception.getMessage());
             return List.copyOf(errors);
         }
-        if (definition.effect().type().equals(DAMAGE_REDUCTION) && config.successCue().isPresent()) {
-            errors.add("effect.config.success_cue: only outgoing damage modifiers can emit success cues");
-        }
-
         Set<String> allowedKeys = definition.effect().type().equals(DAMAGE_MODIFIER)
                 ? OUTGOING_KEYS
                 : INCOMING_KEYS;
@@ -217,13 +226,11 @@ public final class DamageModifierEffect {
                     }
                     multiplier *= abilityMultiplier;
                     flatAmount += abilityFlatAmount;
-                    if (effectType.equals(DAMAGE_MODIFIER)) {
-                        config.successCue().ifPresent(cueId -> cues.add(new PresentationCue(
-                                abilityId,
-                                cueId,
-                                projected.rank()
-                        )));
-                    }
+                    config.successCue().ifPresent(cueId -> cues.add(new PresentationCue(
+                            abilityId,
+                            cueId,
+                            projected.rank()
+                    )));
                 }
             } catch (RuntimeException exception) {
                 logInvalidOnce(abilityId, exception.getMessage());
@@ -413,6 +420,11 @@ public final class DamageModifierEffect {
     private record PresentationCue(ResourceLocation abilityId, ResourceLocation cueId, int rank) {
     }
 
-    private record PendingHit(ServerPlayer attacker, LivingEntity target, List<PresentationCue> cues) {
+    private record PendingHit(
+            Entity attacker,
+            LivingEntity target,
+            Vec3 hitOrigin,
+            List<PresentationCue> cues
+    ) {
     }
 }

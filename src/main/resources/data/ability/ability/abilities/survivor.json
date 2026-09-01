@@ -28,7 +28,8 @@
     "type": "ability:damage_reduction",
     "config": {
       "attacker_entity_type_tags": ["ability:undead"],
-      "directness": "any"
+      "directness": "any",
+      "success_cue": "ability:shield_impact"
     }
   }
 }

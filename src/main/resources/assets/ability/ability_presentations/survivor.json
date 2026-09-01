@@ -1,0 +1,14 @@
+{
+  "cues": {
+    "ability:shield_impact": {
+      "duration_ticks": 0,
+      "sound": {
+        "event": "minecraft:block.amethyst_block.hit",
+        "anchor": "target",
+        "volume": 0.58,
+        "pitch": 0.82,
+        "pitch_random": 0.05
+      }
+    }
+  }
+}

@@ -89,6 +89,7 @@ public final class ClientAbilityPresentationManager {
         EnchantedEdgeWeaponRenderer.accept(level, cue);
         WellPreparedSalvationRenderer.accept(level, cue);
         SurvivalCleanseParticle.accept(level, cue);
+        SurvivorShieldRippleRenderer.accept(level, cue);
         InstanceKey key = InstanceKey.of(cue);
         if (cue.action() == AbilityCue.Action.STOP) {
             ACTIVE.remove(key);
