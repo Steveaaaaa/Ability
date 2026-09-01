@@ -34,8 +34,8 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class WorldTravelerVisualRenderer {
-    private static final ResourceLocation NETHER_PORTAL_TEXTURE =
-            ResourceLocation.withDefaultNamespace("textures/block/nether_portal.png");
+    private static final ResourceLocation WHITE_TEXTURE =
+            ResourceLocation.withDefaultNamespace("textures/misc/white.png");
     private static final int PORTAL_IDLE_TICKS = 20 * 30;
     private static final List<Visual> ACTIVE = new ArrayList<>();
     private static final Map<Integer, PortalState> PORTALS = new HashMap<>();
@@ -96,7 +96,8 @@ public final class WorldTravelerVisualRenderer {
 
     @SubscribeEvent
     public static void renderWorld(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES || ACTIVE.isEmpty()) return;
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES
+                || (ACTIVE.isEmpty() && PORTALS.isEmpty())) return;
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
         if (level == null || level != activeLevel) return;
@@ -114,7 +115,7 @@ public final class WorldTravelerVisualRenderer {
             }
         }
 
-        RenderType portalType = RenderType.entityTranslucentEmissive(NETHER_PORTAL_TEXTURE);
+        RenderType portalType = RenderType.entityTranslucentEmissive(WHITE_TEXTURE);
         VertexConsumer portalTexture = buffers.getBuffer(portalType);
         for (Map.Entry<Integer, PortalState> entry : PORTALS.entrySet()) {
             Entity player = level.getEntity(entry.getKey());
@@ -123,17 +124,7 @@ public final class WorldTravelerVisualRenderer {
                     entry.getValue().openAmount());
             Vec3 portal = portalPosition(player, partialTick);
             renderPortalSurface(poseStack, portalTexture, camera, cameraPosition, portal, open,
-                    176, 145);
-        }
-        for (Visual visual : ACTIVE) {
-            if (visual.payload().action() != ClientboundWorldTravelerVisualPayload.Action.REMOTE_OPEN) continue;
-            Entity player = level.getEntity(visual.payload().playerId());
-            if (player == null) continue;
-            float progress = visual.progress(visualTime);
-            float open = Mth.sin(progress * Mth.PI);
-            renderPortalSurface(poseStack, portalTexture, camera, cameraPosition,
-                    interpolatedCenter(player, partialTick).add(0.0D, 0.35D, 0.0D),
-                    open, 150, 125);
+                    132, 82);
         }
         buffers.endBatch(portalType);
 
@@ -153,7 +144,8 @@ public final class WorldTravelerVisualRenderer {
             float open = Mth.lerp(partialTick, entry.getValue().previousOpenAmount(),
                     entry.getValue().openAmount());
             renderPortalBorder(poseStack, pixels, camera, cameraPosition,
-                    portalPosition(player, partialTick), open, 220);
+                    portalPosition(player, partialTick), open, 220,
+                    visualTime, entry.getValue().seed());
         }
         buffers.endBatch(RenderType.lightning());
     }
@@ -235,11 +227,8 @@ public final class WorldTravelerVisualRenderer {
 
     private static void renderRemotePortal(ClientLevel level, PoseStack poseStack, VertexConsumer vertices,
             Camera camera, Vec3 cameraPosition, Visual visual, float progress, float partialTick) {
-        Entity player = level.getEntity(visual.payload().playerId());
-        if (player == null) return;
-        Vec3 center = interpolatedCenter(player, partialTick).add(0.0D, 0.35D, 0.0D);
-        renderPortalBorder(poseStack, vertices, camera, cameraPosition, center,
-                Mth.sin(progress * Mth.PI), fadeAlpha(progress, 190));
+        // Remote opening is represented by the folding GUI frame only. Keeping world portals tied
+        // exclusively to successful item routes guarantees one small persistent portal per player.
     }
 
     private static void renderPortalSurface(PoseStack poseStack, VertexConsumer vertices, Camera camera,
@@ -250,8 +239,8 @@ public final class WorldTravelerVisualRenderer {
                 position.z - cameraPosition.z);
         poseStack.mulPose(camera.rotation());
         float eased = smooth(openAmount);
-        float halfWidth = 0.055F + eased * 0.38F;
-        float halfHeight = 0.12F + eased * 0.62F;
+        float halfWidth = 0.018F + eased * 0.195F;
+        float halfHeight = 0.045F + eased * 0.305F;
         int alpha = Mth.clamp((int) Mth.lerp(eased, minimumAlpha, maximumAlpha), 0, 220);
         portalQuad(poseStack, vertices, -halfWidth, -halfHeight, halfWidth, halfHeight, alpha);
         portalQuad(poseStack, vertices, halfWidth, -halfHeight, -halfWidth, halfHeight, alpha);
@@ -269,7 +258,7 @@ public final class WorldTravelerVisualRenderer {
     private static void portalVertex(PoseStack poseStack, VertexConsumer vertices,
             float x, float y, float z, float u, float v, int alpha) {
         vertices.addVertex(poseStack.last(), x, y, z)
-                .setColor(255, 226, 153, alpha)
+                .setColor(255, 222, 142, alpha)
                 .setUv(u, v)
                 .setOverlay(OverlayTexture.NO_OVERLAY)
                 .setLight(LightTexture.FULL_BRIGHT)
@@ -277,15 +266,16 @@ public final class WorldTravelerVisualRenderer {
     }
 
     private static void renderPortalBorder(PoseStack poseStack, VertexConsumer vertices, Camera camera,
-            Vec3 cameraPosition, Vec3 position, float openAmount, int maximumAlpha) {
+            Vec3 cameraPosition, Vec3 position, float openAmount, int maximumAlpha,
+            double animationTime, long seed) {
         if (openAmount <= 0.001F) return;
         poseStack.pushPose();
         poseStack.translate(position.x - cameraPosition.x, position.y - cameraPosition.y,
                 position.z - cameraPosition.z);
         poseStack.mulPose(camera.rotation());
         float eased = smooth(openAmount);
-        float halfWidth = 0.075F + eased * 0.40F;
-        float halfHeight = 0.14F + eased * 0.65F;
+        float halfWidth = 0.032F + eased * 0.21F;
+        float halfHeight = 0.06F + eased * 0.325F;
         int alpha = Mth.clamp((int) (maximumAlpha * eased), 0, maximumAlpha);
         for (int side = -1; side <= 1; side += 2) {
             solidBox(poseStack, vertices, side * halfWidth, 0.0F, 0.005F,
@@ -293,7 +283,34 @@ public final class WorldTravelerVisualRenderer {
             solidBox(poseStack, vertices, 0.0F, side * halfHeight, 0.005F,
                     halfWidth * 1.78F, 0.035F, 0.022F, 255, 238, 184, alpha);
         }
+        renderPortalPixels(poseStack, vertices, halfWidth, halfHeight, eased,
+                alpha, animationTime, seed);
         poseStack.popPose();
+    }
+
+    private static void renderPortalPixels(PoseStack poseStack, VertexConsumer vertices,
+            float halfWidth, float halfHeight, float openAmount, int alpha,
+            double animationTime, long seed) {
+        if (openAmount < 0.18F) return;
+        int columns = 5;
+        int rows = 8;
+        int phase = Mth.floor(animationTime * 0.45D);
+        for (int index = 0; index < 9; index++) {
+            long mixed = seed + index * 0x9E3779B97F4A7C15L + phase * 0x632BE59BD9B4E019L;
+            int column = (int) Math.floorMod(mixed, columns);
+            int row = (int) Math.floorMod(mixed >>> 17, rows);
+            float x = Mth.lerp((column + 0.5F) / columns, -halfWidth * 0.74F, halfWidth * 0.74F);
+            float y = Mth.lerp((row + 0.5F) / rows, -halfHeight * 0.78F, halfHeight * 0.78F);
+            float width = Math.max(0.018F, halfWidth * 0.17F);
+            float height = Math.max(0.022F, halfHeight * 0.10F);
+            boolean bright = (mixed & 1L) == 0L;
+            solidBox(poseStack, vertices, x, y, 0.008F,
+                    width, height, 0.012F,
+                    bright ? 255 : 239,
+                    bright ? 244 : 196,
+                    bright ? 197 : 104,
+                    alpha * (bright ? 3 : 2) / 4);
+        }
     }
 
     private static void renderCompressedPixels(PoseStack poseStack, VertexConsumer vertices,
