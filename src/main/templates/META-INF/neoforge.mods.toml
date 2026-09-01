@@ -13,6 +13,9 @@ description='''
 A data-driven RPG skill and ability mod for Minecraft.
 '''
 
+[[mixins]]
+config="ability.mixins.json"
+
 [[dependencies.${mod_id}]]
 modId="neoforge"
 type="required"
