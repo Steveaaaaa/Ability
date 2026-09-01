@@ -8,6 +8,9 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.network.ClientboundTransmutationPayload;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -26,6 +29,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class ChorusTransmutationEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("chorus_transmutation");
@@ -56,6 +60,7 @@ public final class ChorusTransmutationEffect {
         if (!player.getAbilities().instabuild && player.experienceLevel < experienceCost) {
             return;
         }
+        BlockState inputState = level.getBlockState(event.getPos());
         if (!level.setBlockAndUpdate(event.getPos(), activation.output().defaultBlockState())) {
             return;
         }
@@ -66,6 +71,25 @@ public final class ChorusTransmutationEffect {
                 player.giveExperienceLevels(-experienceCost);
             }
         }
+        long seed = player.getRandom().nextLong();
+        PacketDistributor.sendToPlayersTrackingEntityAndSelf(player, new ClientboundTransmutationPayload(
+                event.getPos(),
+                BuiltInRegistries.BLOCK.getKey(inputState.getBlock()),
+                BuiltInRegistries.BLOCK.getKey(activation.output()),
+                experienceCost > 0,
+                activation.component().rank(),
+                seed
+        ));
+        AbilityPresentationService.sendTracking(player, AbilityCue.pulse(
+                activation.component().abilityId(),
+                AbilityMod.id("transmute"),
+                player.getId(),
+                player.getId(),
+                event.getPos().getCenter(),
+                net.minecraft.world.phys.Vec3.ZERO,
+                activation.component().rank(),
+                seed
+        ));
         event.setCancellationResult(InteractionResult.SUCCESS);
         event.setCanceled(true);
     }
@@ -114,7 +138,11 @@ public final class ChorusTransmutationEffect {
                 if (active.isEmpty()) continue;
                 for (CompositeEffect.ComponentView component : CompositeEffect.componentsOfType(entry.getValue(), TYPE)) {
                     AbilityService.ActiveAbility projected = CompositeEffect.projectActive(active.get(), component);
-                    result.add(new ActiveComponent(parse(Config.CODEC, component.config(), "effect.config"), projected.rank()));
+                    result.add(new ActiveComponent(
+                            id,
+                            parse(Config.CODEC, component.config(), "effect.config"),
+                            projected.rank()
+                    ));
                 }
             } catch (RuntimeException exception) {
                 logInvalidOnce(id, exception.getMessage());
@@ -179,7 +207,7 @@ public final class ChorusTransmutationEffect {
         }
     }
 
-    private record ActiveComponent(Config config, int rank) {
+    private record ActiveComponent(ResourceLocation abilityId, Config config, int rank) {
     }
 
     private record Activation(ActiveComponent component, Recipe recipe, Block output) {
