@@ -20,7 +20,6 @@ import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -34,8 +33,6 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class EnchantedEdgeWeaponRenderer {
-    private static final ResourceLocation GLINT_TEXTURE =
-            ResourceLocation.withDefaultNamespace("textures/misc/enchanted_glint_entity.png");
     private static final Map<Integer, Long> ACTIVE_PLAYERS = new HashMap<>();
     private static final Map<BakedModel, List<SurfacePoint>> SURFACE_CACHE = new WeakHashMap<>();
     private static final ThreadLocal<RenderContext> CURRENT_ITEM = new ThreadLocal<>();
@@ -86,35 +83,15 @@ public final class EnchantedEdgeWeaponRenderer {
         if (context == null || model.isCustomRenderer()) return;
 
         float time = (float) (System.nanoTime() / 1_000_000_000.0D);
-        float pulse = 0.5F + 0.5F * Mth.sin(time * 2.15F);
         float attack = context.attackProgress();
-        int alpha = Mth.clamp((int) (48.0F + pulse * 24.0F + attack * 72.0F), 0, 170);
-        RenderType sheenType = RenderType.energySwirl(GLINT_TEXTURE,
-                Mth.frac(time * 0.018F), Mth.frac(time * 0.011F));
-
-        poseStack.pushPose();
-        scaleAroundItemCenter(poseStack, 1.008F + pulse * 0.002F);
-        renderModelOverlay(itemRenderer, poseStack, buffers.getBuffer(sheenType), stack, model, overlay, alpha);
-        poseStack.popPose();
-
-        if (attack > 0.08F) {
-            float trail = Mth.sin(attack * Mth.PI);
-            poseStack.pushPose();
-            poseStack.translate(-0.025F * trail, -0.018F * trail, 0.012F * trail);
-            scaleAroundItemCenter(poseStack, 1.018F + trail * 0.012F);
-            renderModelOverlay(itemRenderer, poseStack, buffers.getBuffer(sheenType), stack, model,
-                    overlay, Mth.clamp((int) (42.0F + trail * 72.0F), 0, 128));
-            poseStack.popPose();
-        }
-
+        renderModelOverlay(itemRenderer, poseStack, buffers.getBuffer(RenderType.glint()), stack, model, overlay);
         renderSurfaceSparks(poseStack, buffers.getBuffer(RenderType.lightning()), model, stack, time, attack);
     }
 
     private static void renderModelOverlay(ItemRenderer itemRenderer, PoseStack poseStack,
-            VertexConsumer target, ItemStack stack, BakedModel model, int overlay, int alpha) {
-        VertexConsumer tinted = new PurpleVertexConsumer(target, alpha);
+            VertexConsumer target, ItemStack stack, BakedModel model, int overlay) {
         for (BakedModel pass : model.getRenderPasses(stack, true)) {
-            itemRenderer.renderModelLists(pass, stack, LightTexture.FULL_BRIGHT, overlay, poseStack, tinted);
+            itemRenderer.renderModelLists(pass, stack, LightTexture.FULL_BRIGHT, overlay, poseStack, target);
         }
     }
 
@@ -133,6 +110,13 @@ public final class EnchantedEdgeWeaponRenderer {
             float size = 0.007F + flicker * 0.004F + attack * 0.003F;
             renderPixelCube(poseStack, vertices, (float) position.x, (float) position.y,
                     (float) position.z, size, 210, 164, 255, 105 + (int) (flicker * 105.0F));
+            if (attack > 0.08F) {
+                float trail = Mth.sin(attack * Mth.PI);
+                Vec3 afterimage = position.add(-0.020D * trail, -0.014D * trail, 0.008D * trail);
+                renderPixelCube(poseStack, vertices, (float) afterimage.x, (float) afterimage.y,
+                        (float) afterimage.z, size * 0.75F, 184, 126, 246,
+                        55 + (int) (trail * 85.0F));
+            }
         }
     }
 
@@ -163,12 +147,6 @@ public final class EnchantedEdgeWeaponRenderer {
                         Float.intBitsToFloat(data[offset + 2])), normal));
             }
         }
-    }
-
-    private static void scaleAroundItemCenter(PoseStack poseStack, float scale) {
-        poseStack.translate(0.5F, 0.5F, 0.5F);
-        poseStack.scale(scale, scale, scale);
-        poseStack.translate(-0.5F, -0.5F, -0.5F);
     }
 
     private static void renderPixelCube(PoseStack poseStack, VertexConsumer vertices,
@@ -221,49 +199,4 @@ public final class EnchantedEdgeWeaponRenderer {
     private record SurfacePoint(Vec3 position, Vec3 normal) {
     }
 
-    private static final class PurpleVertexConsumer implements VertexConsumer {
-        private final VertexConsumer delegate;
-        private final int alpha;
-
-        private PurpleVertexConsumer(VertexConsumer delegate, int alpha) {
-            this.delegate = delegate;
-            this.alpha = alpha;
-        }
-
-        @Override
-        public VertexConsumer addVertex(float x, float y, float z) {
-            delegate.addVertex(x, y, z);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setColor(int red, int green, int blue, int ignoredAlpha) {
-            delegate.setColor(210, 164, 255, alpha);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setUv(float u, float v) {
-            delegate.setUv(u, v);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setUv1(int u, int v) {
-            delegate.setUv1(u, v);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setUv2(int u, int v) {
-            delegate.setUv2(u, v);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setNormal(float x, float y, float z) {
-            delegate.setNormal(x, y, z);
-            return this;
-        }
-    }
 }

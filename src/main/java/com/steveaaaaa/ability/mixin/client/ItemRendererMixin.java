@@ -15,8 +15,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ItemRenderer.class)
 public abstract class ItemRendererMixin {
     @Inject(method = "render", at = @At(value = "INVOKE",
-            target = "Lcom/mojang/blaze3d/vertex/PoseStack;translate(FFF)V",
-            ordinal = 0, shift = At.Shift.AFTER, remap = false), remap = false)
+            target = "Lcom/mojang/blaze3d/vertex/PoseStack;popPose()V",
+            ordinal = 0, shift = At.Shift.BEFORE, remap = false), remap = false)
     private void ability$renderEnchantedEdgeAura(ItemStack stack, ItemDisplayContext displayContext,
             boolean leftHand, PoseStack poseStack, MultiBufferSource buffers, int light,
             int overlay, BakedModel model, CallbackInfo callback) {
