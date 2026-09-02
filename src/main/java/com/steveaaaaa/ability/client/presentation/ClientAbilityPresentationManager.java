@@ -95,6 +95,7 @@ public final class ClientAbilityPresentationManager {
         HarvestPresentation.accept(level, cue);
         SnifferTreasurePresentation.accept(level, cue);
         LuckyCatPresentation.accept(level, cue);
+        SupportAuraPresentation.accept(level, cue);
         InstanceKey key = InstanceKey.of(cue);
         if (cue.action() == AbilityCue.Action.STOP) {
             ACTIVE.remove(key);

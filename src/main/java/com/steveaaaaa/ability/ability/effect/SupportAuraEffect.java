@@ -8,6 +8,8 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -33,10 +35,15 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 public final class SupportAuraEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("support_aura");
+    private static final ResourceLocation ACTIVATE_CUE = AbilityMod.id("activate");
+    private static final ResourceLocation LINK_CUE = AbilityMod.id("support_link");
+    private static final ResourceLocation HEAL_PULSE_CUE = AbilityMod.id("heal_pulse");
+    private static final ResourceLocation GOLDEN_SHIELD_CUE = AbilityMod.id("golden_shield");
     private static final Set<String> RANK_KEYS = Set.of("total_healing_percent");
     private static final Set<String> LOGGED_INVALID_DEFINITIONS = ConcurrentHashMap.newKeySet();
     private static final Map<UUID, Map<ResourceLocation, HealingSession>> SESSIONS = new ConcurrentHashMap<>();
@@ -75,6 +82,11 @@ public final class SupportAuraEffect {
                 Entity entity = player.serverLevel().getEntity(targetId);
                 if (entity instanceof LivingEntity living && living.isAlive()) {
                     living.heal(session.healingPerPulse());
+                    AbilityPresentationService.sendTracking(living, AbilityCue.pulse(
+                            session.abilityId(), HEAL_PULSE_CUE,
+                            player.getId(), living.getId(), living.getBoundingBox().getCenter(),
+                            Vec3.ZERO, session.rank(), player.getRandom().nextLong()
+                    ));
                 }
             }
             if (session.pulsesRemaining() > 1) {
@@ -83,7 +95,9 @@ public final class SupportAuraEffect {
                         session.healingPerPulse(),
                         now + session.pulseIntervalTicks(),
                         session.pulseIntervalTicks(),
-                        session.pulsesRemaining() - 1
+                        session.pulsesRemaining() - 1,
+                        session.abilityId(),
+                        session.rank()
                 ));
             }
         }
@@ -182,6 +196,12 @@ public final class SupportAuraEffect {
                 }
             });
         }
+        Vec3 presentationColor = presentationColor(trigger.item());
+        AbilityPresentationService.sendTracking(player, AbilityCue.pulse(
+                component.abilityId(), ACTIVATE_CUE,
+                player.getId(), -1, player.getBoundingBox().getCenter(),
+                presentationColor, component.rankNumber(), player.getRandom().nextLong()
+        ));
         if (trigger.grantAbsorption()) {
             Holder<MobEffect> absorption = BuiltInRegistries.MOB_EFFECT.getHolder(component.config().absorptionEffect())
                     .orElseThrow(() -> new IllegalArgumentException(
@@ -198,7 +218,25 @@ public final class SupportAuraEffect {
                             false,
                             true
                     ));
+                    AbilityPresentationService.sendTracking(living, AbilityCue.start(
+                            component.abilityId(), GOLDEN_SHIELD_CUE,
+                            player.getId(), living.getId(), living.getBoundingBox().getCenter(),
+                            Vec3.ZERO, component.rankNumber(),
+                            component.config().absorptionDurationTicks(),
+                            living.getUUID().getLeastSignificantBits(),
+                            player.getRandom().nextLong()
+                    ));
                 }
+            }
+        }
+        for (UUID targetId : targets) {
+            Entity entity = player.serverLevel().getEntity(targetId);
+            if (entity instanceof LivingEntity living) {
+                AbilityPresentationService.sendTracking(living, AbilityCue.pulse(
+                        component.abilityId(), LINK_CUE,
+                        player.getId(), living.getId(), living.getBoundingBox().getCenter(),
+                        presentationColor, component.rankNumber(), player.getRandom().nextLong()
+                ));
             }
         }
         float amount = (float) healingPerPulse(
@@ -211,7 +249,9 @@ public final class SupportAuraEffect {
                 amount,
                 player.level().getGameTime() + component.config().pulseIntervalTicks(),
                 component.config().pulseIntervalTicks(),
-                component.config().pulseCount()
+                component.config().pulseCount(),
+                component.abilityId(),
+                component.rankNumber()
         );
         LinkedHashMap<ResourceLocation, HealingSession> updated = new LinkedHashMap<>(activeSessions);
         updated.put(trigger.targetEntityTypeTag(), session);
@@ -235,6 +275,7 @@ public final class SupportAuraEffect {
                     AbilityService.ActiveAbility projected = CompositeEffect.projectActive(active.get(), component);
                     RankValues values = mergeRanks(projected);
                     result.add(new ActiveComponent(
+                            abilityId,
                             parse(Config.CODEC, component.config(), "effect.config"),
                             projected.rank(),
                             requiredHealing(values.values().get("total_healing_percent"))
@@ -261,6 +302,19 @@ public final class SupportAuraEffect {
             throw new IllegalArgumentException("total_healing_percent must be finite and between 0 and 10000");
         }
         return value;
+    }
+
+    private static Vec3 presentationColor(Item item) {
+        String path = BuiltInRegistries.ITEM.getKey(item).getPath();
+        return switch (path) {
+            case "snow_block" -> new Vec3(0.82D, 0.94D, 1.0D);
+            case "iron_ingot" -> new Vec3(0.68D, 0.70D, 0.67D);
+            case "rabbit_stew" -> new Vec3(0.72D, 0.39D, 0.18D);
+            case "golden_apple" -> new Vec3(1.0D, 0.68D, 0.18D);
+            case "hay_block" -> new Vec3(0.88D, 0.70D, 0.20D);
+            case "golden_carrot" -> new Vec3(1.0D, 0.50D, 0.10D);
+            default -> new Vec3(0.80D, 0.84D, 0.72D);
+        };
     }
 
     private static void logInvalidOnce(ResourceLocation id, String detail) {
@@ -336,7 +390,12 @@ public final class SupportAuraEffect {
         public RankValues { values = Map.copyOf(values); }
     }
 
-    private record ActiveComponent(Config config, int rankNumber, double totalHealingPercent) {
+    private record ActiveComponent(
+            ResourceLocation abilityId,
+            Config config,
+            int rankNumber,
+            double totalHealingPercent
+    ) {
     }
 
     private record Activation(ActiveComponent component, Trigger trigger) {
@@ -347,7 +406,9 @@ public final class SupportAuraEffect {
             float healingPerPulse,
             long nextPulseAt,
             int pulseIntervalTicks,
-            int pulsesRemaining
+            int pulsesRemaining,
+            ResourceLocation abilityId,
+            int rank
     ) {
         private HealingSession { targets = List.copyOf(targets); }
     }
