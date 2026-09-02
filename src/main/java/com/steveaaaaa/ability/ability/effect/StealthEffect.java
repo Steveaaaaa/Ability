@@ -7,6 +7,8 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -23,11 +25,15 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 public final class StealthEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("stealth");
+    private static final ResourceLocation ENTER_CUE = AbilityMod.id("enter");
+    private static final ResourceLocation ACTIVE_CUE = AbilityMod.id("active");
+    private static final ResourceLocation BREAK_HIT_CUE = AbilityMod.id("break_hit");
     private static final Set<String> RANK_KEYS = Set.of("wait_seconds", "damage_multiplier");
     private static final Set<String> LOGGED_INVALID_DEFINITIONS = ConcurrentHashMap.newKeySet();
 
@@ -38,11 +44,17 @@ public final class StealthEffect {
         long elapsedTicks = InactivityTracker.elapsedTicks(player);
         for (ActiveComponent component : activeComponents(player)) {
             Config config = component.config();
-            if (!CombatStatusTracker.hasMark(player.getUUID(), player.getUUID(), config.markId())
-                    && elapsedTicks >= component.rank().waitTicks()) {
+            boolean active = CombatStatusTracker.hasMark(player.getUUID(), player.getUUID(), config.markId());
+            if (!active && elapsedTicks >= component.rank().waitTicks()) {
                 CombatStatusTracker.setMark(player.getUUID(), player.getUUID(), config.markId(), false);
+                active = true;
+                AbilityPresentationService.sendTracking(player, AbilityCue.pulse(
+                        TYPE, ENTER_CUE, player.getId(), player.getId(),
+                        player.getBoundingBox().getCenter(), Vec3.ZERO, 0,
+                        player.level().getGameTime() ^ player.getUUID().getLeastSignificantBits()
+                ));
             }
-            if (CombatStatusTracker.hasMark(player.getUUID(), player.getUUID(), config.markId())) {
+            if (active) {
                 Holder<MobEffect> effect = BuiltInRegistries.MOB_EFFECT.getHolder(config.effect())
                         .orElseThrow(() -> new IllegalArgumentException("Unknown mob effect: " + config.effect()));
                 player.addEffect(new MobEffectInstance(
@@ -52,6 +64,13 @@ public final class StealthEffect {
                         false,
                         config.showParticles(),
                         config.showIcon()
+                ));
+                AbilityPresentationService.sendToPlayer(player, AbilityCue.start(
+                        TYPE, ACTIVE_CUE, player.getId(), player.getId(),
+                        player.position(), Vec3.ZERO, 0,
+                        config.effectDurationTicks() + 6,
+                        player.getUUID().getMostSignificantBits() ^ player.getUUID().getLeastSignificantBits(),
+                        player.getUUID().getLeastSignificantBits()
                 ));
             }
         }
@@ -86,11 +105,24 @@ public final class StealthEffect {
         }
         InactivityTracker.recordActivity(attacker);
         for (ActiveComponent component : activeComponents(attacker)) {
-            CombatStatusTracker.consumeMark(
+            if (CombatStatusTracker.consumeMark(
                     attacker.getUUID(),
                     attacker.getUUID(),
                     component.config().markId()
-            );
+            )) {
+                AbilityPresentationService.sendTracking(event.getEntity(), AbilityCue.pulse(
+                        TYPE, BREAK_HIT_CUE, attacker.getId(), event.getEntity().getId(),
+                        event.getEntity().getBoundingBox().getCenter(),
+                        event.getEntity().getBoundingBox().getCenter().subtract(attacker.getEyePosition()),
+                        0, attacker.level().getGameTime() ^ event.getEntity().getId()
+                ));
+                AbilityPresentationService.sendToPlayer(attacker, AbilityCue.start(
+                        TYPE, ACTIVE_CUE, attacker.getId(), attacker.getId(),
+                        attacker.position(), Vec3.ZERO, 0, 0,
+                        attacker.getUUID().getMostSignificantBits() ^ attacker.getUUID().getLeastSignificantBits(),
+                        attacker.getUUID().getLeastSignificantBits()
+                ).asStop());
+            }
         }
     }
 

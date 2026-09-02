@@ -97,6 +97,7 @@ public final class ClientAbilityPresentationManager {
         LuckyCatPresentation.accept(level, cue);
         SupportAuraPresentation.accept(level, cue);
         PigArmorPresentation.accept(level, cue);
+        StealthPresentation.accept(level, cue);
         InstanceKey key = InstanceKey.of(cue);
         if (cue.action() == AbilityCue.Action.STOP) {
             ACTIVE.remove(key);
