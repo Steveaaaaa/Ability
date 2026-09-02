@@ -3,7 +3,11 @@
   "minVersion": "0.8",
   "package": "com.steveaaaaa.ability.mixin",
   "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "FireworkRocketEntityMixin"
+  ],
   "client": [
+    "client.FireworkRocketEntityClientMixin",
     "client.ItemInHandRendererMixin",
     "client.ItemRendererMixin"
   ],

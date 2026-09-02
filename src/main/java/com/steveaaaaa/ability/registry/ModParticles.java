@@ -76,6 +76,22 @@ public final class ModParticles {
             "support_aura_mote",
             () -> new SimpleParticleType(false)
     );
+    public static final Supplier<SimpleParticleType> DANGEROUS_CHARGE_CORE = PARTICLE_TYPES.register(
+            "dangerous_charge_core",
+            () -> new SimpleParticleType(false)
+    );
+    public static final Supplier<SimpleParticleType> DANGEROUS_CHARGE_SHOCKWAVE = PARTICLE_TYPES.register(
+            "dangerous_charge_shockwave",
+            () -> new SimpleParticleType(false)
+    );
+    public static final Supplier<SimpleParticleType> DANGEROUS_CHARGE_SPARK = PARTICLE_TYPES.register(
+            "dangerous_charge_spark",
+            () -> new SimpleParticleType(false)
+    );
+    public static final Supplier<SimpleParticleType> DANGEROUS_CHARGE_SMOKE = PARTICLE_TYPES.register(
+            "dangerous_charge_smoke",
+            () -> new SimpleParticleType(false)
+    );
 
     private ModParticles() {
     }

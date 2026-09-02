@@ -43,6 +43,9 @@ public final class DangerousChargeEffect {
         if (components.isEmpty()) {
             return;
         }
+        if (rocket instanceof DangerousChargeFirework dangerousCharge) {
+            dangerousCharge.ability$setDangerousCharge(true);
+        }
         double multiplier = 1.0D;
         int stateTicks = 0;
         for (ActiveComponent component : components) {
