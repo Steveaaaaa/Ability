@@ -1,0 +1,7 @@
+{
+  "cues": {
+    "ability:pig_armor": {
+      "duration_ticks": 30
+    }
+  }
+}
