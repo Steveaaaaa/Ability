@@ -17,8 +17,10 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.Registry;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.animal.Wolf;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
@@ -59,7 +61,30 @@ public final class WolfPackEffect {
             STATES.remove(wolf.getUUID());
         } else {
             STATES.put(wolf.getUUID(), updated);
+            emitAngryState(wolf, updated, now);
         }
+    }
+
+    private static void emitAngryState(Wolf wolf, WolfState state, long gameTime) {
+        if (!isBuffActive(state, gameTime) || !(wolf.level() instanceof ServerLevel level)) {
+            return;
+        }
+        int interval = 8;
+        int phase = Math.floorMod(wolf.getId(), interval);
+        if (Math.floorMod(gameTime, interval) != phase) {
+            return;
+        }
+        level.sendParticles(
+                ParticleTypes.ANGRY_VILLAGER,
+                wolf.getX(),
+                wolf.getEyeY() + 0.18D,
+                wolf.getZ(),
+                1,
+                0.18D,
+                0.06D,
+                0.18D,
+                0.0D
+        );
     }
 
     public static void modifyDamage(LivingIncomingDamageEvent event) {
