@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -31,8 +32,10 @@ import net.minecraft.world.entity.animal.Cat;
 import net.minecraft.world.entity.animal.sniffer.Sniffer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.minecraft.world.level.storage.loot.LootContext;
+import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
 
@@ -69,11 +72,11 @@ public final class CompanionGiftEffect {
                 continue;
             }
             WeightedEntry entry = choose(config.entries(), random);
-            int count = entry.minimumCount() == entry.maximumCount()
-                    ? entry.minimumCount()
-                    : entry.minimumCount() + random.nextInt(entry.maximumCount() - entry.minimumCount() + 1);
-            generatedLoot.add(new ItemStack(entry.item(), count));
-            treasuresFound++;
+            List<ItemStack> extraLoot = createDrops(entry, level, context, random);
+            if (!extraLoot.isEmpty()) {
+                generatedLoot.addAll(extraLoot);
+                treasuresFound++;
+            }
         }
         if (source == Source.SNIFFER_DIGGING && treasuresFound > 0) {
             Vec3 lootOrigin = context.getParamOrNull(LootContextParams.ORIGIN);
@@ -92,6 +95,38 @@ public final class CompanionGiftEffect {
             ));
         }
         return generatedLoot;
+    }
+
+    private static List<ItemStack> createDrops(
+            WeightedEntry entry,
+            ServerLevel level,
+            LootContext context,
+            RandomSource random
+    ) {
+        if (entry.item().isPresent()) {
+            int count = entry.minimumCount() == entry.maximumCount()
+                    ? entry.minimumCount()
+                    : entry.minimumCount() + random.nextInt(entry.maximumCount() - entry.minimumCount() + 1);
+            ItemStack stack = new ItemStack(entry.item().get(), count);
+            if (entry.enchantmentLevel() > 0) {
+                stack = EnchantmentHelper.enchantItem(
+                        random,
+                        stack,
+                        entry.enchantmentLevel(),
+                        level.registryAccess(),
+                        Optional.empty()
+                );
+            }
+            return List.of(stack);
+        }
+        ResourceKey<LootTable> lootTableKey = ResourceKey.create(
+                Registries.LOOT_TABLE,
+                entry.lootTable().orElseThrow()
+        );
+        LootTable lootTable = level.getServer().reloadableRegistries().getLootTable(lootTableKey);
+        ObjectArrayList<ItemStack> result = new ObjectArrayList<>();
+        lootTable.getRandomItemsRaw(context, result::add);
+        return List.copyOf(result);
     }
 
     static WeightedEntry choose(List<WeightedEntry> entries, RandomSource random) {
@@ -208,19 +243,42 @@ public final class CompanionGiftEffect {
         }
     }
 
-    public record WeightedEntry(Item item, int weight, int minimumCount, int maximumCount) {
+    public record WeightedEntry(
+            Optional<Item> item,
+            Optional<ResourceLocation> lootTable,
+            int weight,
+            int minimumCount,
+            int maximumCount,
+            int enchantmentLevel
+    ) {
         private static final Codec<WeightedEntry> RAW_CODEC = RecordCodecBuilder.create(instance -> instance.group(
-                BuiltInRegistries.ITEM.byNameCodec().fieldOf("item").forGetter(WeightedEntry::item),
+                BuiltInRegistries.ITEM.byNameCodec().optionalFieldOf("item").forGetter(WeightedEntry::item),
+                ResourceLocation.CODEC.optionalFieldOf("loot_table").forGetter(WeightedEntry::lootTable),
                 Codec.intRange(1, 1_000_000).optionalFieldOf("weight", 1).forGetter(WeightedEntry::weight),
                 Codec.intRange(1, 64).optionalFieldOf("minimum_count", 1).forGetter(WeightedEntry::minimumCount),
-                Codec.intRange(1, 64).optionalFieldOf("maximum_count", 1).forGetter(WeightedEntry::maximumCount)
+                Codec.intRange(1, 64).optionalFieldOf("maximum_count", 1).forGetter(WeightedEntry::maximumCount),
+                Codec.intRange(0, 255).optionalFieldOf("enchantment_level", 0)
+                        .forGetter(WeightedEntry::enchantmentLevel)
         ).apply(instance, WeightedEntry::new));
         public static final Codec<WeightedEntry> CODEC = RAW_CODEC.flatXmap(WeightedEntry::validate, WeightedEntry::validate);
 
+        public WeightedEntry(Item item, int weight, int minimumCount, int maximumCount) {
+            this(Optional.of(item), Optional.empty(), weight, minimumCount, maximumCount, 0);
+        }
+
         private static DataResult<WeightedEntry> validate(WeightedEntry entry) {
-            return entry.minimumCount() <= entry.maximumCount()
-                    ? DataResult.success(entry)
-                    : DataResult.error(() -> "minimum_count must not exceed maximum_count");
+            if (entry.item().isPresent() == entry.lootTable().isPresent()) {
+                return DataResult.error(() -> "exactly one of item and loot_table must be present");
+            }
+            if (entry.minimumCount() > entry.maximumCount()) {
+                return DataResult.error(() -> "minimum_count must not exceed maximum_count");
+            }
+            if (entry.lootTable().isPresent()
+                    && (entry.minimumCount() != 1 || entry.maximumCount() != 1 || entry.enchantmentLevel() != 0)) {
+                return DataResult.error(() ->
+                        "loot_table entries cannot specify counts or enchantment_level");
+            }
+            return DataResult.success(entry);
         }
     }
 
