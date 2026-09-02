@@ -93,6 +93,7 @@ public final class ClientAbilityPresentationManager {
         EnergeticPresentation.accept(level, cue);
         FrugalityHud.accept(level, cue);
         HarvestPresentation.accept(level, cue);
+        SnifferTreasurePresentation.accept(level, cue);
         InstanceKey key = InstanceKey.of(cue);
         if (cue.action() == AbilityCue.Action.STOP) {
             ACTIVE.remove(key);

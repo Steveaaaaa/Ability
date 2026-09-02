@@ -48,6 +48,18 @@ public final class ModParticles {
             "harvest_chaff",
             () -> new SimpleParticleType(false)
     );
+    public static final Supplier<SimpleParticleType> SNIFFER_TREASURE_GOLD = PARTICLE_TYPES.register(
+            "sniffer_treasure_gold",
+            () -> new SimpleParticleType(false)
+    );
+    public static final Supplier<SimpleParticleType> SNIFFER_TREASURE_SOIL = PARTICLE_TYPES.register(
+            "sniffer_treasure_soil",
+            () -> new SimpleParticleType(false)
+    );
+    public static final Supplier<SimpleParticleType> SNIFFER_TREASURE_GLINT = PARTICLE_TYPES.register(
+            "sniffer_treasure_glint",
+            () -> new SimpleParticleType(false)
+    );
 
     private ModParticles() {
     }

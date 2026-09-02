@@ -8,6 +8,8 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,9 +33,12 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
 import net.minecraft.world.level.storage.loot.LootContext;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.Vec3;
 
 public final class CompanionGiftEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("companion_gift");
+    private static final ResourceLocation TREASURE_FOUND_CUE = AbilityMod.id("treasure_found");
     private static final Set<String> LOGGED_INVALID_DEFINITIONS = ConcurrentHashMap.newKeySet();
 
     private CompanionGiftEffect() {
@@ -55,8 +60,10 @@ public final class CompanionGiftEffect {
         if (selected.isEmpty()) {
             return generatedLoot;
         }
-        Config config = selected.get().config();
+        ActiveComponent component = selected.get();
+        Config config = component.config();
         RandomSource random = context.getRandom();
+        int treasuresFound = 0;
         for (int roll = 0; roll < config.rolls(); roll++) {
             if (random.nextDouble() > config.chance()) {
                 continue;
@@ -66,6 +73,23 @@ public final class CompanionGiftEffect {
                     ? entry.minimumCount()
                     : entry.minimumCount() + random.nextInt(entry.maximumCount() - entry.minimumCount() + 1);
             generatedLoot.add(new ItemStack(entry.item(), count));
+            treasuresFound++;
+        }
+        if (source == Source.SNIFFER_DIGGING && treasuresFound > 0) {
+            Vec3 lootOrigin = context.getParamOrNull(LootContextParams.ORIGIN);
+            Vec3 position = lootOrigin == null
+                    ? sourceEntity.position().add(0.0D, 0.12D, 0.0D)
+                    : lootOrigin.add(0.0D, 0.035D, 0.0D);
+            AbilityPresentationService.sendTracking(sourceEntity, AbilityCue.pulse(
+                    component.abilityId(),
+                    TREASURE_FOUND_CUE,
+                    sourceEntity.getId(),
+                    sourceEntity.getId(),
+                    position,
+                    Vec3.ZERO,
+                    component.rank(),
+                    random.nextLong()
+            ));
         }
         return generatedLoot;
     }
@@ -138,7 +162,7 @@ public final class CompanionGiftEffect {
                 for (CompositeEffect.ComponentView component : CompositeEffect.componentsOfType(entry.getValue(), TYPE)) {
                     Config config = parse(Config.CODEC, component.config(), "effect.config");
                     if (config.source() == source) {
-                        result.add(new ActiveComponent(config));
+                        result.add(new ActiveComponent(abilityId, config, active.get().rank()));
                     }
                 }
             } catch (RuntimeException exception) {
@@ -213,7 +237,7 @@ public final class CompanionGiftEffect {
         public String getSerializedName() { return serializedName; }
     }
 
-    private record ActiveComponent(Config config) {
+    private record ActiveComponent(ResourceLocation abilityId, Config config, int rank) {
     }
 
     private record PlayerComponent(double distanceSquared, ActiveComponent component) {
