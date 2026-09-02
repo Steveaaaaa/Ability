@@ -79,6 +79,7 @@ public final class CombatStatusEventHandler {
         if (event.getEntity() instanceof ServerPlayer player
                 && event.getTarget() instanceof LivingEntity living) {
             CombatStatusTracker.syncStunTo(player, living);
+            CounterSniperEffect.syncMarkToOwner(player, living);
         }
     }
 }

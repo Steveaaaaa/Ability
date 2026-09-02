@@ -7,6 +7,8 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -25,6 +27,7 @@ import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 public final class CounterSniperEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("counter_sniper");
+    private static final ResourceLocation TARGET_MARK_CUE = AbilityMod.id("target_mark");
     private static final Set<String> RANK_KEYS = Set.of("damage_multiplier");
     private static final Set<String> LOGGED_INVALID_DEFINITIONS = ConcurrentHashMap.newKeySet();
 
@@ -57,11 +60,13 @@ public final class CounterSniperEffect {
         LivingEntity damaged = event.getEntity();
         if (event.getSource().getEntity() instanceof ServerPlayer attacker) {
             for (ActiveComponent component : activeComponents(attacker)) {
-                CombatStatusTracker.consumeMark(
+                if (CombatStatusTracker.consumeMark(
                         attacker.getUUID(),
                         damaged.getUUID(),
                         component.config().markId()
-                );
+                )) {
+                    AbilityPresentationService.sendToPlayer(attacker, targetMarkCue(attacker, damaged).asStop());
+                }
             }
         }
         if (!(damaged instanceof ServerPlayer victim)
@@ -77,8 +82,33 @@ public final class CounterSniperEffect {
                         component.config().markId(),
                         component.config().glowing()
                 );
+                AbilityPresentationService.sendToPlayer(victim, targetMarkCue(victim, source));
             }
         }
+    }
+
+    public static void syncMarkToOwner(ServerPlayer player, LivingEntity target) {
+        for (ActiveComponent component : activeComponents(player)) {
+            if (CombatStatusTracker.hasMark(player.getUUID(), target.getUUID(), component.config().markId())) {
+                AbilityPresentationService.sendToPlayer(player, targetMarkCue(player, target));
+                return;
+            }
+        }
+    }
+
+    private static AbilityCue targetMarkCue(ServerPlayer owner, LivingEntity target) {
+        return AbilityCue.start(
+                TYPE,
+                TARGET_MARK_CUE,
+                owner.getId(),
+                target.getId(),
+                target.getBoundingBox().getCenter(),
+                target.position().subtract(owner.position()).normalize(),
+                1,
+                0,
+                owner.getUUID().getLeastSignificantBits() ^ target.getUUID().getMostSignificantBits(),
+                target.getUUID().getLeastSignificantBits()
+        );
     }
 
     static boolean isDistant(double squaredDistance, double minimumDistance) {

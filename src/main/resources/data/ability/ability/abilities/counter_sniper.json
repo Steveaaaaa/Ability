@@ -33,7 +33,7 @@
     "config": {
       "mark_id": "ability:prey",
       "minimum_distance": 8.0,
-      "glowing": true
+      "glowing": false
     }
   }
 }
