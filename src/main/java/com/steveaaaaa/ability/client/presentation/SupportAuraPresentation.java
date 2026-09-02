@@ -11,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -116,7 +117,7 @@ public final class SupportAuraPresentation {
             double y = living.getY() + 0.08D
                     + random.nextDouble() * Math.max(0.35D, living.getBbHeight() * 0.82D);
             double z = living.getZ() + Mth.sin((float) angle) * horizontal;
-            SupportAuraParticle.addHealing(level, x, y, z,
+            level.addParticle(ParticleTypes.HAPPY_VILLAGER, x, y, z,
                     Mth.cos((float) angle) * 0.008D + random.nextGaussian() * 0.004D,
                     0.016D + random.nextDouble() * 0.034D,
                     Mth.sin((float) angle) * 0.008D + random.nextGaussian() * 0.004D);
@@ -165,8 +166,11 @@ public final class SupportAuraPresentation {
         float disappear = Mth.clamp(remaining / 13.0F, 0.0F, 1.0F);
         float animation = Math.min(appear, disappear);
         float breathing = 1.0F + Mth.sin(time * 0.085F) * 0.018F;
-        float radius = (Math.max(entity.getBbWidth() * 0.74F, entity.getBbHeight() * 0.56F) + 0.24F)
-                * breathing * (0.68F + easeOut(appear) * 0.32F);
+        float halfWidth = entity.getBbWidth() * 0.5F;
+        float halfHeight = entity.getBbHeight() * 0.5F;
+        float enclosingRadius = Mth.sqrt(halfHeight * halfHeight + 2.0F * halfWidth * halfWidth)
+                * 1.12F + 0.12F;
+        float radius = enclosingRadius * breathing * (0.68F + easeOut(appear) * 0.32F);
         int alpha = Mth.clamp((int) ((170.0F + Mth.sin(time * 0.12F) * 22.0F) * animation), 0, 218);
         if (alpha <= 0) return;
 

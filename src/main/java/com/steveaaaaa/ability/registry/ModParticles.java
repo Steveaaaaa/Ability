@@ -72,10 +72,6 @@ public final class ModParticles {
             "lucky_cat_knot",
             () -> new SimpleParticleType(false)
     );
-    public static final Supplier<SimpleParticleType> SUPPORT_AURA_HEAL = PARTICLE_TYPES.register(
-            "support_aura_heal",
-            () -> new SimpleParticleType(false)
-    );
     public static final Supplier<SimpleParticleType> SUPPORT_AURA_MOTE = PARTICLE_TYPES.register(
             "support_aura_mote",
             () -> new SimpleParticleType(false)
