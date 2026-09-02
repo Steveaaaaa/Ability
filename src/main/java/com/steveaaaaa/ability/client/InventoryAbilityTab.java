@@ -18,6 +18,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ScreenEvent;
@@ -37,8 +38,12 @@ public final class InventoryAbilityTab {
     private static final int REMOTE_BUTTON_Y = 107;
     private static final int REMOTE_BUTTON_WIDTH = 34;
     private static final int REMOTE_BUTTON_HEIGHT = 20;
+    private static final int ICON_RENDER_SIZE = 16;
     private static final int SCREEN_MARGIN = 2;
     private static boolean travelerPanelVisible;
+    private static boolean suppressTravelerMouseRelease;
+    private static DungeonTabButton abilityTabButton;
+    private static DungeonTabButton travelerTabButton;
     private InventoryAbilityTab() {
     }
 
@@ -50,25 +55,30 @@ public final class InventoryAbilityTab {
         }
         AbstractContainerScreen<?> inventoryScreen = (AbstractContainerScreen<?>) screen;
         boolean survivalInventory = screen instanceof InventoryScreen;
-        int buttonX = survivalInventory
-                ? inventoryScreen.getGuiLeft() + 77
+        int abilityButtonX = survivalInventory
+                ? inventoryScreen.getGuiLeft() + 126
                 : inventoryScreen.getGuiLeft() + inventoryScreen.getXSize() + 2;
+        int buttonY = survivalInventory
+                ? inventoryScreen.getGuiTop() + 61
+                : inventoryScreen.getGuiTop() + 7;
 
-        DungeonTabButton tab = new DungeonTabButton(
-                buttonX,
-                inventoryScreen.getGuiTop() + 7,
+        abilityTabButton = new DungeonTabButton(
+                abilityButtonX,
+                buttonY,
                 Component.translatable("gui.ability.tab"),
                 () -> false,
                 () -> Minecraft.getInstance().setScreen(new AbilityScreen(screen)),
                 ABILITY_TAB_ICON
         );
-        tab.setTooltip(Tooltip.create(Component.translatable("gui.ability.tab")));
-        event.addListener(tab);
+        abilityTabButton.setTooltip(Tooltip.create(Component.translatable("gui.ability.tab")));
+        event.addListener(abilityTabButton);
         travelerPanelVisible = false;
+        suppressTravelerMouseRelease = false;
+        travelerTabButton = null;
         if (survivalInventory && ClientProgressCache.snapshot().purchasedAbilities().contains(WORLD_TRAVELER)) {
-            DungeonTabButton traveler = new DungeonTabButton(
-                    buttonX,
-                    inventoryScreen.getGuiTop() + 29,
+            travelerTabButton = new DungeonTabButton(
+                    inventoryScreen.getGuiLeft() + 148,
+                    inventoryScreen.getGuiTop() + 61,
                     Component.translatable("gui.ability.world_traveler.tab"),
                     () -> travelerPanelVisible,
                     () -> {
@@ -77,8 +87,20 @@ public final class InventoryAbilityTab {
                     },
                     WORLD_TRAVELER_TAB_ICON
             );
-            traveler.setTooltip(Tooltip.create(Component.translatable("gui.ability.world_traveler.tab")));
-            event.addListener(traveler);
+            travelerTabButton.setTooltip(Tooltip.create(
+                    Component.translatable("gui.ability.world_traveler.tab")));
+            event.addListener(travelerTabButton);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onRenderBefore(ScreenEvent.Render.Pre event) {
+        if (!(event.getScreen() instanceof InventoryScreen inventory)) return;
+        if (abilityTabButton != null) {
+            abilityTabButton.setPosition(inventory.getGuiLeft() + 126, inventory.getGuiTop() + 61);
+        }
+        if (travelerTabButton != null) {
+            travelerTabButton.setPosition(inventory.getGuiLeft() + 148, inventory.getGuiTop() + 61);
         }
     }
 
@@ -131,11 +153,14 @@ public final class InventoryAbilityTab {
         graphics.pose().popPose();
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
+        suppressTravelerMouseRelease = false;
         if (!travelerPanelVisible || !(event.getScreen() instanceof InventoryScreen inventory)) return;
         int x = panelX(inventory);
         int y = panelY(inventory);
+        if (!inside(event.getMouseX(), event.getMouseY(), x, y, PANEL_WIDTH, PANEL_HEIGHT)) return;
+        suppressTravelerMouseRelease = true;
         if (inside(event.getMouseX(), event.getMouseY(),
                 x + REMOTE_BUTTON_X, y + REMOTE_BUTTON_Y,
                 REMOTE_BUTTON_WIDTH, REMOTE_BUTTON_HEIGHT)) {
@@ -153,7 +178,14 @@ public final class InventoryAbilityTab {
             event.setCanceled(true);
             return;
         }
-        if (inside(event.getMouseX(), event.getMouseY(), x, y, PANEL_WIDTH, PANEL_HEIGHT)) event.setCanceled(true);
+        event.setCanceled(true);
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onMouseReleased(ScreenEvent.MouseButtonReleased.Pre event) {
+        if (!suppressTravelerMouseRelease) return;
+        suppressTravelerMouseRelease = false;
+        event.setCanceled(true);
     }
 
     private static int panelX(InventoryScreen screen) {
@@ -207,9 +239,15 @@ public final class InventoryAbilityTab {
 
         @Override
         protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-            int iconY = getY() - ((selected.getAsBoolean() || isHovered()) ? 1 : 0);
-            graphics.blit(texture, getX(), iconY,
+            float lift = (selected.getAsBoolean() || isHovered()) ? 1.0F : 0.0F;
+            graphics.pose().pushPose();
+            graphics.pose().translate(getX() + WIDTH / 2.0F,
+                    getY() + HEIGHT / 2.0F - lift, 0.0F);
+            float scale = ICON_RENDER_SIZE / (float) WIDTH;
+            graphics.pose().scale(scale, scale, 1.0F);
+            graphics.blit(texture, -WIDTH / 2, -HEIGHT / 2,
                     0.0F, 0.0F, WIDTH, HEIGHT, WIDTH, HEIGHT);
+            graphics.pose().popPose();
         }
 
         @Override
