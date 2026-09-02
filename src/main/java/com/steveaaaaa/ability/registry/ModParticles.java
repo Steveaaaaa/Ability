@@ -60,6 +60,18 @@ public final class ModParticles {
             "sniffer_treasure_glint",
             () -> new SimpleParticleType(false)
     );
+    public static final Supplier<SimpleParticleType> LUCKY_CAT_PAW = PARTICLE_TYPES.register(
+            "lucky_cat_paw",
+            () -> new SimpleParticleType(false)
+    );
+    public static final Supplier<SimpleParticleType> LUCKY_CAT_COIN = PARTICLE_TYPES.register(
+            "lucky_cat_coin",
+            () -> new SimpleParticleType(false)
+    );
+    public static final Supplier<SimpleParticleType> LUCKY_CAT_KNOT = PARTICLE_TYPES.register(
+            "lucky_cat_knot",
+            () -> new SimpleParticleType(false)
+    );
 
     private ModParticles() {
     }

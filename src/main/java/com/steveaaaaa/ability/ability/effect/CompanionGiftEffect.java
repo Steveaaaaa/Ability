@@ -42,6 +42,7 @@ import net.minecraft.world.phys.Vec3;
 public final class CompanionGiftEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("companion_gift");
     private static final ResourceLocation TREASURE_FOUND_CUE = AbilityMod.id("treasure_found");
+    private static final ResourceLocation LUCKY_GIFT_CUE = AbilityMod.id("lucky_gift");
     private static final Set<String> LOGGED_INVALID_DEFINITIONS = ConcurrentHashMap.newKeySet();
 
     private CompanionGiftEffect() {
@@ -78,14 +79,14 @@ public final class CompanionGiftEffect {
                 treasuresFound++;
             }
         }
-        if (source == Source.SNIFFER_DIGGING && treasuresFound > 0) {
+        if (treasuresFound > 0) {
             Vec3 lootOrigin = context.getParamOrNull(LootContextParams.ORIGIN);
             Vec3 position = lootOrigin == null
                     ? sourceEntity.position().add(0.0D, 0.12D, 0.0D)
                     : lootOrigin.add(0.0D, 0.035D, 0.0D);
             AbilityPresentationService.sendTracking(sourceEntity, AbilityCue.pulse(
                     component.abilityId(),
-                    TREASURE_FOUND_CUE,
+                    source == Source.SNIFFER_DIGGING ? TREASURE_FOUND_CUE : LUCKY_GIFT_CUE,
                     sourceEntity.getId(),
                     sourceEntity.getId(),
                     position,
