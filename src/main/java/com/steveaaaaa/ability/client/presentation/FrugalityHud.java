@@ -72,23 +72,19 @@ public final class FrugalityHud {
         float fadeIn = Mth.clamp(progress / 0.12F, 0.0F, 1.0F);
         float fadeOut = Mth.clamp((1.0F - progress) / 0.34F, 0.0F, 1.0F);
         float envelope = fadeIn * fadeOut;
+        long mixed = pulse.seed();
         int protectedPoints = Mth.clamp((int) Math.ceil(pulse.savedFoodPoints()), 1, 6);
-        int count = Mth.clamp(3 + protectedPoints, 4, 9);
-        for (int index = 0; index < count; index++) {
-            long mixed = pulse.seed() + index * 0x9E3779B97F4A7C15L;
-            int protectedOffset = index % protectedPoints;
-            int foodPoint = Mth.clamp(pulse.foodLevel() - 1 - protectedOffset, 0, 19);
-            int iconIndex = foodPoint / 2;
-            int iconX = right - 9 - iconIndex * 8;
-            float targetX = iconX + (foodPoint % 2 == 0 ? 3.0F : 6.0F);
-            float startX = targetX - 14.0F + ((mixed >>> 8) & 31L);
-            float startY = y - 18.0F - ((mixed >>> 16) & 7L);
-            float eased = 1.0F - (1.0F - progress) * (1.0F - progress);
-            int x = Math.round(Mth.lerp(eased, startX, targetX));
-            int moteY = Math.round(Mth.lerp(eased, startY, y + 4.0F) - Mth.sin(progress * Mth.PI) * 5.0F);
-            float scale = 0.72F + ((mixed >>> 24) & 3L) * 0.08F;
-            renderGrain(graphics, x, moteY, envelope, scale);
-        }
+        int protectedOffset = Math.max(0, protectedPoints - 1);
+        int foodPoint = Mth.clamp(pulse.foodLevel() - 1 - protectedOffset, 0, 19);
+        int iconIndex = foodPoint / 2;
+        int iconX = right - 9 - iconIndex * 8;
+        float targetX = iconX + (foodPoint % 2 == 0 ? 3.0F : 6.0F);
+        float startX = targetX - 10.0F + ((mixed >>> 8) & 15L);
+        float startY = y - 15.0F - ((mixed >>> 16) & 5L);
+        float eased = 1.0F - (1.0F - progress) * (1.0F - progress);
+        int x = Math.round(Mth.lerp(eased, startX, targetX));
+        int moteY = Math.round(Mth.lerp(eased, startY, y + 4.0F) - Mth.sin(progress * Mth.PI) * 4.0F);
+        renderGrain(graphics, x, moteY, envelope, 0.58F);
     }
 
     private static void renderGrain(GuiGraphics graphics, int x, int y, float alpha, float scale) {
