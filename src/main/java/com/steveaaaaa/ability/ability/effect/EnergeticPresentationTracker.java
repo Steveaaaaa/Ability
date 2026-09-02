@@ -21,7 +21,7 @@ public final class EnergeticPresentationTracker {
     private EnergeticPresentationTracker() {
     }
 
-    static void sync(ServerPlayer player, boolean active, int rank) {
+    static void sync(ServerPlayer player, boolean owned, boolean active, int rank, double threshold) {
         UUID playerId = player.getUUID();
         AbilityCue cue = AbilityCue.start(
                 ABILITY_ID,
@@ -29,13 +29,13 @@ public final class EnergeticPresentationTracker {
                 player.getId(),
                 player.getId(),
                 player.position(),
-                Vec3.ZERO,
+                new Vec3(Math.max(0.0D, threshold), active ? 1.0D : 0.0D, 0.0D),
                 Math.clamp(rank, 0, 255),
                 REFRESH_DURATION_TICKS,
                 playerId.getLeastSignificantBits() ^ INSTANCE_SALT,
                 playerId.getMostSignificantBits()
         );
-        if (active) {
+        if (owned) {
             ACTIVE_PLAYERS.add(playerId);
             AbilityPresentationService.sendTracking(player, cue);
         } else if (ACTIVE_PLAYERS.remove(playerId)) {

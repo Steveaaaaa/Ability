@@ -38,8 +38,10 @@ public final class ConditionalMobEffect {
 
     public static void process(ServerPlayer player) {
         Registry<AbilityDefinition> abilities = player.registryAccess().registryOrThrow(ModDataRegistries.ABILITIES);
+        boolean energeticOwned = false;
         boolean energeticActive = false;
         int energeticRank = 0;
+        double energeticThreshold = 0.0D;
         List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> sorted = abilities.entrySet().stream()
                 .sorted(Comparator.comparing(entry -> entry.getKey().location()))
                 .toList();
@@ -59,6 +61,18 @@ public final class ConditionalMobEffect {
                     AbilityService.ActiveAbility projected = CompositeEffect.projectActive(active.get(), component);
                     Config config = parse(Config.CODEC, component.config(), "effect.config");
                     RankValues values = mergeRanks(projected);
+                    if (abilityId.equals(EnergeticPresentationTracker.ABILITY_ID)) {
+                        energeticOwned = true;
+                        energeticRank = Math.max(energeticRank, projected.rank());
+                        energeticThreshold = config.conditions().stream()
+                                .filter(condition -> condition.type() == ConditionType.FOOD_TOTAL_ABOVE)
+                                .map(ConditionConfig::valueKey)
+                                .flatMap(Optional::stream)
+                                .map(values.values()::get)
+                                .filter(java.util.Objects::nonNull)
+                                .findFirst()
+                                .orElse(energeticThreshold);
+                    }
                     if (matches(player, config, values)) {
                         applyEffects(player, config.effects());
                         if (abilityId.equals(EnergeticPresentationTracker.ABILITY_ID)) {
@@ -71,7 +85,9 @@ public final class ConditionalMobEffect {
                 logInvalidOnce(abilityId, exception.getMessage());
             }
         }
-        EnergeticPresentationTracker.sync(player, energeticActive, energeticRank);
+        EnergeticPresentationTracker.sync(
+                player, energeticOwned, energeticActive, energeticRank, energeticThreshold
+        );
     }
 
     static RankValues merge(RankValues earlier, RankValues later) {

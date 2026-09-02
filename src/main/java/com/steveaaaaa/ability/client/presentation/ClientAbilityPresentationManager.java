@@ -91,6 +91,7 @@ public final class ClientAbilityPresentationManager {
         SurvivalCleanseParticle.accept(level, cue);
         SurvivorShieldRippleRenderer.accept(level, cue);
         EnergeticPresentation.accept(level, cue);
+        FrugalityHud.accept(level, cue);
         InstanceKey key = InstanceKey.of(cue);
         if (cue.action() == AbilityCue.Action.STOP) {
             ACTIVE.remove(key);

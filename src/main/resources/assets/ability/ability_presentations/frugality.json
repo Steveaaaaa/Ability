@@ -1,0 +1,6 @@
+{
+  "cues": {
+    "ability:natural_saving": { "duration_ticks": 0 },
+    "ability:ability_saving": { "duration_ticks": 0 }
+  }
+}

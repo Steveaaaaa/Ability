@@ -7,6 +7,8 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -22,9 +24,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.level.GameRules;
+import net.minecraft.world.phys.Vec3;
 
 public final class FrugalityEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("frugality");
+    private static final ResourceLocation ABILITY_SAVING_CUE = AbilityMod.id("ability_saving");
+    private static final ResourceLocation NATURAL_SAVING_CUE = AbilityMod.id("natural_saving");
     private static final Set<String> RANK_KEYS = Set.of(
             "healing_hunger_reduction_percent",
             "ability_hunger_reduction_percent"
@@ -43,7 +48,10 @@ public final class FrugalityEffect {
                 .mapToDouble(component -> component.rank().abilityHungerReduction())
                 .max()
                 .orElse(0.0D);
-        return baseCost * (1.0D - reduction);
+        double reduced = baseCost * (1.0D - reduction);
+        double saved = baseCost - reduced;
+        if (saved > 0.0D) sendSavingCue(player, ABILITY_SAVING_CUE, saved);
+        return reduced;
     }
 
     public static void captureBeforeTick(ServerPlayer player) {
@@ -78,11 +86,25 @@ public final class FrugalityEffect {
         }
         if (refund > 0.0D) {
             food.setExhaustion((float) Math.max(0.0D, food.getExhaustionLevel() - refund));
+            sendSavingCue(player, NATURAL_SAVING_CUE, refund);
         }
     }
 
     public static void forget(UUID playerId) {
         HEALING_SNAPSHOTS.remove(playerId);
+    }
+
+    private static void sendSavingCue(ServerPlayer player, ResourceLocation cueId, double saved) {
+        AbilityPresentationService.sendToPlayer(player, AbilityCue.pulse(
+                TYPE,
+                cueId,
+                player.getId(),
+                player.getId(),
+                player.position(),
+                new Vec3(Math.max(0.0D, saved), 0.0D, 0.0D),
+                1,
+                player.getRandom().nextLong()
+        ));
     }
 
     static double naturalHealingExhaustion(
