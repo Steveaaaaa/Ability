@@ -240,6 +240,7 @@ public final class AbilityEffectEventHandler {
             SupportAuraEffect.forget(player.getUUID());
             WolfPackEffect.forgetOwner(player.getUUID());
             CeilingWireEffect.forget(player);
+            EnergeticPresentationTracker.forget(player.getUUID());
         }
     }
 

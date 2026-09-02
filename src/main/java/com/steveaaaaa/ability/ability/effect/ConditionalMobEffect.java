@@ -38,6 +38,8 @@ public final class ConditionalMobEffect {
 
     public static void process(ServerPlayer player) {
         Registry<AbilityDefinition> abilities = player.registryAccess().registryOrThrow(ModDataRegistries.ABILITIES);
+        boolean energeticActive = false;
+        int energeticRank = 0;
         List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> sorted = abilities.entrySet().stream()
                 .sorted(Comparator.comparing(entry -> entry.getKey().location()))
                 .toList();
@@ -59,12 +61,17 @@ public final class ConditionalMobEffect {
                     RankValues values = mergeRanks(projected);
                     if (matches(player, config, values)) {
                         applyEffects(player, config.effects());
+                        if (abilityId.equals(EnergeticPresentationTracker.ABILITY_ID)) {
+                            energeticActive = true;
+                            energeticRank = Math.max(energeticRank, projected.rank());
+                        }
                     }
                 }
             } catch (RuntimeException exception) {
                 logInvalidOnce(abilityId, exception.getMessage());
             }
         }
+        EnergeticPresentationTracker.sync(player, energeticActive, energeticRank);
     }
 
     static RankValues merge(RankValues earlier, RankValues later) {
