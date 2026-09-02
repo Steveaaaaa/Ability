@@ -1,6 +1,7 @@
 package com.steveaaaaa.ability.client;
 
 import com.steveaaaaa.ability.AbilityMod;
+import com.steveaaaaa.ability.client.presentation.DodgePresentation;
 import com.steveaaaaa.ability.network.ClientDodgeAnimationQueue;
 import com.steveaaaaa.ability.network.ClientboundDodgeAnimationPayload;
 import com.zigythebird.playeranim.animation.PlayerAnimationController;
@@ -37,10 +38,12 @@ public final class DodgeAnimationEvents {
         }
         ClientboundDodgeAnimationPayload payload;
         while ((payload = ClientDodgeAnimationQueue.poll()) != null) {
-            if (minecraft.level.getEntity(payload.playerEntityId()) instanceof AbstractClientPlayer player
-                    && PlayerAnimationAccess.getPlayerAnimationLayer(player, LAYER)
-                    instanceof PlayerAnimationController controller) {
-                play(controller, player, payload.motionX(), payload.motionZ());
+            if (minecraft.level.getEntity(payload.playerEntityId()) instanceof AbstractClientPlayer player) {
+                if (PlayerAnimationAccess.getPlayerAnimationLayer(player, LAYER)
+                        instanceof PlayerAnimationController controller) {
+                    play(controller, player, payload.motionX(), payload.motionZ());
+                }
+                DodgePresentation.start(player, payload.motionX(), payload.motionZ());
             }
         }
     }
