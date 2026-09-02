@@ -40,17 +40,30 @@ public final class FrugalityEffect {
     private FrugalityEffect() {
     }
 
-    public static double reduceAbilityHungerCost(ServerPlayer player, double baseCost) {
+    public static double reduceAbilityExhaustionCost(ServerPlayer player, double baseCost) {
+        return reduceAbilityCost(player, baseCost, true);
+    }
+
+    public static double reduceAbilityFoodPointCost(ServerPlayer player, double baseCost) {
+        return reduceAbilityCost(player, baseCost, false);
+    }
+
+    private static double reduceAbilityCost(ServerPlayer player, double baseCost, boolean exhaustionCost) {
         if (!Double.isFinite(baseCost) || baseCost <= 0.0D) {
             return 0.0D;
         }
-        double reduction = activeComponents(player).stream()
-                .mapToDouble(component -> component.rank().abilityHungerReduction())
-                .max()
-                .orElse(0.0D);
+        double reduction = 0.0D;
+        double exhaustionCycle = 4.0D;
+        for (ActiveComponent component : activeComponents(player)) {
+            if (component.rank().abilityHungerReduction() > reduction) {
+                reduction = component.rank().abilityHungerReduction();
+                exhaustionCycle = component.config().exhaustionCycle();
+            }
+        }
         double reduced = baseCost * (1.0D - reduction);
         double saved = baseCost - reduced;
-        if (saved > 0.0D) sendSavingCue(player, ABILITY_SAVING_CUE, saved);
+        double savedFoodPoints = exhaustionCost ? saved / exhaustionCycle : saved;
+        if (savedFoodPoints > 0.0D) sendSavingCue(player, ABILITY_SAVING_CUE, savedFoodPoints);
         return reduced;
     }
 
@@ -74,6 +87,7 @@ public final class FrugalityEffect {
         }
         FoodData food = player.getFoodData();
         double refund = 0.0D;
+        double savedFoodPoints = 0.0D;
         for (ActiveComponent component : activeComponents(player)) {
             double incurred = naturalHealingExhaustion(
                     before.exhaustion(),
@@ -82,11 +96,15 @@ public final class FrugalityEffect {
                     component.config().exhaustionCycle(),
                     component.config().healingExhaustionPerHealth()
             );
-            refund = Math.max(refund, incurred * component.rank().healingHungerReduction());
+            double componentRefund = incurred * component.rank().healingHungerReduction();
+            if (componentRefund > refund) {
+                refund = componentRefund;
+                savedFoodPoints = componentRefund / component.config().exhaustionCycle();
+            }
         }
         if (refund > 0.0D) {
             food.setExhaustion((float) Math.max(0.0D, food.getExhaustionLevel() - refund));
-            sendSavingCue(player, NATURAL_SAVING_CUE, refund);
+            sendSavingCue(player, NATURAL_SAVING_CUE, savedFoodPoints);
         }
     }
 
@@ -101,7 +119,7 @@ public final class FrugalityEffect {
                 player.getId(),
                 player.getId(),
                 player.position(),
-                new Vec3(Math.max(0.0D, saved), 0.0D, 0.0D),
+                new Vec3(Math.max(0.0D, saved), player.getFoodData().getFoodLevel(), 0.0D),
                 1,
                 player.getRandom().nextLong()
         ));

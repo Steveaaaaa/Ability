@@ -102,7 +102,7 @@ public final class WeakPointEffect {
                     if (config.foodCost() > 0) {
                         AbilityHungerCostService.applyFoodPointCost(
                                 attacker,
-                                FrugalityEffect.reduceAbilityHungerCost(attacker, config.foodCost())
+                                FrugalityEffect.reduceAbilityFoodPointCost(attacker, config.foodCost())
                         );
                     }
                 }

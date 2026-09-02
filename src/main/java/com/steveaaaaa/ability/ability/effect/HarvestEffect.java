@@ -67,7 +67,7 @@ public final class HarvestEffect {
         }
         if (exhaustion > 0.0D) {
             attacker.causeFoodExhaustion(safeDamage(
-                    FrugalityEffect.reduceAbilityHungerCost(attacker, exhaustion)
+                    FrugalityEffect.reduceAbilityExhaustionCost(attacker, exhaustion)
             ));
         }
     }
