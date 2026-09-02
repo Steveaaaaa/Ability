@@ -7,6 +7,8 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -22,11 +24,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
 public final class HarvestEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("harvest");
+    private static final ResourceLocation SWEEP_CUE = AbilityMod.id("sweep");
     private static final Set<String> RANK_KEYS = Set.of("rank_factor", "food_cap");
     private static final Set<String> LOGGED_INVALID_DEFINITIONS = ConcurrentHashMap.newKeySet();
 
@@ -60,15 +64,42 @@ public final class HarvestEffect {
             return;
         }
         double exhaustion = 0.0D;
+        double visualStrength = 0.0D;
+        int visualRank = 0;
+        double foodValue = attacker.getFoodData().getFoodLevel() + attacker.getFoodData().getSaturationLevel();
         for (ActiveComponent component : activeComponents(attacker)) {
             if (matchesTool(attacker, component.config())) {
                 exhaustion += component.config().exhaustionCost();
+                double cap = component.rank().foodCap();
+                visualStrength = Math.max(visualStrength, Math.clamp(foodValue / cap, 0.0D, 1.0D));
+                visualRank = Math.max(visualRank, component.abilityRank());
             }
         }
         if (exhaustion > 0.0D) {
             attacker.causeFoodExhaustion(safeDamage(
                     FrugalityEffect.reduceAbilityExhaustionCost(attacker, exhaustion)
             ));
+            if (visualStrength > 0.0D) {
+                Vec3 forward = event.getEntity().getBoundingBox().getCenter()
+                        .subtract(attacker.getEyePosition());
+                forward = new Vec3(forward.x, 0.0D, forward.z);
+                if (forward.lengthSqr() < 1.0E-8D) forward = attacker.getLookAngle().multiply(1.0D, 0.0D, 1.0D);
+                if (forward.lengthSqr() < 1.0E-8D) forward = new Vec3(0.0D, 0.0D, 1.0D);
+                forward = forward.normalize();
+                Vec3 position = event.getEntity().getBoundingBox().getCenter().subtract(
+                        forward.scale(event.getEntity().getBbWidth() * 0.55D + 0.035D)
+                );
+                AbilityPresentationService.sendTracking(event.getEntity(), AbilityCue.pulse(
+                        TYPE,
+                        SWEEP_CUE,
+                        attacker.getId(),
+                        event.getEntity().getId(),
+                        position,
+                        forward.scale(0.4D + visualStrength * 0.6D),
+                        visualRank,
+                        attacker.getRandom().nextLong()
+                ));
+            }
         }
     }
 
@@ -151,7 +182,7 @@ public final class HarvestEffect {
                 for (CompositeEffect.ComponentView component : components) {
                     AbilityService.ActiveAbility projected = CompositeEffect.projectActive(active.get(), component);
                     Config config = parse(Config.CODEC, projected.definition().effect().config(), "effect.config");
-                    result.add(new ActiveComponent(config, resolve(mergeRanks(projected))));
+                    result.add(new ActiveComponent(config, resolve(mergeRanks(projected)), projected.rank()));
                 }
             } catch (RuntimeException exception) {
                 logInvalidOnce(abilityId, exception.getMessage());
@@ -231,6 +262,6 @@ public final class HarvestEffect {
     public record ResolvedRank(double rankFactor, double foodCap) {
     }
 
-    private record ActiveComponent(Config config, ResolvedRank rank) {
+    private record ActiveComponent(Config config, ResolvedRank rank, int abilityRank) {
     }
 }

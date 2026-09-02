@@ -44,6 +44,10 @@ public final class ModParticles {
             "survival_cleanse_shard",
             () -> new SimpleParticleType(false)
     );
+    public static final Supplier<SimpleParticleType> HARVEST_CHAFF = PARTICLE_TYPES.register(
+            "harvest_chaff",
+            () -> new SimpleParticleType(false)
+    );
 
     private ModParticles() {
     }
