@@ -2,6 +2,7 @@ package com.steveaaaaa.ability.mixin.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.steveaaaaa.ability.client.presentation.EnchantedEdgeWeaponRenderer;
+import com.steveaaaaa.ability.client.presentation.BlastExcavationTntRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.resources.model.BakedModel;
@@ -21,6 +22,8 @@ public abstract class ItemRendererMixin {
             boolean leftHand, PoseStack poseStack, MultiBufferSource buffers, int light,
             int overlay, BakedModel model, CallbackInfo callback) {
         EnchantedEdgeWeaponRenderer.renderCurrentItem(
+                (ItemRenderer) (Object) this, poseStack, buffers, stack, model, overlay);
+        BlastExcavationTntRenderer.renderCurrentItem(
                 (ItemRenderer) (Object) this, poseStack, buffers, stack, model, overlay);
     }
 }
