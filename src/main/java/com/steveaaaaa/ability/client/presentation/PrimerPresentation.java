@@ -13,11 +13,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
@@ -41,8 +39,6 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import org.joml.Matrix4f;
 
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class PrimerPresentation {
@@ -50,8 +46,6 @@ public final class PrimerPresentation {
     private static final ResourceLocation CHARGE = AbilityMod.id("charge");
     private static final ResourceLocation FIRE = AbilityMod.id("fire");
     private static final ResourceLocation IMPACT = AbilityMod.id("impact");
-    private static final ResourceLocation CORE_TEXTURE = AbilityMod.id("textures/particle/primer_fireball_core.png");
-    private static final ResourceLocation SHELL_TEXTURE = AbilityMod.id("textures/particle/primer_fireball_shell.png");
     private static final Map<Integer, ChargeState> CHARGES = new HashMap<>();
     private static final Map<Integer, ProjectileState> PROJECTILES = new HashMap<>();
     private static final Map<BakedModel, List<SurfacePoint>> SURFACE_CACHE = new WeakHashMap<>();
@@ -178,57 +172,16 @@ public final class PrimerPresentation {
             Vec3 position = point.position().lerp(center, inward * inward)
                     .add(point.normal().scale(0.012D * (1.0F - inward)));
             float flicker = 0.6F + Mth.sin(time * 11.0F + index * 1.9F) * 0.25F;
+            int green = progress >= 1.0F
+                    ? Mth.floor(105.0F + flicker * 34.0F)
+                    : 92 + Mth.floor(progress * 48.0F);
             renderPixelCube(poseStack, vertices, position, 0.007F + progress * 0.004F,
-                    255, 115 + Mth.floor(progress * 85.0F), 24,
+                    255, green, 12,
                     Mth.clamp((int) (150.0F + flicker * 90.0F), 0, 255));
         }
         if (progress >= 1.0F) {
             float pulse = 0.018F + (0.5F + 0.5F * Mth.sin(time * 8.0F)) * 0.016F;
-            renderPixelCube(poseStack, vertices, center, pulse, 255, 230, 145, 220);
-        }
-    }
-
-    @SubscribeEvent
-    public static void renderProjectiles(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || PROJECTILES.isEmpty()) {
-            return;
-        }
-        Minecraft minecraft = Minecraft.getInstance();
-        ClientLevel level = minecraft.level;
-        if (level == null || level != activeLevel) {
-            clear(level);
-            return;
-        }
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-        float time = level.getGameTime() + partialTick;
-        Camera camera = event.getCamera();
-        Vec3 cameraPosition = camera.getPosition();
-        MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
-        RenderType shellType = RenderType.entityTranslucentEmissive(SHELL_TEXTURE);
-        RenderType coreType = RenderType.entityTranslucentEmissive(CORE_TEXTURE);
-
-        renderProjectileLayer(level, event.getPoseStack(), camera, cameraPosition, partialTick, time,
-                buffers.getBuffer(shellType), 1.34F, 224);
-        buffers.endBatch(shellType);
-
-        renderProjectileLayer(level, event.getPoseStack(), camera, cameraPosition, partialTick, time,
-                buffers.getBuffer(coreType), 0.76F, 255);
-        buffers.endBatch(coreType);
-    }
-
-    private static void renderProjectileLayer(ClientLevel level, PoseStack poseStack, Camera camera,
-            Vec3 cameraPosition, float partialTick, float time, VertexConsumer vertices,
-            float size, int alpha) {
-        for (Integer entityId : PROJECTILES.keySet()) {
-            Entity entity = level.getEntity(entityId);
-            if (!(entity instanceof LargeFireball fireball)) {
-                continue;
-            }
-            double x = Mth.lerp(partialTick, fireball.xo, fireball.getX()) - cameraPosition.x;
-            double y = Mth.lerp(partialTick, fireball.yo, fireball.getY()) - cameraPosition.y;
-            double z = Mth.lerp(partialTick, fireball.zo, fireball.getZ()) - cameraPosition.z;
-            float flicker = 0.94F + Mth.sin(time * 0.9F + entityId) * 0.06F;
-            renderBillboard(poseStack, vertices, camera, x, y, z, size * flicker, alpha);
+            renderPixelCube(poseStack, vertices, center, pulse, 255, 122, 24, 225);
         }
     }
 
@@ -298,30 +251,6 @@ public final class PrimerPresentation {
                         Float.intBitsToFloat(data[offset + 2])), normal));
             }
         }
-    }
-
-    private static void renderBillboard(PoseStack poseStack, VertexConsumer vertices, Camera camera,
-            double x, double y, double z, float size, int alpha) {
-        poseStack.pushPose();
-        poseStack.translate(x, y, z);
-        poseStack.mulPose(camera.rotation());
-        poseStack.scale(size, size, size);
-        Matrix4f pose = poseStack.last().pose();
-        billboardVertex(vertices, pose, -0.5F, -0.5F, 0.0F, 1.0F, alpha);
-        billboardVertex(vertices, pose, 0.5F, -0.5F, 1.0F, 1.0F, alpha);
-        billboardVertex(vertices, pose, 0.5F, 0.5F, 1.0F, 0.0F, alpha);
-        billboardVertex(vertices, pose, -0.5F, 0.5F, 0.0F, 0.0F, alpha);
-        poseStack.popPose();
-    }
-
-    private static void billboardVertex(VertexConsumer vertices, Matrix4f pose,
-            float x, float y, float u, float v, int alpha) {
-        vertices.addVertex(pose, x, y, 0.0F)
-                .setColor(255, 255, 255, alpha)
-                .setUv(u, v)
-                .setOverlay(0)
-                .setLight(LightTexture.FULL_BRIGHT)
-                .setNormal(0.0F, 0.0F, 1.0F);
     }
 
     private static void renderPixelCube(PoseStack poseStack, VertexConsumer vertices, Vec3 position,
