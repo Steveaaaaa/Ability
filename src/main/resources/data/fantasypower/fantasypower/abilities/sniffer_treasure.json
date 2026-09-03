@@ -9,12 +9,12 @@
   },
   "purchase": {
     "skill_level": 12,
-    "skill_points": 6,
+    "skill_points": 12,
     "requirements": [
       { "type": "fantasypower:skill_level", "config": { "skill": "fantasypower:husbandry", "level": 8 } }
     ]
   },
-  "ranks": { "unlock_skill_levels": [12], "skill_point_costs":[6],"values": [{}] },
+  "ranks": { "unlock_skill_levels": [12], "skill_point_costs":[12],"values": [{}] },
   "effect": {
     "type": "fantasypower:companion_gift",
     "config": {

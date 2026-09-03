@@ -9,7 +9,7 @@
   },
   "purchase": {
     "skill_level": 12,
-    "skill_points": 4,
+    "skill_points": 8,
     "requirements": [
       {
         "type": "fantasypower:skill_level",
@@ -19,7 +19,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [12, 14, 16],
-    "skill_point_costs": [4, 1, 1],
+    "skill_point_costs": [8, 4, 4],
     "values": [
       { "chance": 0.2, "rolls": 1, "min_count": 1, "max_count": 1 },
       { "chance": 0.2 },
