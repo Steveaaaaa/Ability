@@ -16,7 +16,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [16, 19, 22, 25, 28],
-    "skill_point_costs": [6, 1, 2, 3, 4],
+    "skill_point_costs": [6, 2, 2, 3, 3],
     "values": [
       { "damage_bonus_percent": 25, "pig_armor_share_percent": 30 },
       { "damage_bonus_percent": 30, "pig_armor_share_percent": 35 },

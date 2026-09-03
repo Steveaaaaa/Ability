@@ -19,7 +19,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [12, 14, 16],
-    "skill_point_costs": [8, 3, 5],
+    "skill_point_costs": [8, 2, 3],
     "values": [
       { "chance": 0.2, "rolls": 1, "min_count": 1, "max_count": 1 },
       { "chance": 0.2 },

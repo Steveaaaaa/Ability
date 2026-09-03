@@ -14,7 +14,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [16, 19, 22, 25, 28],
-    "skill_point_costs": [6, 1, 2, 3, 4],
+    "skill_point_costs": [6, 2, 2, 3, 3],
     "values": [
       { "absorption_health_percent": 0, "invulnerability_seconds": 3 },
       { "absorption_health_percent": 5, "invulnerability_seconds": 4 },

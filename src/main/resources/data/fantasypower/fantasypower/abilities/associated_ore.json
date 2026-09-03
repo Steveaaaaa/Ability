@@ -19,7 +19,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [12, 15, 18, 21, 24],
-    "skill_point_costs": [6, 1, 2, 3, 4],
+    "skill_point_costs": [6, 2, 2, 3, 3],
     "values": [
       { "coal_bonus_chance": 0.25 },
       { "coal_bonus_chance": 0.25, "copper_to_raw_iron_chance": 0.25 },

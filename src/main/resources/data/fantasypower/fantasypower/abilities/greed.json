@@ -16,7 +16,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [16, 18, 20, 22, 24],
-    "skill_point_costs": [8, 1, 2, 3, 4],
+    "skill_point_costs": [8, 2, 2, 3, 3],
     "values": [{}, {}, {}, {}, {}]
   },
   "effect": {

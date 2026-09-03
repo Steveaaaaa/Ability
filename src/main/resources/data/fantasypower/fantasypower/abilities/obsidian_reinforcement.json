@@ -5,7 +5,7 @@
   "purchase":{"skill_level":18,"skill_points":6,"requirements":[
     {"type":"fantasypower:skill_level","config":{"skill":"fantasypower:building","level":6}}
   ]},
-  "ranks":{"unlock_skill_levels":[18,19,20,21,22,23,24],"skill_point_costs":[6, 1, 2, 2, 3, 3, 4],"values":[
+  "ranks":{"unlock_skill_levels":[18,19,20,21,22,23,24],"skill_point_costs":[6, 2, 2, 2, 3, 3, 3],"values":[
     {"max_shields":2,"heal_percent":15,"recharge":0},{"max_shields":2,"heal_percent":16,"recharge":0},
     {"max_shields":2,"heal_percent":17,"recharge":0},{"max_shields":2,"heal_percent":18,"recharge":0},
     {"max_shields":2,"heal_percent":19,"recharge":0},{"max_shields":2,"heal_percent":20,"recharge":0},

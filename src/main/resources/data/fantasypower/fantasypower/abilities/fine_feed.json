@@ -19,7 +19,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
-    "skill_point_costs": [4, 1, 1, 2, 2, 2, 3, 3, 3, 4],
+    "skill_point_costs": [4, 2, 2, 2, 2, 2, 2, 3, 3, 3],
     "values": [
       { "maximum_movement_speed": 0.2125, "maximum_jump_strength": 0.666666666666667 },
       { "maximum_movement_speed": 0.219886363636364, "maximum_jump_strength": 0.686363636363636 },
