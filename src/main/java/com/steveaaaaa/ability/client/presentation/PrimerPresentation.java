@@ -206,8 +206,19 @@ public final class PrimerPresentation {
         MultiBufferSource.BufferSource buffers = minecraft.renderBuffers().bufferSource();
         RenderType shellType = RenderType.entityTranslucentEmissive(SHELL_TEXTURE);
         RenderType coreType = RenderType.entityTranslucentEmissive(CORE_TEXTURE);
-        VertexConsumer shell = buffers.getBuffer(shellType);
-        VertexConsumer core = buffers.getBuffer(coreType);
+
+        renderProjectileLayer(level, event.getPoseStack(), camera, cameraPosition, partialTick, time,
+                buffers.getBuffer(shellType), 1.34F, 224);
+        buffers.endBatch(shellType);
+
+        renderProjectileLayer(level, event.getPoseStack(), camera, cameraPosition, partialTick, time,
+                buffers.getBuffer(coreType), 0.76F, 255);
+        buffers.endBatch(coreType);
+    }
+
+    private static void renderProjectileLayer(ClientLevel level, PoseStack poseStack, Camera camera,
+            Vec3 cameraPosition, float partialTick, float time, VertexConsumer vertices,
+            float size, int alpha) {
         for (Integer entityId : PROJECTILES.keySet()) {
             Entity entity = level.getEntity(entityId);
             if (!(entity instanceof LargeFireball fireball)) {
@@ -217,11 +228,8 @@ public final class PrimerPresentation {
             double y = Mth.lerp(partialTick, fireball.yo, fireball.getY()) - cameraPosition.y;
             double z = Mth.lerp(partialTick, fireball.zo, fireball.getZ()) - cameraPosition.z;
             float flicker = 0.94F + Mth.sin(time * 0.9F + entityId) * 0.06F;
-            renderBillboard(event.getPoseStack(), shell, camera, x, y, z, 1.34F * flicker, 224);
-            renderBillboard(event.getPoseStack(), core, camera, x, y, z, 0.76F * flicker, 255);
+            renderBillboard(poseStack, vertices, camera, x, y, z, size * flicker, alpha);
         }
-        buffers.endBatch(shellType);
-        buffers.endBatch(coreType);
     }
 
     private static void emitFire(ClientLevel level, AbilityCue cue) {
