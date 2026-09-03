@@ -14,7 +14,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [26, 27, 28, 29, 30],
-    "skill_point_costs": [6, 1, 1, 1, 1],
+    "skill_point_costs": [6, 1, 2, 3, 4],
     "values": [
       { "duration_threshold_seconds": 8 },
       { "duration_threshold_seconds": 9 },

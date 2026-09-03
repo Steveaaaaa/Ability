@@ -14,7 +14,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
-    "skill_point_costs": [4, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    "skill_point_costs": [4, 1, 1, 2, 2, 2, 3, 3, 3, 4],
     "values": [
       { "attack_speed_bonus": 0.10, "attack_damage_penalty": -0.08 },
       { "attack_speed_bonus": 0.20, "attack_damage_penalty": -0.16 },

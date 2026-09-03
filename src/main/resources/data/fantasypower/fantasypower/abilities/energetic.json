@@ -19,7 +19,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
-    "skill_point_costs": [8, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    "skill_point_costs": [8, 1, 1, 2, 2, 2, 3, 3, 3, 4],
     "values": [
       { "food_threshold": 25.0 },
       { "food_threshold": 24.5 },

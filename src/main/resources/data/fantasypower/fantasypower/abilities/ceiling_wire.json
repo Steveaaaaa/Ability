@@ -7,7 +7,7 @@
   ]},
   "ranks": {
     "unlock_skill_levels": [12,14,16,18,20,22,24,26,28,30],
-    "skill_point_costs": [6, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    "skill_point_costs": [6, 1, 1, 2, 2, 2, 3, 3, 3, 4],
     "values": [
       {"damage_percent":180,"stun_ticks":10,"detach_chance_percent":50},
       {"damage_percent":190,"stun_ticks":10,"detach_chance_percent":50},

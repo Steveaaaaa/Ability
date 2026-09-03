@@ -16,7 +16,7 @@
   },
   "ranks": {
     "unlock_skill_levels": [22, 24, 26, 28, 30],
-    "skill_point_costs": [10, 1, 1, 1, 1],
+    "skill_point_costs": [10, 1, 2, 3, 4],
     "values": [
       { "self_damage_reduction_percent": 40 },
       { "self_damage_reduction_percent": 45 },
