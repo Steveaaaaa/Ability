@@ -116,13 +116,13 @@ public final class PrimerPresentation {
             Vec3 movement = fireball.getDeltaMovement();
             Vec3 back = movement.lengthSqr() < 1.0E-6D ? Vec3.ZERO : movement.normalize().scale(-0.36D);
             for (int index = 0; index < 2; index++) {
-                level.addParticle(ModParticles.PRIMER_EMBER.get(), true,
+                level.addParticle(ParticleTypes.SMALL_FLAME, true,
                         fireball.getX() + back.x + random.nextGaussian() * 0.07D,
                         fireball.getY() + back.y + random.nextGaussian() * 0.07D,
                         fireball.getZ() + back.z + random.nextGaussian() * 0.07D,
-                        back.x * 0.08D + random.nextGaussian() * 0.018D,
-                        back.y * 0.08D + random.nextGaussian() * 0.018D,
-                        back.z * 0.08D + random.nextGaussian() * 0.018D);
+                        back.x * 0.12D + random.nextGaussian() * 0.025D,
+                        back.y * 0.12D + random.nextGaussian() * 0.025D,
+                        back.z * 0.12D + random.nextGaussian() * 0.025D);
             }
         }
     }
