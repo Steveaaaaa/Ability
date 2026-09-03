@@ -29,7 +29,7 @@ class DangerousChargeEffectTest {
     void registersAndValidatesBuiltInDefinition() throws Exception {
         AbilityDefinition definition;
         try (var stream = DangerousChargeEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/dangerous_charge.json"
+                "/data/fantasypower/fantasypower/abilities/dangerous_charge.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing dangerous charge definition");

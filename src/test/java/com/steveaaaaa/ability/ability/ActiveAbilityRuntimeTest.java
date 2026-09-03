@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 class ActiveAbilityRuntimeTest {
     private static final ResourceLocation DODGE =
-            ResourceLocation.fromNamespaceAndPath("ability", "dodge");
+            ResourceLocation.fromNamespaceAndPath("fantasypower", "dodge");
 
     @AfterEach
     void resetRuntime() {

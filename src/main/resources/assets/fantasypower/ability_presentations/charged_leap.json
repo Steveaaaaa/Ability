@@ -1,0 +1,24 @@
+{
+  "cues": {
+    "fantasypower:impact": {
+      "particles": [
+        {
+          "type": "minecraft:poof",
+          "anchor": "position",
+          "count": 16,
+          "offset": [0.0, 0.15, 0.0],
+          "spread": [0.45, 0.12, 0.45],
+          "velocity": [0.0, 0.045, 0.0],
+          "force": false
+        }
+      ],
+      "sound": {
+        "event": "minecraft:entity.generic.explode",
+        "anchor": "position",
+        "volume": 0.72,
+        "pitch": 1.18,
+        "pitch_random": 0.08
+      }
+    }
+  }
+}

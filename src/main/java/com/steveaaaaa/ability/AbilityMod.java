@@ -3,6 +3,7 @@ package com.steveaaaaa.ability;
 import com.mojang.logging.LogUtils;
 import com.steveaaaaa.ability.command.AbilityCommands;
 import com.steveaaaaa.ability.config.AbilityClientConfig;
+import com.steveaaaaa.ability.config.AbilityServerConfig;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.network.AbilityNetwork;
 import com.steveaaaaa.ability.progress.ModAttachments;
@@ -20,7 +21,7 @@ import org.slf4j.Logger;
 
 @Mod(AbilityMod.MOD_ID)
 public final class AbilityMod {
-    public static final String MOD_ID = "ability";
+    public static final String MOD_ID = "fantasypower";
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public AbilityMod(IEventBus modBus, ModContainer modContainer) {
@@ -32,6 +33,7 @@ public final class AbilityMod {
         modBus.addListener(ModDataRegistries::registerDatapackRegistries);
         modBus.addListener(AbilityNetwork::registerPayloads);
         modContainer.registerConfig(ModConfig.Type.CLIENT, AbilityClientConfig.SPEC);
+        modContainer.registerConfig(ModConfig.Type.SERVER, AbilityServerConfig.SPEC);
         NeoForge.EVENT_BUS.addListener(AbilityCommands::register);
     }
 

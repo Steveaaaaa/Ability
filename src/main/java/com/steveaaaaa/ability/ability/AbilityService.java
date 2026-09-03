@@ -22,6 +22,9 @@ public final class AbilityService {
     }
 
     public static Optional<AbilityDefinition> findAbility(ServerPlayer player, ResourceLocation abilityId) {
+        if (!ModDataRegistries.isBuiltinAbility(abilityId)) {
+            return Optional.empty();
+        }
         Registry<AbilityDefinition> registry = player.registryAccess().registryOrThrow(ModDataRegistries.ABILITIES);
         return registry.getOptional(abilityId);
     }

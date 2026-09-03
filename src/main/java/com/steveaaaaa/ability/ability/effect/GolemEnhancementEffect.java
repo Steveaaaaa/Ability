@@ -1,6 +1,7 @@
 package com.steveaaaaa.ability.ability.effect;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.steveaaaaa.ability.AbilityMod;
@@ -61,7 +62,6 @@ public final class GolemEnhancementEffect {
     private static final ResourceLocation COLD_ARMOR_FLAT = AbilityMod.id("cold_current/armor_flat");
     private static final ResourceLocation COLD_ARMOR_PERCENT = AbilityMod.id("cold_current/armor_percent");
     private static final ResourceLocation COLD_TOUGHNESS = AbilityMod.id("cold_current/toughness");
-    private static final int OBSIDIAN_CHARGE_THRESHOLD = 9;
     private GolemEnhancementEffect() {}
 
     public static void enhance(PlayerInteractEvent.EntityInteract event) {
@@ -85,6 +85,7 @@ public final class GolemEnhancementEffect {
             CompoundTag state = new CompoundTag();
             state.putUUID("owner", player.getUUID());
             component.rank().forEach(state::putDouble);
+            writeConfigSnapshot(state, component.type(), component.config());
             state.putInt("charge", 0); state.putInt("shields", 0); state.putInt("age", 0);
             root.put(component.type().getPath(), state);
             target.getPersistentData().put(ROOT, root);
@@ -112,7 +113,7 @@ public final class GolemEnhancementEffect {
         state.putInt("shields", state.getInt("shields") - 1);
         int maxShields = maxShields(state);
         if (state.getInt("shields") < maxShields) {
-            state.putInt("charge", Math.min(OBSIDIAN_CHARGE_THRESHOLD - 1,
+            state.putInt("charge", Math.min(obsidianChargeThreshold(state) - 1,
                     state.getInt("charge") + (int) state.getDouble("recharge")));
         }
         entity.heal((float) (entity.getMaxHealth() * state.getDouble("heal_percent") / 100.0D));
@@ -166,7 +167,7 @@ public final class GolemEnhancementEffect {
                 int maxShields = maxShields(state);
                 if (state.getInt("shields") < maxShields) {
                     int charge = state.getInt("charge") + 1;
-                    if (charge >= OBSIDIAN_CHARGE_THRESHOLD) {
+                    if (charge >= obsidianChargeThreshold(state)) {
                         state.putInt("shields", state.getInt("shields") + 1);
                         charge = 0;
                         playShieldGainedEffect(golem);
@@ -199,8 +200,8 @@ public final class GolemEnhancementEffect {
         golem.setDeltaMovement(Vec3.ZERO);
         golem.setPos(state.getDouble("release_x"), state.getDouble("release_y"), state.getDouble("release_z"));
         if (releaseTicks % 2 == 0) playCrushingSteam(golem, Math.max(charge, crushingThreshold(state)), true);
-        if (releaseTicks == 40) releaseCrushingBlow(golem, state);
-        if (releaseTicks >= 60) {
+        if (releaseTicks == state.getInt("crushing_impact_tick")) releaseCrushingBlow(golem, state);
+        if (releaseTicks >= state.getInt("crushing_release_duration_ticks")) {
             state.putInt("release_ticks", 0);
             state.putInt("charge", 0);
             syncCrushingState(golem, ClientboundCrushingBlowPayload.VisualEvent.FINISHED, Vec3.ZERO);
@@ -222,14 +223,14 @@ public final class GolemEnhancementEffect {
     }
 
     private static void releaseCrushingBlow(IronGolem golem, CompoundTag state) {
-        golem.heal(golem.getMaxHealth() * 0.05F);
+        golem.heal((float) (golem.getMaxHealth() * state.getDouble("crushing_heal_percent") / 100.0D));
         if (!(golem.level() instanceof ServerLevel level)) return;
         ServerPlayer owner = owner(golem, state);
         if (owner != null) {
             float damage = (float) (owner.getAttributeValue(Attributes.ATTACK_DAMAGE)
                     * state.getDouble("damage_percent") / 100.0D);
             List<LivingEntity> affected = level.getEntitiesOfClass(LivingEntity.class,
-                    new AABB(golem.blockPosition()).inflate(7.5D),
+                    new AABB(golem.blockPosition()).inflate(state.getDouble("crushing_radius")),
                     living -> living != golem && living.isAlive() && !(living instanceof IronGolem)
                             && !(living instanceof AbstractVillager));
             affected.forEach(living -> {
@@ -255,15 +256,27 @@ public final class GolemEnhancementEffect {
         if (coldStage(state) >= 4) playColdProjectileImpact(snowball);
         if (!(event.getRayTraceResult() instanceof EntityHitResult hit)
                 || !(hit.getEntity() instanceof LivingEntity target)) return;
-        if (state.getInt("age") < 600 - reduction) return;
-        float damage = coldProjectileDamage(state.getInt("age"), reduction,
-                state.getDouble("attack_bonus_percent") / 100.0D);
+        int[] thresholds = coldThresholds(state);
+        if (state.getInt("age") < thresholds[0]) return;
+        float damage = coldProjectileDamage(
+                state.getInt("age"),
+                thresholds[0],
+                thresholds[3],
+                state.getDouble("cold_projectile_damage"),
+                state.getDouble("attack_bonus_percent") / 100.0D
+        );
         if (damage > 0.0F) target.hurt(golem.damageSources().mobProjectile(snowball, golem), damage);
     }
 
-    static float coldProjectileDamage(int ageTicks, int reductionTicks, double bonus) {
-        if (ageTicks < Math.max(0, 600 - reductionTicks)) return 0.0F;
-        return (float) (4.0D * (ageTicks >= Math.max(0, 1800 - reductionTicks)
+    static float coldProjectileDamage(
+            int ageTicks,
+            int firstStageTicks,
+            int finalStageTicks,
+            double baseDamage,
+            double bonus
+    ) {
+        if (ageTicks < firstStageTicks) return 0.0F;
+        return (float) (Math.max(0.0D, baseDamage) * (ageTicks >= finalStageTicks
                 ? 1.0D + Math.max(0.0D, bonus) : 1.0D));
     }
 
@@ -276,17 +289,21 @@ public final class GolemEnhancementEffect {
         for (int stage = 1; stage <= thresholds.length; stage++) {
             if (age == thresholds[stage - 1]) playColdMilestoneEffect(golem, stage);
         }
-        setModifier(golem, Attributes.ATTACK_DAMAGE, COLD_ATTACK_FLAT, age >= 600 - reduction ? 4.0D : 0.0D,
+        setModifier(golem, Attributes.ATTACK_DAMAGE, COLD_ATTACK_FLAT,
+                age >= thresholds[0] ? state.getDouble("cold_attack_damage_flat") : 0.0D,
                 AttributeModifier.Operation.ADD_VALUE);
-        setModifier(golem, Attributes.MAX_HEALTH, COLD_HEALTH, age >= 600 - reduction ? 6.0D : 0.0D,
+        setModifier(golem, Attributes.MAX_HEALTH, COLD_HEALTH,
+                age >= thresholds[0] ? state.getDouble("cold_max_health_flat") : 0.0D,
                 AttributeModifier.Operation.ADD_VALUE);
-        setModifier(golem, Attributes.ARMOR, COLD_ARMOR_FLAT, age >= 900 - reduction ? 5.0D : 0.0D,
+        setModifier(golem, Attributes.ARMOR, COLD_ARMOR_FLAT,
+                age >= thresholds[1] ? state.getDouble("cold_armor_flat") : 0.0D,
                 AttributeModifier.Operation.ADD_VALUE);
-        setModifier(golem, Attributes.ARMOR_TOUGHNESS, COLD_TOUGHNESS, age >= 900 - reduction ? 7.0D : 0.0D,
+        setModifier(golem, Attributes.ARMOR_TOUGHNESS, COLD_TOUGHNESS,
+                age >= thresholds[1] ? state.getDouble("cold_armor_toughness_flat") : 0.0D,
                 AttributeModifier.Operation.ADD_VALUE);
-        setModifier(golem, Attributes.ARMOR, COLD_ARMOR_PERCENT, age >= 1200 - reduction
+        setModifier(golem, Attributes.ARMOR, COLD_ARMOR_PERCENT, age >= thresholds[2]
                 ? state.getDouble("armor_percent") / 100.0D : 0.0D, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
-        setModifier(golem, Attributes.ATTACK_DAMAGE, COLD_ATTACK_PERCENT, age >= 1800 - reduction
+        setModifier(golem, Attributes.ATTACK_DAMAGE, COLD_ATTACK_PERCENT, age >= thresholds[3]
                 ? state.getDouble("attack_bonus_percent") / 100.0D : 0.0D, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
         if (golem.tickCount % 20 == 0) {
             playColdAmbientEffect(golem, coldStage(state));
@@ -378,10 +395,10 @@ public final class GolemEnhancementEffect {
     private static int[] coldThresholds(CompoundTag state) {
         int reduction = (int) (state.getDouble("time_reduction_seconds") * 20);
         return new int[] {
-                Math.max(1, 600 - reduction),
-                Math.max(1, 900 - reduction),
-                Math.max(1, 1200 - reduction),
-                Math.max(1, 1800 - reduction)
+                Math.max(1, state.getInt("cold_stage_1_ticks") - reduction),
+                Math.max(1, state.getInt("cold_stage_2_ticks") - reduction),
+                Math.max(1, state.getInt("cold_stage_3_ticks") - reduction),
+                Math.max(1, state.getInt("cold_stage_4_ticks") - reduction)
         };
     }
     private static int coldStage(CompoundTag state) {
@@ -447,7 +464,8 @@ public final class GolemEnhancementEffect {
         int releaseTicks = state.getInt("release_ticks");
         ClientboundCrushingBlowPayload.VisualEvent resolvedEvent = visualEvent;
         if (visualEvent == ClientboundCrushingBlowPayload.VisualEvent.SYNC && releaseTicks > 0) {
-            resolvedEvent = releaseTicks <= 40 ? ClientboundCrushingBlowPayload.VisualEvent.WINDUP
+            resolvedEvent = releaseTicks <= state.getInt("crushing_impact_tick")
+                    ? ClientboundCrushingBlowPayload.VisualEvent.WINDUP
                     : ClientboundCrushingBlowPayload.VisualEvent.RELEASED;
         }
         Vec3 eventVector = resolvedEvent == ClientboundCrushingBlowPayload.VisualEvent.RELEASED
@@ -455,7 +473,8 @@ public final class GolemEnhancementEffect {
         return new ClientboundCrushingBlowPayload(
                 golem.getUUID(), state.getUUID("owner"), state.getInt("charge"),
                 Math.max(1, (int) state.getDouble("charge_threshold")),
-                Math.max(0, (int) state.getDouble("damage_percent")), releaseTicks, resolvedEvent,
+                Math.max(0, (int) state.getDouble("damage_percent")), releaseTicks,
+                state.getInt("crushing_impact_tick"), resolvedEvent,
                 (float) eventVector.x, (float) eventVector.y, (float) eventVector.z
         );
     }
@@ -479,13 +498,17 @@ public final class GolemEnhancementEffect {
             Vec3 impactDirection
     ) {
         return new ClientboundGolemReinforcementPayload(
-                golem.getUUID(), state.getUUID("owner"), state.getInt("charge"), OBSIDIAN_CHARGE_THRESHOLD,
+                golem.getUUID(), state.getUUID("owner"), state.getInt("charge"), obsidianChargeThreshold(state),
                 state.getInt("shields"), maxShields(state), visualEvent,
                 (float) impactDirection.x, (float) impactDirection.y, (float) impactDirection.z
         );
     }
     private static int maxShields(CompoundTag state) {
         return Math.max(1, (int) state.getDouble("max_shields"));
+    }
+
+    private static int obsidianChargeThreshold(CompoundTag state) {
+        return Math.max(1, state.getInt("obsidian_charge_threshold"));
     }
     private static void playActivationEffect(IronGolem golem) {
         if (!(golem.level() instanceof ServerLevel level)) return;
@@ -570,14 +593,88 @@ public final class GolemEnhancementEffect {
         StringBuilder error = new StringBuilder(); Optional<T> parsed = codec.parse(input).resultOrPartial(error::append);
         return parsed.orElseThrow(() -> new IllegalArgumentException(path + ": " + error));
     }
-    public record Config(List<Item> items, int itemCost) {
-        public static final Codec<Config> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+    private static void writeConfigSnapshot(CompoundTag state, ResourceLocation type, Config config) {
+        if (type.equals(CRUSHING_BLOW)) {
+            state.putInt("crushing_impact_tick", config.crushingImpactTick());
+            state.putInt("crushing_release_duration_ticks", config.crushingReleaseDurationTicks());
+            state.putDouble("crushing_heal_percent", config.crushingHealPercent());
+            state.putDouble("crushing_radius", config.crushingRadius());
+        } else if (type.equals(OBSIDIAN_REINFORCEMENT)) {
+            state.putInt("obsidian_charge_threshold", config.obsidianChargeThreshold());
+        } else if (type.equals(COLD_CURRENT)) {
+            for (int index = 0; index < config.coldStageTicks().size(); index++) {
+                state.putInt("cold_stage_" + (index + 1) + "_ticks", config.coldStageTicks().get(index));
+            }
+            state.putDouble("cold_attack_damage_flat", config.coldAttackDamageFlat());
+            state.putDouble("cold_max_health_flat", config.coldMaxHealthFlat());
+            state.putDouble("cold_armor_flat", config.coldArmorFlat());
+            state.putDouble("cold_armor_toughness_flat", config.coldArmorToughnessFlat());
+            state.putDouble("cold_projectile_damage", config.coldProjectileDamage());
+        }
+    }
+
+    public record Config(
+            List<Item> items,
+            int itemCost,
+            int crushingImpactTick,
+            int crushingReleaseDurationTicks,
+            double crushingHealPercent,
+            double crushingRadius,
+            int obsidianChargeThreshold,
+            List<Integer> coldStageTicks,
+            double coldAttackDamageFlat,
+            double coldMaxHealthFlat,
+            double coldArmorFlat,
+            double coldArmorToughnessFlat,
+            double coldProjectileDamage
+    ) {
+        private static final Codec<Config> RAW_CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 net.minecraft.core.registries.BuiltInRegistries.ITEM.byNameCodec().listOf().fieldOf("items").forGetter(Config::items),
-                Codec.intRange(1, 64).optionalFieldOf("item_cost", 1).forGetter(Config::itemCost)
+                Codec.intRange(1, 64).optionalFieldOf("item_cost", 1).forGetter(Config::itemCost),
+                Codec.intRange(1, 1200).optionalFieldOf("impact_tick", 40).forGetter(Config::crushingImpactTick),
+                Codec.intRange(2, 2400).optionalFieldOf("release_duration_ticks", 60)
+                        .forGetter(Config::crushingReleaseDurationTicks),
+                Codec.doubleRange(0.0D, 100.0D).optionalFieldOf("heal_percent", 5.0D)
+                        .forGetter(Config::crushingHealPercent),
+                Codec.doubleRange(0.0D, 128.0D).optionalFieldOf("radius", 7.5D)
+                        .forGetter(Config::crushingRadius),
+                Codec.intRange(1, 1200).optionalFieldOf("charge_threshold", 9)
+                        .forGetter(Config::obsidianChargeThreshold),
+                Codec.intRange(1, 72000).listOf().optionalFieldOf("stage_ticks", List.of(600, 900, 1200, 1800))
+                        .forGetter(Config::coldStageTicks),
+                Codec.doubleRange(0.0D, 1024.0D).optionalFieldOf("attack_damage_flat", 4.0D)
+                        .forGetter(Config::coldAttackDamageFlat),
+                Codec.doubleRange(0.0D, 1024.0D).optionalFieldOf("max_health_flat", 6.0D)
+                        .forGetter(Config::coldMaxHealthFlat),
+                Codec.doubleRange(0.0D, 1024.0D).optionalFieldOf("armor_flat", 5.0D)
+                        .forGetter(Config::coldArmorFlat),
+                Codec.doubleRange(0.0D, 1024.0D).optionalFieldOf("armor_toughness_flat", 7.0D)
+                        .forGetter(Config::coldArmorToughnessFlat),
+                Codec.doubleRange(0.0D, 1024.0D).optionalFieldOf("projectile_damage", 4.0D)
+                        .forGetter(Config::coldProjectileDamage)
         ).apply(instance, Config::new));
+
+        public static final Codec<Config> CODEC = RAW_CODEC.flatXmap(Config::validate, Config::validate);
+
         public Config {
             items = List.copyOf(items);
+            coldStageTicks = List.copyOf(coldStageTicks);
             if (items.isEmpty()) throw new IllegalArgumentException("items must not be empty");
+        }
+
+        private static DataResult<Config> validate(Config config) {
+            if (config.crushingImpactTick() >= config.crushingReleaseDurationTicks()) {
+                return DataResult.error(() -> "impact_tick must be less than release_duration_ticks");
+            }
+            if (config.coldStageTicks().size() != 4) {
+                return DataResult.error(() -> "stage_ticks must contain exactly four values");
+            }
+            for (int index = 1; index < config.coldStageTicks().size(); index++) {
+                if (config.coldStageTicks().get(index) <= config.coldStageTicks().get(index - 1)) {
+                    return DataResult.error(() -> "stage_ticks must be strictly increasing");
+                }
+            }
+            return DataResult.success(config);
         }
     }
     public record Rank(Map<String, Double> values) {

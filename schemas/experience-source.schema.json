@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.invalid/ability/experience-source.schema.json",
-  "title": "Ability experience source definition",
+  "$id": "urn:fantasypower:schema:experience-source:1",
+  "title": "FantasyPower experience source override",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "skill", "base_xp", "trigger", "conditions", "anti_abuse"],
+  "required": ["skill", "base_xp", "trigger", "anti_abuse"],
   "properties": {
     "schema_version": { "const": 1 },
     "skill": { "$ref": "#/$defs/resource_location" },

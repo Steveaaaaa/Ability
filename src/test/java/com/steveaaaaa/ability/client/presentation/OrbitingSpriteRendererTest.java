@@ -39,7 +39,7 @@ class OrbitingSpriteRendererTest {
 
     private static AbilityPresentationDefinition.OrbitingSprite definition() {
         return new AbilityPresentationDefinition.OrbitingSprite(
-                ResourceLocation.fromNamespaceAndPath("ability", "textures/particle/stun_star.png"),
+                ResourceLocation.fromNamespaceAndPath("fantasypower", "textures/particle/stun_star.png"),
                 AbilityPresentationDefinition.Anchor.TARGET,
                 3,
                 5,

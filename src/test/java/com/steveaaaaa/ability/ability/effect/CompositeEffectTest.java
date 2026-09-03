@@ -16,7 +16,7 @@ class CompositeEffectTest {
     void registersAndValidatesBreakthroughAsAComposite() throws Exception {
         AbilityDefinition definition;
         try (var stream = CompositeEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/breakthrough.json"
+                "/data/fantasypower/fantasypower/abilities/breakthrough.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing breakthrough definition");

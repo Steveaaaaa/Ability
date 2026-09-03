@@ -57,7 +57,7 @@ class RetaliatoryFlameEffectTest {
     void registersAndValidatesBuiltInDefinition() throws Exception {
         AbilityDefinition definition;
         try (var stream = RetaliatoryFlameEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/retaliatory_flame.json"
+                "/data/fantasypower/fantasypower/abilities/retaliatory_flame.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing retaliatory flame definition");

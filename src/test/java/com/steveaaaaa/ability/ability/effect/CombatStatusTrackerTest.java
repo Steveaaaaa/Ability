@@ -10,7 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class CombatStatusTrackerTest {
-    private static final ResourceLocation MARK = ResourceLocation.fromNamespaceAndPath("ability", "test_mark");
+    private static final ResourceLocation MARK = ResourceLocation.fromNamespaceAndPath("fantasypower", "test_mark");
 
     @AfterEach
     void resetTracker() {

@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "skill": "fantasypower:combat",
+  "display": {
+    "name": "ability.fantasypower.weak_point",
+    "description": "ability.fantasypower.weak_point.description",
+    "icon": "minecraft:diamond_sword",
+    "sort_order": 10
+  },
+  "purchase": {
+    "skill_level": 22,
+    "skill_points": 8,
+    "requirements": []
+  },
+  "ranks": {
+    "unlock_skill_levels": [22, 23, 24, 25, 26, 27, 28, 29, 30, 30],
+    "skill_point_costs": [8, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    "values": [
+      { "mark_threshold": 4, "damage_multiplier": 1.90, "stun_ticks": 100 },
+      { "mark_threshold": 4, "damage_multiplier": 2.00, "stun_ticks": 100 },
+      { "mark_threshold": 4, "damage_multiplier": 2.10, "stun_ticks": 100 },
+      { "mark_threshold": 3, "damage_multiplier": 2.20, "stun_ticks": 100 },
+      { "mark_threshold": 3, "damage_multiplier": 2.35, "stun_ticks": 100 },
+      { "mark_threshold": 3, "damage_multiplier": 2.45, "stun_ticks": 100 },
+      { "mark_threshold": 3, "damage_multiplier": 2.55, "stun_ticks": 100 },
+      { "mark_threshold": 3, "damage_multiplier": 2.65, "stun_ticks": 100 },
+      { "mark_threshold": 3, "damage_multiplier": 2.75, "stun_ticks": 100 },
+      { "mark_threshold": 2, "damage_multiplier": 2.90, "stun_ticks": 100 }
+    ]
+  },
+  "effect": {
+    "type": "fantasypower:weak_point",
+    "config": {
+      "mark_id": "fantasypower:weak_point",
+      "marks_per_hit": 1,
+      "food_cost": 1,
+      "directness": "any"
+    }
+  }
+}

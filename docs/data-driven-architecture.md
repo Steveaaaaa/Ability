@@ -1,9 +1,8 @@
-# Ability 数据驱动架构（草案 v1）
+# FantasyPower 的数据结构
 
-目标版本：Minecraft 1.21.1 / NeoForge 21.1.x
-临时模组命名空间：`ability`（确定正式 mod id 后统一替换）
+本文面向需要调整内置数值的整合包作者，以及准备修改运行时代码的开发者。FantasyPower 运行在 Minecraft 1.21.1 / NeoForge 21.1.x，模组命名空间为 `fantasypower`。
 
-## 1. 设计原则
+## 数据和代码的边界
 
 1. 服务端是经验、等级、技能点、能力解锁和能力效果的唯一权威。
 2. 技能、能力和经验来源由数据包定义，支持 `/reload` 和整合包覆盖。
@@ -12,19 +11,19 @@
 5. 玩家存档保存能力已经购买到的阶级；所属技能等级只决定下一阶何时允许购买，不会自动提升能力阶级。
 6. 所有跨模组目标尽量使用物品、方块、实体和伤害类型标签，而不是写死对象 ID。
 
-## 2. 三类数据包注册表
+## 三类数据包注册表
 
-建议使用 NeoForge 自定义 datapack registry，并为客户端提供精简或相同的网络 Codec：
+技能、能力和经验来源分别使用三个 NeoForge datapack registry，并通过网络同步给客户端：
 
 | 注册表 | 文件路径 | 用途 |
 |---|---|---|
-| `ability:skills` | `data/<namespace>/ability/skills/<id>.json` | 技能分类、经验曲线、显示信息 |
-| `ability:abilities` | `data/<namespace>/ability/abilities/<id>.json` | 能力购买条件、阶级数值、执行类型 |
-| `ability:experience_sources` | `data/<namespace>/ability/experience_sources/<id>.json` | 行为与经验奖励的映射 |
+| `fantasypower:skills` | `data/<namespace>/fantasypower/skills/<id>.json` | 技能分类、经验曲线、显示信息 |
+| `fantasypower:abilities` | `data/<namespace>/fantasypower/abilities/<id>.json` | 能力购买条件、阶级数值、执行类型 |
+| `fantasypower:experience_sources` | `data/<namespace>/fantasypower/experience_sources/<id>.json` | 行为与经验奖励的映射 |
 
-同 ID 文件遵循数据包优先级覆盖，整合包可以替换内置定义；新增命名空间可以直接追加内容。
+同 ID 文件遵循数据包优先级覆盖，整合包可以替换内置定义。FantasyPower 只支持覆盖内置能力，额外能力定义不会进入购买和运行管线。
 
-## 3. 技能定义
+## 技能定义
 
 每个技能包含：
 
@@ -35,7 +34,7 @@
 
 玩家保存累计经验 `total_xp`。当前等级通过经验曲线计算。数据包修改曲线后，显示等级会重新计算；已消费点数不倒扣，若新定义降低最高总点数，则超出上限的旧发放点数不再计入可用余额，避免产生额外点数或负数。技能点按技能 ID 分别记录；玩家提升哪个技能，就只能使用该技能发放的点数购买其所属能力。
 
-## 4. 能力定义
+## 能力定义
 
 能力由以下部分组成：
 
@@ -51,16 +50,18 @@
 
 ### 前置条件
 
-首版支持以下条件类型：
+可以使用以下条件类型：
 
-- `ability:skill_level`：另一技能达到指定等级。
-- `ability:ability_purchased`：已购买指定能力。
-- `ability:advancement`：完成进度。
-- `ability:all_of` / `ability:any_of` / `ability:not`：条件组合。
+- `fantasypower:skill_level`：另一技能达到指定等级。
+- `fantasypower:ability_purchased`：已购买指定能力。
+- `fantasypower:advancement`：完成进度。
+- `fantasypower:all_of` / `fantasypower:any_of` / `fantasypower:not`：条件组合。
+- `fantasypower:game_mode` / `fantasypower:not_game_mode`：要求或排除指定游戏模式。
+- `fantasypower:dimension`：位于指定维度。
 
-条件解析器使用按 `type` 分派的 Java 注册表，附属模组可增加新的条件类型。
+条件解析器使用按 `type` 分派的内部 Java 注册表；配置文件只能使用 FantasyPower 已实现的条件类型。
 
-## 5. 经验来源
+## 经验来源
 
 经验来源将游戏事件映射到技能经验：
 
@@ -91,7 +92,7 @@
 
 内置数据已注册全部十项技能，每项技能现在至少有一种独立经验来源。
 
-## 6. Java 能力类型边界
+## 哪些内容仍由 Java 处理
 
 以下内容适合数据驱动：
 
@@ -107,18 +108,15 @@
 - 改写方块破坏、伤害结算、掉落或实体 AI 的流程。
 - 需要网络包、持续状态机或高频缓存的机制。
 
-建议的首批能力类型：
+多项能力共用以下通用效果类型：
 
-- `ability:attribute_modifier`
-- `ability:damage_modifier`
-- `ability:damage_reduction`
-- `ability:loot_injection`
-- `ability:effect_aura`
-- `ability:active_action`
-- `ability:entity_upgrade`
-- `ability:composite`
+- `fantasypower:attribute_modifier`
+- `fantasypower:damage_modifier`
+- `fantasypower:damage_reduction`
+- `fantasypower:loot_injection`
+- `fantasypower:composite`
 
-当前已实现方块掉落效果注册表，并以 `ability:associated_ore` 作为第一种效果类型。效果的固定目标由
+伴生矿使用专门的方块掉落效果。效果的固定目标由
 `effect.config` 定义，各阶概率由 `ranks.values` 定义；稀疏的高阶参数会覆盖并继承先前阶级，避免升级后
 丢失较低阶已经解锁的效果。
 
@@ -135,11 +133,11 @@
 原版放置而不消耗物品。钟乳石朝下且能够触发实体伤害事件，首次释放不受冷却哨兵值影响。
 技能生成的下落实体关闭方块掉落，并在命中结算后立即移除，不能落地变成方块或物品重新回收。
 傀儡强化把已经解析的阶级快照写入目标实体的持久数据，避免数据包
-定义之外的运行时状态丢失；物品列表、消耗数量、阈值、倍率、护盾数量和阶段缩短值仍由能力 JSON 提供。
-`enchanted_edge` 使用原版 `minecraft:magic` 承载魔法伤害，并使用独立的 `ability:true_damage` 承载真实伤害；
+定义之外的运行时状态丢失；物品列表、消耗数量、阈值、倍率和护盾数量仍由能力 JSON 提供。寒流的四段阶段时间、属性加成与雪球伤害，以及压碎的蓄力阈值、命中时刻、释放时长、治疗比例和作用半径也全部来自内置能力 JSON。
+`enchanted_edge` 使用原版 `minecraft:magic` 承载魔法伤害，并使用独立的 `fantasypower:true_damage` 承载真实伤害；
 真实伤害的防御绕过规则由原版伤害类型标签定义。
 
-通用被动属性效果 `ability:attribute_modifier` 也已实现。`effect.config.modifiers` 中的每一项声明
+通用被动属性效果 `fantasypower:attribute_modifier` 也已实现。`effect.config.modifiers` 中的每一项声明
 `attribute`、`operation` 和用于读取阶级数值的 `amount_key`；`ranks.values` 使用对应键提供数值。
 支持 `add_value`、`add_multiplied_base` 和 `add_multiplied_total` 三种原版运算。高阶可以只覆盖发生
 变化的键，其余数值继承前一阶。一项能力可同时修改多个属性，属性 ID 可指向其他模组注册的属性。
@@ -148,7 +146,7 @@
 属性效果还可配置 `melee_hit_cue`。玩家实际造成直接近战生命伤害后，服务端才会广播对应表现提示；
 完全格挡、投射物和间接伤害不会触发。内置“迅刺”据此沿攻击方向在目标处生成短促粒子，并播放轻量破空声。
 
-通用伤害效果分为攻击侧的 `ability:damage_modifier` 和受击侧的 `ability:damage_reduction`。
+通用伤害效果分为攻击侧的 `fantasypower:damage_modifier` 和受击侧的 `fantasypower:damage_reduction`。
 两者的 `effect.config` 都可用 `damage_type_tags`、`attacker_entity_type_tags`、
 `target_entity_type_tags` 进行任一标签匹配，并用 `directness` 选择 `any`、`direct` 或 `indirect`。
 攻击侧阶级值使用 `damage_multiplier` 与 `flat_damage`；受击侧使用 `damage_multiplier` 与
@@ -167,7 +165,7 @@
 攻击侧伤害效果可配置 `success_cue`。运行时在入站阶段保存已经匹配的提示，但只在最终生命伤害大于零时
 广播，避免完全格挡也播放成功表现。内置“攻其不备”据此在未警觉目标的命中位置生成暗红色血液飞溅。
 
-通用战利品效果 `ability:loot_injection` 支持 `block_drops` 与 `entity_drops` 两种上下文。方块上下文
+通用战利品效果 `fantasypower:loot_injection` 支持 `block_drops` 与 `entity_drops` 两种上下文。方块上下文
 可用 `block_tags` 和 `tool_tags` 筛选，实体上下文可用 `entity_type_tags` 筛选；这些列表内部均为
 任一标签匹配。`entries` 是由物品 ID 和正整数 `weight` 组成的带权池，能够直接引用其他模组物品。
 
@@ -182,9 +180,9 @@
 内置“沙里淘金”据此只在砂砾原本产出燧石时，以 20% 概率替换一个燧石；1–3 阶依次向等权池加入
 铜粒、铁粒和金粒。
 
-复杂技能可以有专用类型，例如 `ability:weak_point`、`ability:charged_leap`，但仍从 JSON 读取所有可平衡参数。
+复杂技能可以有专用类型，例如 `fantasypower:weak_point`、`fantasypower:charged_leap`，但仍从 JSON 读取所有可平衡参数。
 
-通用条件状态效果 `ability:conditional_mob_effect` 每 10 Tick 在服务端检查一次玩家状态，并以短持续时间
+通用条件状态效果 `fantasypower:conditional_mob_effect` 每 10 Tick 在服务端检查一次玩家状态，并以短持续时间
 续加原版或其他模组的 Mob Effect。`conditions` 当前支持：
 
 - `food_total_above`：饥饿值与饱和度之和严格大于 `value_key` 指向的阶级参数。
@@ -194,12 +192,12 @@
 图标和环境效果标志。运行时只在条件成立时续期，条件失效后最多残留配置的短持续时间。内置“长旅”
 使用高度区间外条件获得速度 I，“精力充沛”使用食物总量条件获得速度 II 与跳跃提升 I。
 
-组合效果 `ability:composite` 允许一项能力包含多个已注册子效果。购买条件、所属技能和
+组合效果 `fantasypower:composite` 允许一项能力包含多个已注册子效果。购买条件、所属技能和
 `unlock_skill_levels` 由外层能力统一定义；每个子效果分别提供与外层阶数等长的 `rank_values`，因此
 仍由原效果类型自己的严格 Codec 和参数校验器负责检查，不需要放宽未知字段校验。禁止嵌套组合，
 单项能力最多包含 64 个子效果。
 
-受击响应 `ability:damage_response` 在最终生命伤害结算后执行，可要求伤害来源为生物，并按当前生命
+受击响应 `fantasypower:damage_response` 在最终生命伤害结算后执行，可要求伤害来源为生物，并按当前生命
 比例阈值施加短时状态效果。阈值与效果等级均由阶级参数键读取。“突破”将它与攻击侧
 `damage_modifier` 组合：目标生命不低于 95% 时增加固定伤害；玩家实际承受生物伤害后，若生命比例
 严格低于本阶阈值，则获得 3 秒对应等级的速度效果。
@@ -208,7 +206,7 @@
 共享或抢占层数。目标死亡、离开维度或卸载时清理相关标记；玩家退出时清理其拥有的标记。短时眩晕
 使用服务端绝对游戏时间记录，重复施加只延长到较晚的到期时间，不写入玩家或实体存档。
 
-`ability:weak_point` 每次匹配的伤害增加 `marks_per_hit` 层标记；达到阶级参数 `mark_threshold` 时，
+`fantasypower:weak_point` 每次匹配的伤害增加 `marks_per_hit` 层标记；达到阶级参数 `mark_threshold` 时，
 清除该玩家对该目标的标记，将触发伤害乘以 `damage_multiplier`，眩晕 `stun_ticks`，并按配置消耗
 饥饿值。眩晕期间服务端暂停目标实体 Tick、清零移动并阻止其造成伤害；目标仍能受到其他来源伤害。服务端会把眩晕的开始、刷新和结束同步给追踪该实体的客户端，客户端按目标碰撞箱宽度在头顶渲染3–5颗可由资源包覆盖的环绕星星。
 内置“直取要害”完整录入表格十阶阈值、倍率和 3–7 Tick 眩晕数值。
@@ -217,7 +215,7 @@
 标志的目标每 10 Tick 获得一次无粒子的 30 Tick 发光续期；标记消耗后自然在最多 1.5 秒内熄灭，
 不会主动移除其他模组或原版来源施加的发光效果。
 
-`ability:counter_sniper` 只在 `LivingDamageEvent.Post` 确认玩家实际损失生命后检查距离；攻击者严格在
+`fantasypower:counter_sniper` 只在 `LivingDamageEvent.Post` 确认玩家实际损失生命后检查距离；攻击者严格在
 `minimum_distance` 之外时添加猎物标记。玩家攻击该目标时在入站伤害阶段应用阶级倍率，但只有最终
 生命伤害大于零时才消耗标记，因此盾牌完全格挡不会浪费标记。内置“反狙击”使用 8 格阈值与表格
 现有的五阶 120%–150% 倍率。
@@ -226,7 +224,7 @@
 `PlayLevelSoundEvent.AtEntity` 中由服务端玩家实体发出的可听声音也会重置。位置型声音没有可靠的来源
 实体，因此不会仅凭空间接近度归属给某个玩家。退出游戏时清理计时，重生时从零重新开始。
 
-`ability:stealth` 在每 5 Tick 检查一次 `wait_seconds`，满足后为玩家自身添加一次性潜匿标记，并以
+`fantasypower:stealth` 在每 5 Tick 检查一次 `wait_seconds`，满足后为玩家自身添加一次性潜匿标记，并以
 12 Tick 无粒子隐身效果短时续期。带标记的下一次入站伤害乘以 `damage_multiplier`，但只有最终生命
 伤害大于零时才消耗标记并重置计时；完全格挡不会浪费潜匿。标记消耗后隐身最多残留 0.6 秒，避免
 主动移除其他模组或药水来源的隐身效果。内置“潜匿”完整录入表格十阶 9–12 秒等待时间与
@@ -242,8 +240,8 @@
 并在 8 Tick 动画窗口内按阶级降低 20%–90% 入站伤害，冷却 12 Tick。位移使用实体速度而非传送，因此仍
 由原版碰撞处理阻挡；客户端不能直接决定位置、减伤或冷却结果。
 
-`ability:charged_leap` 默认使用可在按键设置中调整的独立跃斩键（默认 V）：按住蓄力，松开释放，
-原版跳跃键不受影响。客户端配置 `config/ability-client.toml` 的
+`fantasypower:charged_leap` 默认使用可在按键设置中调整的独立跃斩键（默认 V）：按住蓄力，松开释放，
+原版跳跃键不受影响。客户端配置 `config/fantasypower-client.toml` 的
 `controls.chargedLeapControlMode` 可切换为 `JUMP_KEY`；此时地面短按跳跃键仍执行普通跳跃，按住超过
 4 Tick 则进入跃斩蓄力。该模式在创造模式下完全停用，客户端不接管跳跃键，服务端也拒绝对应的蓄力
 请求，以保留双击空格飞行。两种模式都显示原版风格的跳跃蓄力条，蓄满后保持 100% 而不回弹，松开
@@ -257,7 +255,7 @@
 直接目标与成功受伤的范围目标都会被眩晕。命中同时获得一次只对摔落伤害生效的短时保护；第 6 阶
 开始，蓄力跳跃状态允许在空中再次按跳跃键进行一次二段跳。
 
-`ability:primer` 使用原版使用键作为蓄力输入。客户端仅在已经购买能力且副手持火焰弹时拦截原版右键，
+`fantasypower:primer` 使用原版使用键作为蓄力输入。客户端仅在已经购买能力且副手持火焰弹时拦截原版右键，
 避免蓄力期间误把火焰弹用于点火；服务端仍会重新验证能力状态、副手物品、眩晕状态和实际蓄力时长。
 提前松开不会发射或消耗物品，满足时间后由服务端消耗一枚副手火焰弹并生成以玩家为拥有者的原版大型
 火球。创造模式不消耗物品。
@@ -266,84 +264,84 @@
 火球且状态尚未过期时乘以 1.25–1.45；火球直接命中的固定伤害不放大。这样既保留原版火球碰撞、
 归属、反弹、爆炸和 Mob Griefing 规则，也能精确表达表格百分比，而不把整数爆炸强度误当伤害倍率。
 
-`ability:dangerous_charge` 在服务端烟花实体加入世界时读取原版 `isShotAtAngle()` 同步标志；该标志由
+`fantasypower:dangerous_charge` 在服务端烟花实体加入世界时读取原版 `isShotAtAngle()` 同步标志；该标志由
 弩发射烟花的构造路径设置，而普通放置烟花和附着玩家的鞘翅助推烟花均为 false。只有标志为 true、
 拥有者为服务端玩家且能力当前生效时，才按火箭 UUID 快照当前阶级的 1.60–1.90 爆炸伤害倍率。
 烟花造成伤害时再按直接实体 UUID 查询快照，过期状态定期清理；已射出的火箭不会因玩家随后升级、
 能力失效或数据包重载而在飞行途中改变倍率。
 
-`ability:exhaustion` 在瞬间伤害箭实际造成生命伤害后检查目标，原版定义为治疗/伤害反转的亡灵目标
+`fantasypower:exhaustion` 在瞬间伤害箭实际造成生命伤害后检查目标，原版定义为治疗/伤害反转的亡灵目标
 不会触发。中毒结算伤害为 `0.8 × 剩余秒数 × 2^min(可见效果等级, 中毒等级上限)`，凋零为
 `0.5 × 剩余秒数 × 2^min(可见效果等级, 凋零等级上限)`。运行时先移除两种效果，再分别清除受伤
 无敌帧并施加对应伤害，避免额外伤害递归触发和被箭矢命中的无敌帧吞掉。效果剩余时间默认最多按
 72000 Tick 结算，此安全上限可由能力数据下调；等级上限完全由各阶 `poison_level_cap` 和
 `wither_level_cap` 提供。
 
-`ability:harvest` 只处理伤害直接实体与攻击者均为玩家本人的近战伤害，并使用 `tool_tag` 判断玩家主手
+`fantasypower:harvest` 只处理伤害直接实体与攻击者均为玩家本人的近战伤害，并使用 `tool_tag` 判断玩家主手
 是否为锄类工具。额外伤害严格按 `rank_factor × min(饥饿值 + 饱和度, food_cap) / damage_divisor`
 计算，其中内置十阶的 `rank_factor` 为 1–10、`food_cap` 为 3–30，默认除数为 40。只有攻击最终造成
 生命伤害后才通过原版消耗度系统增加 `exhaustion_cost`，因此盾牌完全格挡不会产生额外饥饿消耗。
 工具标签、消耗度、公式除数和每阶两项参数均可由数据包调整。
 
-`ability:frugality` 在玩家 Tick 前后记录生命值与原版消耗度，只对同 Tick 中确实伴随生命回复而新增的
+`fantasypower:frugality` 在玩家 Tick 前后记录生命值与原版消耗度，只对同 Tick 中确实伴随生命回复而新增的
 消耗度进行返还；若 Tick 开始时原版先结算了一个 4 点消耗度周期，计算会将该周期补回差值后再识别
 本次回血成本。返还量按阶级 `healing_hunger_reduction_percent` 的 7.5%–30% 计算，并且不会修改
 回复量。`ability_hunger_reduction_percent` 的 15%–60% 由统一能力饥饿成本入口应用于“收割”和
 “直取要害”。“直取要害”在未减免时仍直接扣除完整的 1 点饥饿值；减免后无法用整数饥饿栏表达的
 小数部分转换为每 1 饥饿点对应 4 点的原版消耗度，从而长期精确累计而不使用随机取整。
 
-`ability:survival_skills` 按 `check_interval_ticks` 周期检查玩家当前状态效果。只有效果类型声明为原版
+`fantasypower:survival_skills` 按 `check_interval_ticks` 周期检查玩家当前状态效果。只有效果类型声明为原版
 `HARMFUL`、持续时间不是无限且剩余 Tick 严格小于 `duration_threshold_seconds × 20` 时才会解除；
 刚好等于阈值的效果要等到下一次周期检查。内置数据使用每 20 Tick 检查一次以及五阶 8–12 秒阈值。
 这种分类方式同样适用于其他模组正确注册为有害类别的状态效果，不依赖硬编码的原版效果列表。
 
-`ability:retaliatory_flame` 按配置周期扫描与玩家碰撞箱相交的方块和流体，并通过三个可扩展标签区分
+`fantasypower:retaliatory_flame` 按配置周期扫描与玩家碰撞箱相交的方块和流体，并通过三个可扩展标签区分
 普通火焰、灵魂火焰与岩浆；环境优先级为岩浆、灵魂火焰、普通火焰。玩家拥有抗火效果时完全停用。
 触发后以阶级 `radius` 搜索敌对生物，排除自己、双方任一方向判定为队友的实体以及 PvP 禁止伤害的
 玩家，再续加燃烧时间。普通火焰只点燃，灵魂火焰和岩浆默认每 20 Tick 分别造成 2 点和 4 点带攻击者
 归属的 `ON_FIRE` 伤害。半径、周期、燃烧时长、两种伤害值和环境标签均由数据定义控制。
 
-`ability:well_prepared` 在服务端死亡事件中选择当日尚未消耗的生效组件并取消死亡。触发顺序为写入每日
+`fantasypower:well_prepared` 在服务端死亡事件中选择当日尚未消耗的生效组件并取消死亡。触发顺序为写入每日
 消耗状态、取消死亡、移除所有 `HARMFUL` 效果、将生命恢复至最大生命的 50%、把吸收生命至少提升到
 阶级比例，最后开启 3–6 秒入站伤害取消窗口。每日状态使用独立、序列化且死亡复制的玩家 Attachment，
 以 `day_time / day_length_ticks` 的游戏日编号记录各能力最后触发日，因此下线、重启或正常死亡不会刷新。
 内置五阶吸收比例为 0%、5%、10%、15%、25%；恢复比例和游戏日长度可由数据调整。短暂无敌只存在
 服务端内存，玩家下线时清理，避免为数秒状态增加不必要的存档迁移。
 
-`ability:fine_feed` 在服务端按 `check_interval_ticks` 周期检查玩家当前骑乘实体。实体类型必须属于
+`fantasypower:fine_feed` 在服务端按 `check_interval_ticks` 周期检查玩家当前骑乘实体。实体类型必须属于
 `mount_entity_type_tag`，且基础移动速度不高于 `maximum_movement_speed`，或基础跳跃强度不高于
 `maximum_jump_strength`；两个阈值是包含边界的“或”关系。满足条件时向坐骑续加配置的速度与跳跃效果。
-内置定义使用可扩展的 `ability:fine_feed_mounts` 标签包含马、驴、骡，并配置速度 III、跳跃提升 II；
+内置定义使用可扩展的 `fantasypower:fine_feed_mounts` 标签包含马、驴、骡，并配置速度 III、跳跃提升 II；
 实体标签、效果 ID、效果等级、检查周期、持续时间和十阶属性阈值都可以由数据包覆盖。
 
-`ability:support_aura` 将“使用物品—目标实体标签”的对应关系放在 `triggers` 中，并支持
+`fantasypower:support_aura` 将“使用物品—目标实体标签”的对应关系放在 `triggers` 中，并支持
 `minimum_rank`、消耗后返还物品以及额外伤害吸收开关。触发时固定目标集合，默认每 100 Tick 回复一次、
 共五次，每次回复总量的 20%；治疗总量使用施法玩家最大生命乘阶级百分比。半径、脉冲次数与间隔、
 吸收效果、等级、持续时间和六组物品/实体映射均可覆盖。
 
-`ability:wolf_pack` 为每只驯服狼记录“上一 Tick 是否有攻击目标”、强化结束和冷却结束时间。只在
+`fantasypower:wolf_pack` 为每只驯服狼记录“上一 Tick 是否有攻击目标”、强化结束和冷却结束时间。只在
 无目标到有目标的边沿触发，避免持续锁定同一目标时重复刷新。强化期间由服务端提高狼的最终入站伤害
 基数并独立掷骰取消有攻击者来源的狼所受伤害，环境伤害不会被闪避；伤害增益、闪避率、冷却和持续时间
 均由能力数据决定，冷却从触发时开始计时，状态不持久化。
 
-`ability:iron_cavalry` 使用实体类型标签筛选可用坐骑。玩家直接近战攻击时按阶级提高伤害；骑乘属于猪
+`fantasypower:iron_cavalry` 使用实体类型标签筛选可用坐骑。玩家直接近战攻击时按阶级提高伤害；骑乘属于猪
 标签的实体时，每秒重算一次临时护甲修饰值，数值为骑手当前护甲乘阶级比例，换乘、下线和切维度时移除。
 
-`ability:blast_excavation` 只接受副手交互，并要求主手工具标签和副手爆炸物品同时匹配。服务端消耗物品、
+`fantasypower:blast_excavation` 只接受副手交互，并要求主手工具标签和副手爆炸物品同时匹配。服务端消耗物品、
 在点击面相邻方块中心生成配置引信的 TNT，并按 UUID 记录本次能力炸药；自身减伤只匹配这枚炸药，普通
 TNT 不会获得减伤。工具标签、物品、引信和五阶自身减伤比例均为数据参数。
 
-`ability:greed` 使用原版 `player.block_interaction_range` 属性的临时加法修饰器。每个工具阶级由
+`fantasypower:greed` 使用原版 `player.block_interaction_range` 属性的临时加法修饰器。每个工具阶级由
 `minimum_rank` 与物品标签定义，默认依次解锁斧、剪刀、锄、铲、镐；切换物品、能力失效或离线时会
 重新协调或清理修饰器。距离增量、目标属性和工具标签均可覆盖。
 
-`ability:companion_gift` 通过 NeoForge 全局战利品修改器读取原版礼物上下文。`sniffer_digging` 只为
+`fantasypower:companion_gift` 通过 NeoForge 全局战利品修改器读取原版礼物上下文。`sniffer_digging` 只为
 配置半径内最近的生效玩家追加一次候选掉落，`cat_morning_gift` 只检查生成礼物的猫主人。概率、掷骰次数、
 物品、权重和数量范围由各能力定义提供；物品条目还可用 `enchantment_level` 按原版附魔台规则随机附魔，
 或改用 `loot_table` 委托另一张原版/数据包战利品表。委托调用使用原始战利品生成流程而不再次进入全局修改器，
 因此可以安全复用 `minecraft:gameplay/cat_morning_gift` 而不会递归。嗅探奇物和招财猫的默认池可被整合包完整替换。
 
-## 7. 玩家持久化数据
+## 玩家存档
 
 使用玩家实体 Data Attachment，并通过 Codec 持久化：
 
@@ -351,13 +349,13 @@ TNT 不会获得减伤。工具标签、物品、引信和五阶自身减伤比�
 {
   "data_version": 2,
   "skills": {
-    "ability:mining": {
+    "fantasypower:mining": {
       "total_xp": 1250,
       "granted_skill_points": 12,
       "spent_skill_points": 6
     }
   },
-  "purchased_abilities": ["ability:associated_ore"],
+  "purchased_abilities": ["fantasypower:associated_ore"],
   "legacy_unassigned_skill_points": 0
 }
 ```
@@ -366,8 +364,8 @@ TNT 不会获得减伤。工具标签、物品、引信和五阶自身减伤比�
 
 运行时派生而不持久化：当前等级、能力阶级、属性修饰结果、可用技能点。短冷却默认只存在内存中；跨下线冷却才保存绝对游戏时间。
 
-死亡是否保留全部 RPG 进度作为服务端配置，默认保留。1.21.1 的 Attachment 不会自动同步到客户端，
-因此使用版本化的 `ability:player_progress` payload 同步服务端快照。同步发生在经验变化、能力购买、
+死亡后的进度处理由 `fantasypower-server.toml` 分别控制技能进度、已学习能力、经验防刷计数、每日能力状态和环球旅行者状态，默认全部保留。1.21.1 的 Attachment 不会自动同步到客户端，
+因此使用版本化的 `fantasypower:player_progress` payload 同步服务端快照。同步发生在经验变化、能力购买、
 登录、重生、切换维度和数据包重载后；客户端只保存只读缓存，不参与等级、点数或能力状态结算。
 
 同步快照包含所有已注册技能的累计经验、服务端计算等级、已发放和已消费技能点、旧版迁移余额，
@@ -376,26 +374,26 @@ TNT 不会获得减伤。工具标签、物品、引信和五阶自身减伤比�
 服务端权威结果期间会锁定购买按钮，以避免重复请求；数据包重载后失效的选中技能会自动回退到
 当前注册表中的第一项。
 
-## 8. 校验与重载
+## 校验与重载
 
 服务器应用重载前必须完成全量校验：
 
 - ID、翻译键和引用对象合法。
 - `xp_to_next` 长度等于 `max_level`。
-- `unlock_skill_levels` 严格递增，长度等于 `values` 长度。
+- `unlock_skill_levels` 非递减，长度等于 `values` 和 `skill_point_costs` 长度；相同等级允许连续购买多阶。
 - 能力所属技能和所有前置引用存在。
 - Java 中已注册对应的 effect、condition 和 trigger 类型。
 - 参数满足具体类型的 Codec 范围要求。
 - 前置图不存在循环依赖。
 
-任一文件失败时记录文件 ID 和字段路径；不能悄悄使用部分默认值。开发环境提供 `/ability validate` 输出完整诊断。
+任一文件失败时记录文件 ID 和字段路径；不能悄悄使用部分默认值。开发环境提供 `/fantasypower validate` 输出完整诊断。
 
 当前校验器会检查所属技能、条件内技能/能力/进度引用、等级上限、已注册的 condition/trigger/effect
 类型及其 Codec 参数，并对 `ability_purchased` 前置图执行循环检测。命令默认显示前 20 条诊断，避免
 大型数据包错误时刷屏，同时保留总错误数。服务器启动及数据包重载后也会自动执行同一套校验，并将
 完整诊断写入服务端日志。
 
-## 9. 推荐代码模块
+## 源码目录
 
 ```text
 data/       Codec、datapack registry、引用解析和校验
@@ -407,7 +405,7 @@ command/    调试、校验、经验与等级管理命令
 client/     只读客户端缓存、背包页签和基础技能/能力交互界面
 ```
 
-## 10. 暂不在 v1 数据模型中实现
+## 不支持的数据能力
 
 - 任意数学表达式或脚本。
 - 允许数据包直接订阅任意 Java/NeoForge 事件。

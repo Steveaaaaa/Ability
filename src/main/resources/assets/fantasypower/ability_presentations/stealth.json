@@ -1,0 +1,27 @@
+{
+  "cues": {
+    "fantasypower:enter": {
+      "duration_ticks": 0,
+      "sound": {
+        "event": "minecraft:entity.enderman.teleport",
+        "anchor": "target",
+        "volume": 0.22,
+        "pitch": 1.45,
+        "pitch_random": 0.08
+      }
+    },
+    "fantasypower:active": {
+      "duration_ticks": 18
+    },
+    "fantasypower:break_hit": {
+      "duration_ticks": 0,
+      "sound": {
+        "event": "minecraft:entity.player.attack.sweep",
+        "anchor": "target",
+        "volume": 0.48,
+        "pitch": 0.72,
+        "pitch_random": 0.06
+      }
+    }
+  }
+}

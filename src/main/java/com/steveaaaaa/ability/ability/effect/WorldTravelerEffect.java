@@ -51,7 +51,7 @@ public final class WorldTravelerEffect {
         sync(player);
         sendVisual(player, component, ClientboundWorldTravelerVisualPayload.Action.BIND,
                 new Target((ServerLevel) player.level(), event.getPos(), handler), Items.AIR, 0);
-        player.displayClientMessage(Component.translatable("message.ability.world_traveler.bound",
+        player.displayClientMessage(Component.translatable("message.fantasypower.world_traveler.bound",
                 event.getPos().getX(), event.getPos().getY(), event.getPos().getZ()), true);
         event.setCancellationResult(InteractionResult.SUCCESS);
         event.setCanceled(true);
@@ -98,7 +98,7 @@ public final class WorldTravelerEffect {
         if (component == null || !component.config().remoteAccess() || state.boundContainer().isEmpty()) return;
         Target target = target(player, state.boundContainer().get(), component.rank().crossDimension()).orElse(null);
         if (target == null) {
-            player.displayClientMessage(Component.translatable("message.ability.world_traveler.unavailable"), true);
+            player.displayClientMessage(Component.translatable("message.fantasypower.world_traveler.unavailable"), true);
             return;
         }
         int slots = Math.min(54, target.handler().getSlots());
@@ -107,7 +107,7 @@ public final class WorldTravelerEffect {
         player.openMenu(new SimpleMenuProvider(
                 (id, inventory, ignored) -> new WorldTravelerRemoteMenu(id, inventory, target.handler(), slots,
                         () -> activeComponent(player).isPresent() && target.level().hasChunkAt(target.position())),
-                Component.translatable("menu.ability.world_traveler.remote")
+                Component.translatable("menu.fantasypower.world_traveler.remote")
         ), buffer -> buffer.writeVarInt(slots));
     }
 

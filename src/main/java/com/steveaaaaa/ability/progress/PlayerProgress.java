@@ -124,6 +124,37 @@ public record PlayerProgress(
         );
     }
 
+    public PlayerProgress afterDeath(boolean keepSkillProgress, boolean keepLearnedAbilities) {
+        if (keepSkillProgress && keepLearnedAbilities) {
+            return this;
+        }
+        if (!keepSkillProgress && !keepLearnedAbilities) {
+            return EMPTY;
+        }
+
+        HashMap<ResourceLocation, SkillProgress> updatedSkills = new HashMap<>();
+        if (keepSkillProgress) {
+            skills.forEach((skillId, progress) -> updatedSkills.put(
+                    skillId,
+                    keepLearnedAbilities
+                            ? progress
+                            : new SkillProgress(progress.totalXp(), progress.grantedSkillPoints(), 0)
+            ));
+        } else {
+            skills.forEach((skillId, progress) -> updatedSkills.put(
+                    skillId,
+                    new SkillProgress(0L, progress.spentSkillPoints(), progress.spentSkillPoints())
+            ));
+        }
+
+        return new PlayerProgress(
+                CURRENT_DATA_VERSION,
+                updatedSkills,
+                keepLearnedAbilities ? abilityRanks : Map.of(),
+                keepSkillProgress ? legacyUnassignedSkillPoints : 0
+        );
+    }
+
     private SerializedProgress toSerializedProgress() {
         return new SerializedProgress(
                 CURRENT_DATA_VERSION,

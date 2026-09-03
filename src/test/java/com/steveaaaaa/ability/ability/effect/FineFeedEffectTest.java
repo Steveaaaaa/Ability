@@ -29,7 +29,7 @@ class FineFeedEffectTest {
         AbilityDefinition definition = AbilityDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("""
                 {
                   "schema_version": 1,
-                  "skill": "ability:husbandry",
+                  "skill": "fantasypower:husbandry",
                   "display": {
                     "name": "ability.ability.test",
                     "description": "ability.ability.test.description",
@@ -46,9 +46,9 @@ class FineFeedEffectTest {
                     }]
                   },
                   "effect": {
-                    "type": "ability:fine_feed",
+                    "type": "fantasypower:fine_feed",
                     "config": {
-                      "mount_entity_type_tag": "ability:fine_feed_mounts",
+                      "mount_entity_type_tag": "fantasypower:fine_feed_mounts",
                       "speed_effect": "minecraft:speed",
                       "jump_effect": "minecraft:jump_boost"
                     }

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "display": {
+    "name": "skill.fantasypower.defense",
+    "description": "skill.fantasypower.defense.description",
+    "icon": "minecraft:shield",
+    "color": "#455A64",
+    "sort_order": 35
+  },
+  "max_level": 30,
+  "xp_to_next": [
+    100, 125, 150, 180, 215, 255, 300, 350, 405, 465,
+    530, 600, 675, 755, 840, 930, 1025, 1125, 1230, 1340,
+    1455, 1575, 1700, 1830, 1965, 2105, 2250, 2400, 2555, 2715
+  ],
+  "skill_points_per_level": 1
+}

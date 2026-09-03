@@ -10,11 +10,11 @@ displayName="${mod_name}"
 displayURL="https://github.com/Steveaaaaa/Ability"
 authors="Steveaaaaa"
 description='''
-A data-driven RPG skill and ability mod for Minecraft.
+Train ten skills through normal play, then spend skill points to learn and upgrade 36 abilities.
 '''
 
 [[mixins]]
-config="ability.mixins.json"
+config="fantasypower.mixins.json"
 
 [[dependencies.${mod_id}]]
 modId="neoforge"

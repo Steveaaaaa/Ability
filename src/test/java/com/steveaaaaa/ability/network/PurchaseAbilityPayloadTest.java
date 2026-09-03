@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 class PurchaseAbilityPayloadTest {
     private static final ResourceLocation ASSOCIATED_ORE =
-            ResourceLocation.fromNamespaceAndPath("ability", "associated_ore");
+            ResourceLocation.fromNamespaceAndPath("fantasypower", "associated_ore");
 
     @Test
     void roundTripsPurchaseRequests() {

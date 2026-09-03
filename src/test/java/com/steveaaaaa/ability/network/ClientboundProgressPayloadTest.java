@@ -13,10 +13,10 @@ import net.neoforged.neoforge.network.connection.ConnectionType;
 import org.junit.jupiter.api.Test;
 
 class ClientboundProgressPayloadTest {
-    private static final ResourceLocation MINING = ResourceLocation.fromNamespaceAndPath("ability", "mining");
-    private static final ResourceLocation FARMING = ResourceLocation.fromNamespaceAndPath("ability", "farming");
+    private static final ResourceLocation MINING = ResourceLocation.fromNamespaceAndPath("fantasypower", "mining");
+    private static final ResourceLocation FARMING = ResourceLocation.fromNamespaceAndPath("fantasypower", "farming");
     private static final ResourceLocation ASSOCIATED_ORE =
-            ResourceLocation.fromNamespaceAndPath("ability", "associated_ore");
+            ResourceLocation.fromNamespaceAndPath("fantasypower", "associated_ore");
 
     @Test
     void roundTripsTheCompleteSnapshot() {

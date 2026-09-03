@@ -52,7 +52,7 @@ public final class TriggerTypeRegistry {
     private TriggerTypeRegistry() {
     }
 
-    public static synchronized <C> void register(
+    private static synchronized <C> void register(
             ResourceLocation id,
             Codec<C> codec,
             TriggerMatcher<C> matcher

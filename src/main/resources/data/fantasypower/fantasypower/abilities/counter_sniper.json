@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "skill": "fantasypower:archery",
+  "display": {
+    "name": "ability.fantasypower.counter_sniper",
+    "description": "ability.fantasypower.counter_sniper.description",
+    "icon": "minecraft:spyglass",
+    "sort_order": 20
+  },
+  "purchase": {
+    "skill_level": 22,
+    "skill_points": 6,
+    "requirements": [
+      {
+        "type": "fantasypower:skill_level",
+        "config": { "skill": "fantasypower:agility", "level": 10 }
+      }
+    ]
+  },
+  "ranks": {
+    "unlock_skill_levels": [22, 23, 24, 25, 26],
+    "skill_point_costs": [6, 1, 1, 1, 1],
+    "values": [
+      { "damage_multiplier": 1.20 },
+      { "damage_multiplier": 1.30 },
+      { "damage_multiplier": 1.40 },
+      { "damage_multiplier": 1.45 },
+      { "damage_multiplier": 1.50 }
+    ]
+  },
+  "effect": {
+    "type": "fantasypower:counter_sniper",
+    "config": {
+      "mark_id": "fantasypower:prey",
+      "minimum_distance": 8.0,
+      "glowing": false
+    }
+  }
+}

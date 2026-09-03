@@ -108,7 +108,7 @@ public final class ColdCurrentRenderer {
 
         int ageSeconds = state.estimatedAge(minecraft.level.getGameTime()) / 20;
         int finalSeconds = state.finalThresholdTicks() / 20;
-        Component text = Component.translatable("hud.ability.cold_current.status",
+        Component text = Component.translatable("hud.fantasypower.cold_current.status",
                 ageSeconds, finalSeconds, state.stage());
         event.getGuiGraphics().drawCenteredString(minecraft.font, text,
                 event.getGuiGraphics().guiWidth() / 2, event.getGuiGraphics().guiHeight() / 2 + 18, 0xA9EFFF);

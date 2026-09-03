@@ -41,7 +41,7 @@ class ExhaustionEffectTest {
     void registersAndValidatesBuiltInDefinition() throws Exception {
         AbilityDefinition definition;
         try (var stream = ExhaustionEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/exhaustion.json"
+                "/data/fantasypower/fantasypower/abilities/exhaustion.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing exhaustion definition");

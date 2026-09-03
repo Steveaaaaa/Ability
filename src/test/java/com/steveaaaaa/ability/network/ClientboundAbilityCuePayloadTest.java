@@ -60,7 +60,7 @@ class ClientboundAbilityCuePayloadTest {
     }
 
     private static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath("ability", path);
+        return ResourceLocation.fromNamespaceAndPath("fantasypower", path);
     }
 
     private static RegistryFriendlyByteBuf buffer() {

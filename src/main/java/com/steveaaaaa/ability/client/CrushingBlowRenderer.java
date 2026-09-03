@@ -53,7 +53,7 @@ public final class CrushingBlowRenderer {
             ModelPart left = model.root().getChild("left_arm");
             ARM_POSES.put(golem.getUUID(), new ArmPose(right, left,
                     right.xRot, right.yRot, right.zRot, left.xRot, left.yRot, left.zRot));
-            float progress = smoothStep(Mth.clamp(age / 40.0F, 0.0F, 1.0F));
+            float progress = smoothStep(Mth.clamp(age / Math.max(1.0F, state.impactTick()), 0.0F, 1.0F));
             right.xRot = Mth.lerp(progress, right.xRot, -0.18F);
             left.xRot = Mth.lerp(progress, left.xRot, -0.18F);
             right.zRot = Mth.lerp(progress, right.zRot, 1.23F);
@@ -194,7 +194,7 @@ public final class CrushingBlowRenderer {
                 || !(hit.getEntity() instanceof IronGolem golem)) return;
         CrushingBlowClientState.State state = CrushingBlowClientState.get(golem.getUUID());
         if (state == null || !state.ownerId().equals(minecraft.player.getUUID())) return;
-        Component text = Component.translatable("hud.ability.crushing_blow.status",
+        Component text = Component.translatable("hud.fantasypower.crushing_blow.status",
                 state.charge(), state.chargeThreshold(), state.damagePercent());
         int y = event.getGuiGraphics().guiHeight() / 2 +
                 (GolemReinforcementClientState.get(golem.getUUID()) == null ? 18 : 29);

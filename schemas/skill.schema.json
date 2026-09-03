@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.invalid/ability/skill.schema.json",
-  "title": "Ability skill definition",
+  "$id": "urn:fantasypower:schema:skill:1",
+  "title": "FantasyPower skill override",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "display", "max_level", "xp_to_next", "skill_points_per_level"],
+  "required": ["display", "max_level", "xp_to_next", "skill_points_per_level"],
   "properties": {
     "schema_version": { "const": 1 },
     "display": { "$ref": "#/$defs/display" },
@@ -28,7 +28,7 @@
     "display": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "description", "icon", "color", "sort_order"],
+      "required": ["name", "description", "icon"],
       "properties": {
         "name": { "$ref": "#/$defs/translation_key" },
         "description": { "$ref": "#/$defs/translation_key" },

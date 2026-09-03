@@ -191,7 +191,7 @@ public final class ObsidianReinforcementRenderer {
         GolemReinforcementClientState.State state = GolemReinforcementClientState.get(golem.getUUID());
         if (state == null || !state.ownerId().equals(minecraft.player.getUUID())) return;
 
-        Component text = Component.translatable("hud.ability.obsidian_reinforcement.status",
+        Component text = Component.translatable("hud.fantasypower.obsidian_reinforcement.status",
                 state.charge(), state.chargeThreshold(), state.shields(), state.maxShields());
         int y = event.getGuiGraphics().guiHeight() / 2 + 18;
         event.getGuiGraphics().drawCenteredString(minecraft.font, text,

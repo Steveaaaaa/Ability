@@ -35,7 +35,7 @@ class AttributeModifierEffectTest {
     @Test
     void createsStableNamespacedModifierIds() {
         assertEquals(
-                ResourceLocation.fromNamespaceAndPath("ability", "attribute/example/efficient_mining/1"),
+                ResourceLocation.fromNamespaceAndPath("fantasypower", "attribute/example/efficient_mining/1"),
                 AttributeModifierEffect.modifierId(
                         ResourceLocation.fromNamespaceAndPath("example", "efficient_mining"),
                         1
@@ -48,7 +48,7 @@ class AttributeModifierEffectTest {
         AbilityDefinition definition = AbilityDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("""
                 {
                   "schema_version": 1,
-                  "skill": "ability:mining",
+                  "skill": "fantasypower:mining",
                   "display": {
                     "name": "ability.ability.test",
                     "description": "ability.ability.test.description",
@@ -65,9 +65,9 @@ class AttributeModifierEffectTest {
                     ]
                   },
                   "effect": {
-                    "type": "ability:attribute_modifier",
+                    "type": "fantasypower:attribute_modifier",
                     "config": {
-                      "melee_hit_cue": "ability:hit",
+                      "melee_hit_cue": "fantasypower:hit",
                       "modifiers": [
                         {
                           "attribute": "minecraft:player.block_break_speed",

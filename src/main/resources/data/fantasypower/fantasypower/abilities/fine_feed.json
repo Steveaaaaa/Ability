@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "skill": "fantasypower:husbandry",
+  "display": {
+    "name": "ability.fantasypower.fine_feed",
+    "description": "ability.fantasypower.fine_feed.description",
+    "icon": "minecraft:golden_carrot",
+    "sort_order": 20
+  },
+  "purchase": {
+    "skill_level": 8,
+    "skill_points": 4,
+    "requirements": [
+      {
+        "type": "fantasypower:skill_level",
+        "config": { "skill": "fantasypower:agility", "level": 4 }
+      }
+    ]
+  },
+  "ranks": {
+    "unlock_skill_levels": [8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+    "skill_point_costs": [4, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    "values": [
+      { "maximum_movement_speed": 0.2125, "maximum_jump_strength": 0.666666666666667 },
+      { "maximum_movement_speed": 0.219886363636364, "maximum_jump_strength": 0.686363636363636 },
+      { "maximum_movement_speed": 0.227616279069767, "maximum_jump_strength": 0.706976744186047 },
+      { "maximum_movement_speed": 0.235714285714286, "maximum_jump_strength": 0.728571428571429 },
+      { "maximum_movement_speed": 0.244207317073171, "maximum_jump_strength": 0.751219512195122 },
+      { "maximum_movement_speed": 0.256730769230769, "maximum_jump_strength": 0.784615384615385 },
+      { "maximum_movement_speed": 0.266447368421053, "maximum_jump_strength": 0.810526315789474 },
+      { "maximum_movement_speed": 0.276689189189189, "maximum_jump_strength": 0.837837837837838 },
+      { "maximum_movement_speed": 0.2875, "maximum_jump_strength": 0.866666666666667 },
+      { "maximum_movement_speed": 0.305357142857143, "maximum_jump_strength": 0.914285714285714 }
+    ]
+  },
+  "effect": {
+    "type": "fantasypower:fine_feed",
+    "config": {
+      "mount_entity_type_tag": "fantasypower:fine_feed_mounts",
+      "speed_effect": "minecraft:speed",
+      "speed_amplifier": 2,
+      "jump_effect": "minecraft:jump_boost",
+      "jump_amplifier": 1,
+      "check_interval_ticks": 10,
+      "effect_duration_ticks": 30
+    }
+  }
+}

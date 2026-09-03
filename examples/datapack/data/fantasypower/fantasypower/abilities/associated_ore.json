@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "skill": "fantasypower:mining",
+  "display": {
+    "name": "ability.fantasypower.associated_ore",
+    "description": "ability.fantasypower.associated_ore.description",
+    "icon": "minecraft:raw_iron",
+    "sort_order": 30
+  },
+  "purchase": {
+    "skill_level": 12,
+    "skill_points": 6,
+    "requirements": [
+      {
+        "type": "fantasypower:skill_level",
+        "config": { "skill": "fantasypower:gathering", "level": 10 }
+      }
+    ]
+  },
+  "ranks": {
+    "unlock_skill_levels": [12, 15, 18, 21, 24],
+    "skill_point_costs": [6, 1, 1, 1, 1],
+    "values": [
+      { "coal_bonus_chance": 0.25 },
+      { "coal_bonus_chance": 0.25, "copper_to_raw_iron_chance": 0.25 },
+      { "coal_bonus_chance": 0.25, "copper_to_raw_iron_chance": 0.25, "iron_to_raw_gold_chance": 0.25 },
+      { "coal_bonus_chance": 0.25, "copper_to_raw_iron_chance": 0.25, "iron_to_raw_gold_chance": 0.25, "nether_gold_bonus_chance": 0.25 },
+      { "coal_bonus_chance": 0.25, "rare_replacement_chance": 0.20, "emerald_weight": 0.70 }
+    ]
+  },
+  "effect": {
+    "type": "fantasypower:associated_ore",
+    "config": {
+      "required_tool_tag": "minecraft:pickaxes",
+      "require_unenchanted_tool": true
+    }
+  }
+}

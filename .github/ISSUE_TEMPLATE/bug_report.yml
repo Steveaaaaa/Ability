@@ -1,0 +1,51 @@
+name: 问题反馈
+description: 崩溃、能力异常、界面问题或兼容性问题
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        谢谢反馈。版本信息和复现步骤越完整，问题通常越容易定位。
+  - type: input
+    id: mod-version
+    attributes:
+      label: FantasyPower 版本
+      placeholder: 例如 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 游戏环境
+      description: 请填写 Minecraft、NeoForge 和 Player Animation Library 的版本，并注明单人游戏或专用服务器。
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题描述
+      description: 实际发生了什么？你原本希望看到什么？
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 学习……
+        2. 使用……
+        3. 出现……
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图
+      description: 可以直接拖入 latest.log、崩溃报告或截图。上传前请检查其中是否有不想公开的信息。
+  - type: textarea
+    id: other-mods
+    attributes:
+      label: 其他模组
+      description: 如果只在某个整合包中出现，请附上模组列表或整合包名称与版本。

@@ -12,21 +12,21 @@ class AbilityPresentationDefinitionTest {
     void parsesResourceDrivenCue() {
         AbilityPresentationDefinition definition = AbilityPresentationDefinition.parse(
                 JsonParser.parseString("""
-                        {"cues":{"ability:activate":{
+                        {"cues":{"fantasypower:activate":{
                           "duration_ticks":20,
                           "emission_interval_ticks":2,
                           "particles":[{"type":"minecraft:end_rod","anchor":"source","count":5}],
                           "sound":{"event":"minecraft:block.note_block.pling"},
-                          "animation":"ability:roll",
-                          "orbiting_sprites":[{"texture":"ability:textures/particle/stun_star.png"}]
+                          "animation":"fantasypower:roll",
+                          "orbiting_sprites":[{"texture":"fantasypower:textures/particle/stun_star.png"}]
                         }}}
                         """).getAsJsonObject()
         );
-        var cue = definition.cues().get(ResourceLocation.fromNamespaceAndPath("ability", "activate"));
+        var cue = definition.cues().get(ResourceLocation.fromNamespaceAndPath("fantasypower", "activate"));
         assertEquals(20, cue.durationTicks());
         assertEquals(2, cue.emissionIntervalTicks());
         assertEquals(5, cue.particles().getFirst().count());
-        assertEquals(ResourceLocation.fromNamespaceAndPath("ability", "roll"), cue.animation().orElseThrow());
+        assertEquals(ResourceLocation.fromNamespaceAndPath("fantasypower", "roll"), cue.animation().orElseThrow());
         assertEquals(3, cue.orbitingSprites().getFirst().minimumCount());
     }
 
@@ -34,7 +34,7 @@ class AbilityPresentationDefinitionTest {
     void rejectsUnboundedParticleCounts() {
         assertThrows(RuntimeException.class, () -> AbilityPresentationDefinition.parse(
                 JsonParser.parseString("""
-                        {"cues":{"ability:test":{"particles":[{"type":"minecraft:end_rod","count":513}]}}}
+                        {"cues":{"fantasypower:test":{"particles":[{"type":"minecraft:end_rod","count":513}]}}}
                         """).getAsJsonObject()
         ));
     }

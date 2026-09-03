@@ -74,7 +74,7 @@ class AssociatedOreEffectTest {
     @Test
     void decodesTheBuiltInDefinitionWithTypedEffectCodecs() throws Exception {
         try (var stream = getClass().getResourceAsStream(
-                "/data/ability/ability/abilities/associated_ore.json"
+                "/data/fantasypower/fantasypower/abilities/associated_ore.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing built-in associated_ore definition");

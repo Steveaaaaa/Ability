@@ -41,7 +41,7 @@ class HarvestEffectTest {
     void registersAndValidatesBuiltInDefinition() throws Exception {
         AbilityDefinition definition;
         try (var stream = HarvestEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/harvest.json"
+                "/data/fantasypower/fantasypower/abilities/harvest.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing harvest definition");

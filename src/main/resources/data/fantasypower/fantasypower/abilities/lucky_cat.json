@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "skill": "fantasypower:gathering",
+  "display": {
+    "name": "ability.fantasypower.lucky_cat",
+    "description": "ability.fantasypower.lucky_cat.description",
+    "icon": "minecraft:rabbit_foot",
+    "sort_order": 20
+  },
+  "purchase": {
+    "skill_level": 16,
+    "skill_points": 6,
+    "requirements": [
+      { "type": "fantasypower:skill_level", "config": { "skill": "fantasypower:husbandry", "level": 10 } }
+    ]
+  },
+  "ranks": { "unlock_skill_levels": [16], "skill_point_costs":[6],"values": [{}] },
+  "effect": {
+    "type": "fantasypower:companion_gift",
+    "config": {
+      "source": "cat_morning_gift",
+      "chance": 0.25,
+      "rolls": 1,
+      "entries": [
+        { "item": "minecraft:lily_pad", "weight": 1, "minimum_count": 1, "maximum_count": 8 },
+        { "item": "minecraft:sugar_cane", "weight": 1 },
+        { "item": "minecraft:oak_sapling", "weight": 3 },
+        { "item": "minecraft:cactus", "weight": 2 },
+        { "item": "minecraft:gold_ingot", "weight": 1, "minimum_count": 1, "maximum_count": 2 },
+        { "item": "minecraft:leather_helmet", "weight": 1, "enchantment_level": 30 },
+        { "item": "minecraft:leather_chestplate", "weight": 1, "enchantment_level": 30 },
+        { "item": "minecraft:leather_leggings", "weight": 1, "enchantment_level": 30 },
+        { "item": "minecraft:leather_boots", "weight": 1, "enchantment_level": 30 },
+        { "item": "minecraft:honeycomb", "weight": 1 },
+        { "item": "minecraft:turtle_helmet", "weight": 1 },
+        { "item": "minecraft:ender_pearl", "weight": 1 },
+        { "item": "minecraft:ender_eye", "weight": 1 },
+        { "item": "minecraft:shulker_shell", "weight": 1 },
+        { "item": "minecraft:book", "weight": 1, "enchantment_level": 30 },
+        { "item": "minecraft:ghast_tear", "weight": 2 },
+        { "item": "minecraft:blaze_rod", "weight": 1 },
+        { "item": "minecraft:sculk", "weight": 2 },
+        { "item": "minecraft:slime_ball", "weight": 1 },
+        { "loot_table": "minecraft:entities/squid", "weight": 2 },
+        { "loot_table": "minecraft:entities/horse", "weight": 2 },
+        { "loot_table": "minecraft:entities/cow", "weight": 2 },
+        { "loot_table": "minecraft:entities/sheep", "weight": 2 },
+        { "loot_table": "minecraft:gameplay/cat_morning_gift", "weight": 7 }
+      ]
+    }
+  }
+}

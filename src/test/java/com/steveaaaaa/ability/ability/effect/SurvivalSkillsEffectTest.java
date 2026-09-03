@@ -35,7 +35,7 @@ class SurvivalSkillsEffectTest {
     void registersAndValidatesBuiltInDefinition() throws Exception {
         AbilityDefinition definition;
         try (var stream = SurvivalSkillsEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/survival_skills.json"
+                "/data/fantasypower/fantasypower/abilities/survival_skills.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing survival skills definition");

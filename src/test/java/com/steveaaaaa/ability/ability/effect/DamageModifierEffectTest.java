@@ -51,7 +51,7 @@ class DamageModifierEffectTest {
 
     @Test
     void validatesDamageFiltersAndRankValues() {
-        AbilityDefinition definition = parseDefinition("ability:damage_modifier", """
+        AbilityDefinition definition = parseDefinition("fantasypower:damage_modifier", """
                 { "damage_multiplier": 1.1, "flat_damage": 1.0 }
                 """, """
                 {
@@ -71,7 +71,7 @@ class DamageModifierEffectTest {
     @Test
     void rejectsParametersFromTheOppositeDamageDirection() {
         AbilityDefinition definition = parseDefinition(
-                "ability:damage_reduction",
+                "fantasypower:damage_reduction",
                 "{ \"flat_damage\": 2.0 }",
                 "{}"
         );
@@ -85,7 +85,7 @@ class DamageModifierEffectTest {
         String json = """
                 {
                   "schema_version": 1,
-                  "skill": "ability:combat",
+                  "skill": "fantasypower:combat",
                   "display": {
                     "name": "ability.ability.test",
                     "description": "ability.ability.test.description",

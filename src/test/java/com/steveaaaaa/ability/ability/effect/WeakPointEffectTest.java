@@ -16,7 +16,7 @@ class WeakPointEffectTest {
     void registersAndValidatesTheBuiltInWeakPointAbility() throws Exception {
         AbilityDefinition definition;
         try (var stream = WeakPointEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/weak_point.json"
+                "/data/fantasypower/fantasypower/abilities/weak_point.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing weak point definition");

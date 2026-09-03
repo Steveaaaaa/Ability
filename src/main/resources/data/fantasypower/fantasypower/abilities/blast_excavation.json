@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "skill": "fantasypower:mining",
+  "display": {
+    "name": "ability.fantasypower.blast_excavation",
+    "description": "ability.fantasypower.blast_excavation.description",
+    "icon": "minecraft:tnt",
+    "sort_order": 10
+  },
+  "purchase": {
+    "skill_level": 22,
+    "skill_points": 10,
+    "requirements": [
+      { "type": "fantasypower:skill_level", "config": { "skill": "fantasypower:combat", "level": 18 } }
+    ]
+  },
+  "ranks": {
+    "unlock_skill_levels": [22, 24, 26, 28, 30],
+    "skill_point_costs": [10, 1, 1, 1, 1],
+    "values": [
+      { "self_damage_reduction_percent": 40 },
+      { "self_damage_reduction_percent": 45 },
+      { "self_damage_reduction_percent": 50 },
+      { "self_damage_reduction_percent": 55 },
+      { "self_damage_reduction_percent": 65 }
+    ]
+  },
+  "effect": {
+    "type": "fantasypower:blast_excavation",
+    "config": {
+      "required_main_hand_tool_tag": "minecraft:pickaxes",
+      "explosive_item": "minecraft:tnt",
+      "fuse_ticks": 0
+    }
+  }
+}

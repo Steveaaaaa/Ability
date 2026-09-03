@@ -34,7 +34,7 @@ public final class AbilityCommands {
 
     public static void register(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> dispatcher = event.getDispatcher();
-        dispatcher.register(Commands.literal("ability")
+        dispatcher.register(Commands.literal("fantasypower")
                 .then(Commands.literal("progress")
                         .then(Commands.argument("skill", ResourceLocationArgument.id())
                                 .executes(context -> showProgress(
@@ -86,7 +86,7 @@ public final class AbilityCommands {
         }
         ExperienceService.ProgressView view = ExperienceService.view(player, skillId);
         source.sendSuccess(() -> Component.translatable(
-                "command.ability.progress",
+                "command.fantasypower.progress",
                 view.skillId().toString(),
                 view.level(),
                 view.totalXp(),
@@ -108,7 +108,7 @@ public final class AbilityCommands {
             ExperienceService.award(player, skillId, amount);
         }
         source.sendSuccess(() -> Component.translatable(
-                "command.ability.add_xp.success",
+                "command.fantasypower.add_xp.success",
                 amount,
                 skillId.toString(),
                 targets.size()
@@ -122,36 +122,36 @@ public final class AbilityCommands {
         AbilityService.PurchaseResult result = AbilityService.purchase(player, abilityId);
         switch (result.status()) {
             case SUCCESS -> source.sendSuccess(() -> Component.translatable(
-                    "command.ability.purchase.success",
+                    "command.fantasypower.purchase.success",
                     result.abilityId().toString(),
                     result.required(),
                     result.actual()
             ), false);
             case UNKNOWN_ABILITY -> throw UNKNOWN_ABILITY.create(abilityId);
             case ALREADY_PURCHASED -> source.sendFailure(Component.translatable(
-                    "command.ability.purchase.already_purchased",
+                    "command.fantasypower.purchase.already_purchased",
                     abilityId.toString()
             ));
             case MAX_RANK -> source.sendFailure(Component.translatable(
-                    "command.ability.purchase.max_rank",
+                    "command.fantasypower.purchase.max_rank",
                     abilityId.toString()
             ));
             case SKILL_LEVEL_TOO_LOW -> source.sendFailure(Component.translatable(
-                    "command.ability.purchase.skill_level_too_low",
+                    "command.fantasypower.purchase.skill_level_too_low",
                     result.required(),
                     result.actual()
             ));
             case NOT_ENOUGH_SKILL_POINTS -> source.sendFailure(Component.translatable(
-                    "command.ability.purchase.not_enough_points",
+                    "command.fantasypower.purchase.not_enough_points",
                     result.required(),
                     result.actual()
             ));
             case REQUIREMENT_NOT_MET -> source.sendFailure(Component.translatable(
-                    "command.ability.purchase.requirement_not_met",
+                    "command.fantasypower.purchase.requirement_not_met",
                     result.detail()
             ));
             case INVALID_DEFINITION -> source.sendFailure(Component.translatable(
-                    "command.ability.purchase.invalid_definition",
+                    "command.fantasypower.purchase.invalid_definition",
                     result.detail()
             ));
         }
@@ -166,7 +166,7 @@ public final class AbilityCommands {
         }
         AbilityService.RankView view = AbilityService.rank(player, abilityId);
         source.sendSuccess(() -> Component.translatable(
-                "command.ability.rank",
+                "command.fantasypower.rank",
                 view.abilityId().toString(),
                 view.rank(),
                 view.maxRank(),
@@ -180,12 +180,12 @@ public final class AbilityCommands {
     private static int validateData(CommandSourceStack source) {
         DataValidationReport report = DataDefinitionValidator.validate(source.getServer());
         if (report.valid()) {
-            source.sendSuccess(() -> Component.translatable("command.ability.validate.success"), false);
+            source.sendSuccess(() -> Component.translatable("command.fantasypower.validate.success"), false);
             return 1;
         }
 
         source.sendFailure(Component.translatable(
-                "command.ability.validate.failure",
+                "command.fantasypower.validate.failure",
                 report.errorCount()
         ));
         report.diagnostics().stream().limit(MAX_VALIDATION_DIAGNOSTICS).forEach(diagnostic ->
@@ -193,7 +193,7 @@ public final class AbilityCommands {
         );
         int omitted = report.errorCount() - MAX_VALIDATION_DIAGNOSTICS;
         if (omitted > 0) {
-            source.sendFailure(Component.translatable("command.ability.validate.truncated", omitted));
+            source.sendFailure(Component.translatable("command.fantasypower.validate.truncated", omitted));
         }
         return 0;
     }
@@ -215,7 +215,7 @@ public final class AbilityCommands {
                 player.getRandom().nextLong()
         ));
         source.sendSuccess(() -> Component.translatable(
-                "command.ability.presentation_preview",
+                "command.fantasypower.presentation_preview",
                 abilityId.toString(),
                 cueId.toString()
         ), false);

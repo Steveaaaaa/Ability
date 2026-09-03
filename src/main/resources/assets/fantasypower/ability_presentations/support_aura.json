@@ -1,0 +1,30 @@
+{
+  "cues": {
+    "fantasypower:activate": {
+      "duration_ticks": 0,
+      "sound": {
+        "event": "minecraft:block.beacon.power_select",
+        "anchor": "source",
+        "volume": 0.55,
+        "pitch": 1.28,
+        "pitch_random": 0.08
+      }
+    },
+    "fantasypower:support_link": {
+      "duration_ticks": 0
+    },
+    "fantasypower:heal_pulse": {
+      "duration_ticks": 0,
+      "sound": {
+        "event": "minecraft:block.amethyst_block.chime",
+        "anchor": "target",
+        "volume": 0.24,
+        "pitch": 1.52,
+        "pitch_random": 0.08
+      }
+    },
+    "fantasypower:golden_shield": {
+      "duration_ticks": 500
+    }
+  }
+}

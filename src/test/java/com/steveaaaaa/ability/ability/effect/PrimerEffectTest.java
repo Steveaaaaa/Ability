@@ -33,7 +33,7 @@ class PrimerEffectTest {
     void registersAndValidatesBuiltInDefinition() throws Exception {
         AbilityDefinition definition;
         try (var stream = PrimerEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/primer.json"
+                "/data/fantasypower/fantasypower/abilities/primer.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing primer definition");

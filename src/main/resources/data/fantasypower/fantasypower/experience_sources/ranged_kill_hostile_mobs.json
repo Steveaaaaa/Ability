@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "skill": "fantasypower:archery",
+  "base_xp": 12,
+  "trigger": {
+    "type": "fantasypower:ranged_kill",
+    "config": {
+      "damage_type_tag": "minecraft:is_projectile",
+      "hostile_only": true,
+      "exclude_players": true
+    }
+  },
+  "conditions": [
+    {
+      "type": "fantasypower:not_game_mode",
+      "config": { "game_mode": "minecraft:creative" }
+    }
+  ],
+  "anti_abuse": {
+    "reject_player_placed": false,
+    "target_cooldown_ticks": 0,
+    "daily_soft_cap": 5000,
+    "xp_after_soft_cap_multiplier": 0.1
+  }
+}

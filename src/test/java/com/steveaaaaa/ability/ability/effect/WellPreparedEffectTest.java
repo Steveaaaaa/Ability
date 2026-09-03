@@ -33,7 +33,7 @@ class WellPreparedEffectTest {
     void registersAndValidatesBuiltInDefinition() throws Exception {
         AbilityDefinition definition;
         try (var stream = WellPreparedEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/well_prepared.json"
+                "/data/fantasypower/fantasypower/abilities/well_prepared.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing well prepared definition");

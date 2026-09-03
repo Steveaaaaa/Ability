@@ -11,7 +11,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class ClientProgressCacheTest {
-    private static final ResourceLocation MINING = ResourceLocation.fromNamespaceAndPath("ability", "mining");
+    private static final ResourceLocation MINING = ResourceLocation.fromNamespaceAndPath("fantasypower", "mining");
 
     @AfterEach
     void clearCache() {
@@ -54,7 +54,7 @@ class ClientProgressCacheTest {
 
     @Test
     void allowsOnlyOnePendingPurchaseAndClearsItOnMatchingResult() {
-        ResourceLocation farming = ResourceLocation.fromNamespaceAndPath("ability", "farming");
+        ResourceLocation farming = ResourceLocation.fromNamespaceAndPath("fantasypower", "farming");
 
         assertTrue(ClientProgressCache.beginPurchase(MINING));
         assertEquals(MINING, ClientProgressCache.pendingPurchase());

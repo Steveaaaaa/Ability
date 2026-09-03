@@ -78,7 +78,7 @@ public final class ConditionTypeRegistry {
     private ConditionTypeRegistry() {
     }
 
-    public static synchronized <C> void register(
+    private static synchronized <C> void register(
             ResourceLocation id,
             Codec<C> codec,
             ConditionEvaluator<C> evaluator

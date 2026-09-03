@@ -12,9 +12,9 @@ import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 
 class PlayerProgressTest {
-    private static final ResourceLocation ABILITY = ResourceLocation.fromNamespaceAndPath("ability", "test");
-    private static final ResourceLocation MINING = ResourceLocation.fromNamespaceAndPath("ability", "mining");
-    private static final ResourceLocation FARMING = ResourceLocation.fromNamespaceAndPath("ability", "farming");
+    private static final ResourceLocation ABILITY = ResourceLocation.fromNamespaceAndPath("fantasypower", "test");
+    private static final ResourceLocation MINING = ResourceLocation.fromNamespaceAndPath("fantasypower", "mining");
+    private static final ResourceLocation FARMING = ResourceLocation.fromNamespaceAndPath("fantasypower", "farming");
 
     @Test
     void purchasingAbilitySpendsPointsAndRecordsPurchase() {
@@ -91,7 +91,7 @@ class PlayerProgressTest {
         var json = JsonParser.parseString("""
                 {
                   "data_version": 1,
-                  "skills": { "ability:mining": { "total_xp": 1200 } },
+                  "skills": { "fantasypower:mining": { "total_xp": 1200 } },
                   "purchased_abilities": [],
                   "granted_skill_points": 10,
                   "spent_skill_points": 3
@@ -134,7 +134,7 @@ class PlayerProgressTest {
                 {
                   "data_version": 2,
                   "skills": {},
-                  "purchased_abilities": ["ability:test"]
+                  "purchased_abilities": ["fantasypower:test"]
                 }
                 """);
 
@@ -142,5 +142,38 @@ class PlayerProgressTest {
 
         assertEquals(3, migrated.dataVersion());
         assertEquals(1, migrated.abilityRank(ABILITY));
+    }
+
+    @Test
+    void deathCanKeepExperienceWhileForgettingAbilitiesAndRefundingPoints() {
+        PlayerProgress before = new PlayerProgress(
+                3,
+                Map.of(MINING, new SkillProgress(1200L, 10, 6)),
+                Map.of(ABILITY, 2),
+                0
+        );
+
+        PlayerProgress after = before.afterDeath(true, false);
+
+        assertEquals(1200L, after.skill(MINING).totalXp());
+        assertEquals(10, after.availableSkillPoints(MINING));
+        assertEquals(0, after.abilityRank(ABILITY));
+    }
+
+    @Test
+    void deathCanResetExperienceWhileKeepingLearnedAbilitiesWithoutDuplicatingPoints() {
+        PlayerProgress before = new PlayerProgress(
+                3,
+                Map.of(MINING, new SkillProgress(1200L, 10, 6)),
+                Map.of(ABILITY, 2),
+                0
+        );
+
+        PlayerProgress after = before.afterDeath(false, true);
+
+        assertEquals(0L, after.skill(MINING).totalXp());
+        assertEquals(6, after.skill(MINING).grantedSkillPoints());
+        assertEquals(0, after.availableSkillPoints(MINING));
+        assertEquals(2, after.abilityRank(ABILITY));
     }
 }

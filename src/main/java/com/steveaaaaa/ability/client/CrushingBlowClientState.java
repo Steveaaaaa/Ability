@@ -37,13 +37,13 @@ public final class CrushingBlowClientState {
             if (!preserve && payload.visualEvent() == ClientboundCrushingBlowPayload.VisualEvent.WINDUP) {
                 animationTick -= Math.max(0, payload.releaseTicks() - 1);
             } else if (!preserve && payload.visualEvent() == ClientboundCrushingBlowPayload.VisualEvent.RELEASED) {
-                animationTick -= Math.max(0, payload.releaseTicks() - 40);
+                animationTick -= Math.max(0, payload.releaseTicks() - payload.impactTick());
                 CrushingBlowGroundRenderer.accept(minecraft.level,
                         payload.impactX(), payload.impactY(), payload.impactZ());
             }
             STATES.put(payload.golemId(), new State(
                     payload.ownerId(), payload.charge(), payload.chargeThreshold(), payload.damagePercent(),
-                    payload.releaseTicks(),
+                    payload.releaseTicks(), payload.impactTick(),
                     preserve ? previous.visualEvent() : payload.visualEvent(),
                     animationTick,
                     preserve ? previous.impactX() : payload.impactX(),
@@ -73,6 +73,7 @@ public final class CrushingBlowClientState {
             int chargeThreshold,
             int damagePercent,
             int releaseTicks,
+            int impactTick,
             ClientboundCrushingBlowPayload.VisualEvent visualEvent,
             long animationTick,
             float impactX,

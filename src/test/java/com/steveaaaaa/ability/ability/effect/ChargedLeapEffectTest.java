@@ -47,7 +47,7 @@ class ChargedLeapEffectTest {
     void registersAndValidatesBuiltInDefinition() throws Exception {
         AbilityDefinition definition;
         try (var stream = ChargedLeapEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/charged_leap.json"
+                "/data/fantasypower/fantasypower/abilities/charged_leap.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing charged leap definition");

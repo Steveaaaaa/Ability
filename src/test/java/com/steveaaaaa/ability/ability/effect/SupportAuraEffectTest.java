@@ -23,7 +23,7 @@ class SupportAuraEffectTest {
 
     @Test
     void rejectsASecondSessionForTheSameTargetGroup() {
-        ResourceLocation snowGolems = ResourceLocation.fromNamespaceAndPath("ability", "support_snow_golems");
+        ResourceLocation snowGolems = ResourceLocation.fromNamespaceAndPath("fantasypower", "support_snow_golems");
         assertFalse(SupportAuraEffect.canStartSession(Set.of(snowGolems), snowGolems));
         assertTrue(SupportAuraEffect.canStartSession(Set.of(), snowGolems));
     }

@@ -1,0 +1,14 @@
+{
+  "cues": {
+    "fantasypower:transmute": {
+      "duration_ticks": 0,
+      "sound": {
+        "event": "minecraft:item.chorus_fruit.teleport",
+        "anchor": "position",
+        "volume": 0.72,
+        "pitch": 1.22,
+        "pitch_random": 0.05
+      }
+    }
+  }
+}

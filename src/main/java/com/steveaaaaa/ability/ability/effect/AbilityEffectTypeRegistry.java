@@ -53,7 +53,7 @@ public final class AbilityEffectTypeRegistry {
     private AbilityEffectTypeRegistry() {
     }
 
-    public static synchronized void register(
+    private static synchronized void register(
             ResourceLocation id,
             Function<AbilityDefinition, List<String>> validator
     ) {

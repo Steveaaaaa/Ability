@@ -41,7 +41,7 @@ class ConditionalMobEffectTest {
         AbilityDefinition definition = AbilityDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("""
                 {
                   "schema_version": 1,
-                  "skill": "ability:agility",
+                  "skill": "fantasypower:agility",
                   "display": {
                     "name": "ability.ability.test",
                     "description": "ability.ability.test.description",
@@ -58,7 +58,7 @@ class ConditionalMobEffectTest {
                     ]
                   },
                   "effect": {
-                    "type": "ability:conditional_mob_effect",
+                    "type": "fantasypower:conditional_mob_effect",
                     "config": {
                       "conditions": [{
                         "type": "y_outside_range",

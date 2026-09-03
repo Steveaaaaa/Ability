@@ -45,9 +45,28 @@ public final class DataDefinitionValidator {
         ArrayList<DataValidationReport.Diagnostic> diagnostics = new ArrayList<>();
         TreeMap<ResourceLocation, Set<ResourceLocation>> prerequisiteGraph = new TreeMap<>();
 
+        reportMissingBuiltIns(diagnostics, "skill", ModDataRegistries.builtinSkillIds(), skills.keySet());
+        reportMissingBuiltIns(diagnostics, "ability", ModDataRegistries.builtinAbilityIds(), abilities.keySet());
+        reportMissingBuiltIns(
+                diagnostics,
+                "experience_source",
+                ModDataRegistries.builtinExperienceSourceIds(),
+                experienceSources.keySet()
+        );
+
         abilities.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
             ResourceLocation abilityId = entry.getKey();
             AbilityDefinition ability = entry.getValue();
+            if (!ModDataRegistries.isBuiltinAbility(abilityId)) {
+                add(
+                        diagnostics,
+                        "ability",
+                        abilityId,
+                        "id",
+                        "Custom ability definitions are not supported; override a built-in FantasyPower ability instead"
+                );
+                return;
+            }
             prerequisiteGraph.put(abilityId, new LinkedHashSet<>());
             SkillDefinition owningSkill = skills.get(ability.skill());
             if (owningSkill == null) {
@@ -133,6 +152,17 @@ public final class DataDefinitionValidator {
         return new DataValidationReport(diagnostics);
     }
 
+    private static void reportMissingBuiltIns(
+            List<DataValidationReport.Diagnostic> diagnostics,
+            String definitionType,
+            Set<ResourceLocation> expected,
+            Set<ResourceLocation> actual
+    ) {
+        expected.stream().filter(id -> !actual.contains(id)).sorted().forEach(id ->
+                add(diagnostics, definitionType, id, "id", "Missing built-in FantasyPower definition")
+        );
+    }
+
     private static void validateCondition(
             TypedConfig condition,
             String path,
@@ -173,7 +203,7 @@ public final class DataDefinitionValidator {
         } else if (condition.type().equals(ConditionTypeRegistry.ABILITY_PURCHASED)) {
             ConditionTypeRegistry.AbilityPurchasedConfig config = ConditionTypeRegistry.AbilityPurchasedConfig.CODEC
                     .parse(condition.config()).result().orElseThrow();
-            if (!abilities.containsKey(config.ability())) {
+            if (!ModDataRegistries.isBuiltinAbility(config.ability()) || !abilities.containsKey(config.ability())) {
                 add(
                         diagnostics,
                         definitionType,

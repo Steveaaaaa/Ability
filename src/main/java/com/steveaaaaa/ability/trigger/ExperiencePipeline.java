@@ -2,6 +2,7 @@ package com.steveaaaaa.ability.trigger;
 
 import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.condition.ConditionEvaluation;
+import com.steveaaaaa.ability.config.AbilityServerConfig;
 import com.steveaaaaa.ability.condition.ConditionTypeRegistry;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.ExperienceSourceDefinition;
@@ -63,7 +64,10 @@ public final class ExperiencePipeline {
                 continue;
             }
 
-            long rawXp = calculateRawXp(source.baseXp(), triggerMatch.xpMultiplier());
+            long rawXp = calculateRawXp(
+                    source.baseXp(),
+                    triggerMatch.xpMultiplier() * AbilityServerConfig.experienceMultiplier()
+            );
             long awardedXp = ExperienceAntiAbuseService.applyDailyLimit(
                     context.player(),
                     sourceId,

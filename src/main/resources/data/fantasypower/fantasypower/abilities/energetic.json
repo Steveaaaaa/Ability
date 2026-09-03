@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "skill": "fantasypower:farming",
+  "display": {
+    "name": "ability.fantasypower.energetic",
+    "description": "ability.fantasypower.energetic.description",
+    "icon": "minecraft:golden_carrot",
+    "sort_order": 10
+  },
+  "purchase": {
+    "skill_level": 20,
+    "skill_points": 8,
+    "requirements": [
+      {
+        "type": "fantasypower:skill_level",
+        "config": { "skill": "fantasypower:agility", "level": 10 }
+      }
+    ]
+  },
+  "ranks": {
+    "unlock_skill_levels": [20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
+    "skill_point_costs": [8, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    "values": [
+      { "food_threshold": 25.0 },
+      { "food_threshold": 24.5 },
+      { "food_threshold": 24.0 },
+      { "food_threshold": 23.5 },
+      { "food_threshold": 23.0 },
+      { "food_threshold": 22.5 },
+      { "food_threshold": 22.0 },
+      { "food_threshold": 21.5 },
+      { "food_threshold": 21.0 },
+      { "food_threshold": 20.0 }
+    ]
+  },
+  "effect": {
+    "type": "fantasypower:conditional_mob_effect",
+    "config": {
+      "conditions": [
+        {
+          "type": "food_total_above",
+          "value_key": "food_threshold"
+        }
+      ],
+      "effects": [
+        {
+          "effect": "minecraft:speed",
+          "amplifier": 1,
+          "duration_ticks": 30,
+          "show_particles": false
+        },
+        {
+          "effect": "minecraft:jump_boost",
+          "amplifier": 0,
+          "duration_ticks": 30,
+          "show_particles": false
+        }
+      ]
+    }
+  }
+}

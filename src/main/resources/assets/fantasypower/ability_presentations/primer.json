@@ -1,0 +1,13 @@
+{
+  "cues": {
+    "fantasypower:charge": {
+      "duration_ticks": 0
+    },
+    "fantasypower:fire": {
+      "duration_ticks": 0
+    },
+    "fantasypower:impact": {
+      "duration_ticks": 0
+    }
+  }
+}

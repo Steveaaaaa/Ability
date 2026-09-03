@@ -37,10 +37,25 @@ class DataDefinitionValidatorTest {
     }
 
     @Test
+    void reportsMissingBuiltInDefinitions() {
+        DataValidationReport report = DataDefinitionValidator.validateCatalog(
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                advancement -> false
+        );
+
+        assertTrue(report.diagnostics().stream().anyMatch(diagnostic ->
+                diagnostic.definitionId().equals(id("associated_ore"))
+                        && diagnostic.message().contains("Missing built-in")
+        ));
+    }
+
+    @Test
     void reportsUnknownSkillReferences() throws Exception {
         ExperienceSourceDefinition valid = load(
                 ExperienceSourceDefinition.CODEC,
-                "/data/ability/ability/experience_sources/mine_ores.json"
+                "/data/fantasypower/fantasypower/experience_sources/mine_ores.json"
         );
         ExperienceSourceDefinition broken = new ExperienceSourceDefinition(
                 valid.schemaVersion(),
@@ -66,8 +81,8 @@ class DataDefinitionValidatorTest {
     @Test
     void reportsCyclicAbilityPrerequisites() throws Exception {
         Map<ResourceLocation, AbilityDefinition> abilities = Map.of(
-                id("cycle_a"), cyclicAbility(id("cycle_b")),
-                id("cycle_b"), cyclicAbility(id("cycle_a"))
+                id("associated_ore"), cyclicAbility(id("gravel_panning")),
+                id("gravel_panning"), cyclicAbility(id("associated_ore"))
         );
 
         DataValidationReport report = DataDefinitionValidator.validateCatalog(
@@ -90,7 +105,7 @@ class DataDefinitionValidatorTest {
         }) {
             skills.put(id(name), load(
                     SkillDefinition.CODEC,
-                    "/data/ability/ability/skills/" + name + ".json"
+                    "/data/fantasypower/fantasypower/skills/" + name + ".json"
             ));
         }
         return skills;
@@ -111,7 +126,7 @@ class DataDefinitionValidatorTest {
         }) {
             abilities.put(id(name), load(
                     AbilityDefinition.CODEC,
-                    "/data/ability/ability/abilities/" + name + ".json"
+                    "/data/fantasypower/fantasypower/abilities/" + name + ".json"
             ));
         }
         return abilities;
@@ -126,7 +141,7 @@ class DataDefinitionValidatorTest {
         }) {
             sources.put(id(name), load(
                     ExperienceSourceDefinition.CODEC,
-                    "/data/ability/ability/experience_sources/" + name + ".json"
+                    "/data/fantasypower/fantasypower/experience_sources/" + name + ".json"
             ));
         }
         return sources;
@@ -136,10 +151,10 @@ class DataDefinitionValidatorTest {
         String json = """
                 {
                   "schema_version": 1,
-                  "skill": "ability:mining",
+                  "skill": "fantasypower:mining",
                   "display": {
-                    "name": "ability.ability.test",
-                    "description": "ability.ability.test.description",
+                    "name": "ability.fantasypower.test",
+                    "description": "ability.fantasypower.test.description",
                     "icon": "minecraft:coal",
                     "sort_order": 1
                   },
@@ -147,7 +162,7 @@ class DataDefinitionValidatorTest {
                     "skill_level": 1,
                     "skill_points": 0,
                     "requirements": [{
-                      "type": "ability:ability_purchased",
+                      "type": "fantasypower:ability_purchased",
                       "config": { "ability": "%s" }
                     }]
                   },
@@ -157,7 +172,7 @@ class DataDefinitionValidatorTest {
                     "values": [{ "coal_bonus_chance": 0.25 }]
                   },
                   "effect": {
-                    "type": "ability:associated_ore",
+                    "type": "fantasypower:associated_ore",
                     "config": {
                       "required_tool_tag": "minecraft:pickaxes",
                       "require_unenchanted_tool": true,
@@ -190,6 +205,6 @@ class DataDefinitionValidatorTest {
     }
 
     private static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath("ability", path);
+        return ResourceLocation.fromNamespaceAndPath("fantasypower", path);
     }
 }

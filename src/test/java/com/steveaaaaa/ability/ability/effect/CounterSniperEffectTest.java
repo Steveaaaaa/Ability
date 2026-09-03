@@ -32,7 +32,7 @@ class CounterSniperEffectTest {
     void registersAndValidatesTheBuiltInDefinition() throws Exception {
         AbilityDefinition definition;
         try (var stream = CounterSniperEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/counter_sniper.json"
+                "/data/fantasypower/fantasypower/abilities/counter_sniper.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing counter sniper definition");

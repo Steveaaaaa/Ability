@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "skill": "fantasypower:husbandry",
+  "display": {
+    "name": "ability.fantasypower.wolf_pack",
+    "description": "ability.fantasypower.wolf_pack.description",
+    "icon": "minecraft:bone",
+    "sort_order": 30
+  },
+  "purchase": {
+    "skill_level": 20,
+    "skill_points": 8,
+    "requirements": [
+      { "type": "fantasypower:skill_level", "config": { "skill": "fantasypower:combat", "level": 12 } }
+    ]
+  },
+  "ranks": {
+    "unlock_skill_levels": [20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
+    "skill_point_costs": [8, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    "values": [
+      { "damage_bonus_percent": 50, "dodge_chance_percent": 35, "cooldown_seconds": 72 },
+      { "damage_bonus_percent": 56, "dodge_chance_percent": 40, "cooldown_seconds": 71 },
+      { "damage_bonus_percent": 65, "dodge_chance_percent": 45, "cooldown_seconds": 70 },
+      { "damage_bonus_percent": 77, "dodge_chance_percent": 50, "cooldown_seconds": 69 },
+      { "damage_bonus_percent": 92, "dodge_chance_percent": 55, "cooldown_seconds": 68 },
+      { "damage_bonus_percent": 110, "dodge_chance_percent": 60, "cooldown_seconds": 67 },
+      { "damage_bonus_percent": 131, "dodge_chance_percent": 65, "cooldown_seconds": 66 },
+      { "damage_bonus_percent": 155, "dodge_chance_percent": 70, "cooldown_seconds": 65 },
+      { "damage_bonus_percent": 182, "dodge_chance_percent": 75, "cooldown_seconds": 64 },
+      { "damage_bonus_percent": 225, "dodge_chance_percent": 80, "cooldown_seconds": 64 }
+    ]
+  },
+  "effect": {
+    "type": "fantasypower:wolf_pack",
+    "config": { "duration_ticks": 200 }
+  }
+}

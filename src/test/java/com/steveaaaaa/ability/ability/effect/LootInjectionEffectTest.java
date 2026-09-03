@@ -96,7 +96,7 @@ class LootInjectionEffectTest {
         AbilityDefinition definition = AbilityDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("""
                 {
                   "schema_version": 1,
-                  "skill": "ability:gathering",
+                  "skill": "fantasypower:gathering",
                   "display": {
                     "name": "ability.ability.test",
                     "description": "ability.ability.test.description",
@@ -113,12 +113,12 @@ class LootInjectionEffectTest {
                     ]
                   },
                   "effect": {
-                    "type": "ability:loot_injection",
+                    "type": "fantasypower:loot_injection",
                     "config": {
                       "context": "block_drops",
                       "block_tags": ["minecraft:logs"],
                       "tool_tags": ["minecraft:axes"],
-                      "success_cue": "ability:success",
+                      "success_cue": "fantasypower:success",
                       "entries": [
                         { "item": "minecraft:stick", "weight": 3 },
                         { "item": "minecraft:apple", "weight": 1 }

@@ -83,7 +83,7 @@ class DodgeEffectTest {
     void registersAndValidatesBuiltInDefinition() throws Exception {
         AbilityDefinition definition;
         try (var stream = DodgeEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/dodge.json"
+                "/data/fantasypower/fantasypower/abilities/dodge.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing dodge definition");

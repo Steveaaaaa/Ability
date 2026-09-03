@@ -13,6 +13,7 @@ public record ClientboundCrushingBlowPayload(
         int chargeThreshold,
         int damagePercent,
         int releaseTicks,
+        int impactTick,
         VisualEvent visualEvent,
         float impactX,
         float impactY,
@@ -35,6 +36,7 @@ public record ClientboundCrushingBlowPayload(
         buffer.writeVarInt(chargeThreshold);
         buffer.writeVarInt(damagePercent);
         buffer.writeVarInt(releaseTicks);
+        buffer.writeVarInt(impactTick);
         buffer.writeEnum(visualEvent);
         buffer.writeFloat(impactX);
         buffer.writeFloat(impactY);
@@ -44,7 +46,7 @@ public record ClientboundCrushingBlowPayload(
     private static ClientboundCrushingBlowPayload decode(RegistryFriendlyByteBuf buffer) {
         return new ClientboundCrushingBlowPayload(
                 buffer.readUUID(), buffer.readUUID(), buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt(),
-                buffer.readVarInt(),
+                buffer.readVarInt(), buffer.readVarInt(),
                 buffer.readEnum(VisualEvent.class), buffer.readFloat(), buffer.readFloat(), buffer.readFloat()
         );
     }

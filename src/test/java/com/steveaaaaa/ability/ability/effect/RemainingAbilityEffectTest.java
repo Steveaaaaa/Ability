@@ -30,10 +30,9 @@ class RemainingAbilityEffectTest {
 
     @Test
     void coldCurrentUnlocksAndScalesSnowballDamage() {
-        assertEquals(0.0F, GolemEnhancementEffect.coldProjectileDamage(599, 0, 1.0D));
-        assertEquals(4.0F, GolemEnhancementEffect.coldProjectileDamage(600, 0, 1.0D));
-        assertEquals(8.0F, GolemEnhancementEffect.coldProjectileDamage(1800, 0, 1.0D));
-        assertEquals(4.0F, GolemEnhancementEffect.coldProjectileDamage(400, 200, 0.4D));
+        assertEquals(0.0F, GolemEnhancementEffect.coldProjectileDamage(399, 400, 1600, 6.0D, 0.5D));
+        assertEquals(6.0F, GolemEnhancementEffect.coldProjectileDamage(400, 400, 1600, 6.0D, 0.5D));
+        assertEquals(9.0F, GolemEnhancementEffect.coldProjectileDamage(1600, 400, 1600, 6.0D, 0.5D));
     }
 
     @Test

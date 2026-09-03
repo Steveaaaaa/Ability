@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "skill": "fantasypower:defense",
+  "display": {
+    "name": "ability.fantasypower.well_prepared",
+    "description": "ability.fantasypower.well_prepared.description",
+    "icon": "minecraft:totem_of_undying",
+    "sort_order": 20
+  },
+  "purchase": {
+    "skill_level": 16,
+    "skill_points": 6,
+    "requirements": []
+  },
+  "ranks": {
+    "unlock_skill_levels": [16, 19, 22, 25, 28],
+    "skill_point_costs": [6, 1, 1, 1, 1],
+    "values": [
+      { "absorption_health_percent": 0, "invulnerability_seconds": 3 },
+      { "absorption_health_percent": 5, "invulnerability_seconds": 4 },
+      { "absorption_health_percent": 10, "invulnerability_seconds": 5 },
+      { "absorption_health_percent": 15, "invulnerability_seconds": 6 },
+      { "absorption_health_percent": 25, "invulnerability_seconds": 6 }
+    ]
+  },
+  "effect": {
+    "type": "fantasypower:well_prepared",
+    "config": {
+      "restored_health_fraction": 0.5,
+      "day_length_ticks": 24000
+    }
+  }
+}

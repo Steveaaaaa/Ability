@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "skill": "fantasypower:archery",
+  "display": {
+    "name": "ability.fantasypower.exhaustion",
+    "description": "ability.fantasypower.exhaustion.description",
+    "icon": "minecraft:tipped_arrow",
+    "sort_order": 40
+  },
+  "purchase": {
+    "skill_level": 18,
+    "skill_points": 6,
+    "requirements": [
+      {
+        "type": "fantasypower:skill_level",
+        "config": { "skill": "fantasypower:building", "level": 6 }
+      },
+      {
+        "type": "fantasypower:skill_level",
+        "config": { "skill": "fantasypower:magic", "level": 4 }
+      }
+    ]
+  },
+  "ranks": {
+    "unlock_skill_levels": [18, 20, 22, 24, 26, 28, 30],
+    "skill_point_costs": [6, 1, 1, 1, 1, 1, 1],
+    "values": [
+      { "poison_level_cap": 1, "wither_level_cap": 1 },
+      { "poison_level_cap": 1, "wither_level_cap": 2 },
+      { "poison_level_cap": 2, "wither_level_cap": 2 },
+      { "poison_level_cap": 2, "wither_level_cap": 3 },
+      { "poison_level_cap": 3, "wither_level_cap": 3 },
+      { "poison_level_cap": 3, "wither_level_cap": 4 },
+      { "poison_level_cap": 4, "wither_level_cap": 4 }
+    ]
+  },
+  "effect": {
+    "type": "fantasypower:exhaustion",
+    "config": {
+      "maximum_duration_ticks": 72000
+    }
+  }
+}

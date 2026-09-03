@@ -15,8 +15,8 @@ class GreedEffectTest {
 
     @Test
     void unlocksToolTiersByRank() {
-        ResourceLocation axes = ResourceLocation.fromNamespaceAndPath("ability", "axes");
-        ResourceLocation shears = ResourceLocation.fromNamespaceAndPath("ability", "shears");
+        ResourceLocation axes = ResourceLocation.fromNamespaceAndPath("fantasypower", "axes");
+        ResourceLocation shears = ResourceLocation.fromNamespaceAndPath("fantasypower", "shears");
         List<GreedEffect.ToolTier> tiers = List.of(
                 new GreedEffect.ToolTier(1, axes),
                 new GreedEffect.ToolTier(2, shears)

@@ -44,7 +44,7 @@ class FrugalityEffectTest {
     void registersAndValidatesBuiltInDefinition() throws Exception {
         AbilityDefinition definition;
         try (var stream = FrugalityEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/frugality.json"
+                "/data/fantasypower/fantasypower/abilities/frugality.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing frugality definition");

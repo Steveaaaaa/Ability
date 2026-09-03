@@ -27,7 +27,7 @@ class StealthEffectTest {
     void registersAndValidatesTheBuiltInDefinition() throws Exception {
         AbilityDefinition definition;
         try (var stream = StealthEffectTest.class.getResourceAsStream(
-                "/data/ability/ability/abilities/stealth.json"
+                "/data/fantasypower/fantasypower/abilities/stealth.json"
         )) {
             if (stream == null) {
                 throw new IllegalStateException("Missing stealth definition");

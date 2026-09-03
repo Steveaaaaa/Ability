@@ -65,12 +65,12 @@ public final class InventoryAbilityTab {
         abilityTabButton = new DungeonTabButton(
                 abilityButtonX,
                 buttonY,
-                Component.translatable("gui.ability.tab"),
+                Component.translatable("gui.fantasypower.tab"),
                 () -> false,
                 () -> Minecraft.getInstance().setScreen(new AbilityScreen(screen)),
                 ABILITY_TAB_ICON
         );
-        abilityTabButton.setTooltip(Tooltip.create(Component.translatable("gui.ability.tab")));
+        abilityTabButton.setTooltip(Tooltip.create(Component.translatable("gui.fantasypower.tab")));
         event.addListener(abilityTabButton);
         travelerPanelVisible = false;
         suppressTravelerMouseRelease = false;
@@ -79,7 +79,7 @@ public final class InventoryAbilityTab {
             travelerTabButton = new DungeonTabButton(
                     inventoryScreen.getGuiLeft() + 148,
                     inventoryScreen.getGuiTop() + 61,
-                    Component.translatable("gui.ability.world_traveler.tab"),
+                    Component.translatable("gui.fantasypower.world_traveler.tab"),
                     () -> travelerPanelVisible,
                     () -> {
                         travelerPanelVisible = !travelerPanelVisible;
@@ -88,7 +88,7 @@ public final class InventoryAbilityTab {
                     WORLD_TRAVELER_TAB_ICON
             );
             travelerTabButton.setTooltip(Tooltip.create(
-                    Component.translatable("gui.ability.world_traveler.tab")));
+                    Component.translatable("gui.fantasypower.world_traveler.tab")));
             event.addListener(travelerTabButton);
         }
     }
@@ -118,9 +118,9 @@ public final class InventoryAbilityTab {
         graphics.fill(x, y, x + 1, y + PANEL_HEIGHT, 0xFFE3BC6B);
         graphics.fill(x + PANEL_WIDTH - 1, y, x + PANEL_WIDTH, y + PANEL_HEIGHT, 0xFF6A5030);
         var font = Minecraft.getInstance().font;
-        graphics.drawString(font, Component.translatable("gui.ability.world_traveler.filters"),
+        graphics.drawString(font, Component.translatable("gui.fantasypower.world_traveler.filters"),
                 x + 7, y + 6, 0xFFFFFF, false);
-        graphics.drawString(font, Component.translatable("gui.ability.world_traveler.filters.hint"),
+        graphics.drawString(font, Component.translatable("gui.fantasypower.world_traveler.filters.hint"),
                 x + 7, y + 17, 0xFF9EA8B6, false);
         ItemStack hovered = ItemStack.EMPTY;
         for (int slot = 0; slot < 36; slot++) {
@@ -140,13 +140,13 @@ public final class InventoryAbilityTab {
             graphics.drawString(font, dimension, x + 7, y + 106, 0xB8C1CC, false);
             graphics.drawString(font, coordinates, x + 7, y + 117, 0xB8C1CC, false);
         }, () -> graphics.drawString(font,
-                Component.translatable("gui.ability.world_traveler.unbound"),
+                Component.translatable("gui.fantasypower.world_traveler.unbound"),
                 x + 7, y + 111, 0xB8C1CC, false));
         graphics.fill(x + REMOTE_BUTTON_X, y + REMOTE_BUTTON_Y,
                 x + REMOTE_BUTTON_X + REMOTE_BUTTON_WIDTH,
                 y + REMOTE_BUTTON_Y + REMOTE_BUTTON_HEIGHT, 0xFF475569);
         graphics.drawCenteredString(Minecraft.getInstance().font,
-                Component.translatable("gui.ability.world_traveler.remote"),
+                Component.translatable("gui.fantasypower.world_traveler.remote"),
                 x + REMOTE_BUTTON_X + REMOTE_BUTTON_WIDTH / 2, y + REMOTE_BUTTON_Y + 6, 0xFFFFFF);
         if (!hovered.isEmpty())
             graphics.renderTooltip(Minecraft.getInstance().font, hovered, event.getMouseX(), event.getMouseY());

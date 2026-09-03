@@ -1,16 +1,21 @@
 package com.steveaaaaa.ability.client;
 
 import com.mojang.math.Axis;
+import com.steveaaaaa.ability.AbilityMod;
+import com.steveaaaaa.ability.condition.ConditionTypeRegistry;
 import com.steveaaaaa.ability.data.ModDataRegistries;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
 import com.steveaaaaa.ability.data.model.SkillDefinition;
+import com.steveaaaaa.ability.data.model.TypedConfig;
 import com.steveaaaaa.ability.network.ClientProgressCache;
 import com.steveaaaaa.ability.network.ClientboundPurchaseResultPayload;
 import com.steveaaaaa.ability.network.PlayerProgressSnapshot;
 import com.steveaaaaa.ability.network.ServerboundPurchaseAbilityPayload;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractButton;
@@ -22,6 +27,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.ChatFormatting;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -40,8 +46,7 @@ public final class AbilityScreen extends Screen {
     private static final int DIAMOND_ICON_SIZE = 32;
     private static final int ABILITY_GRID_TOP_OFFSET = 65;
 
-    private static final ResourceLocation DUNGEON_ICON_FRAME = ResourceLocation.fromNamespaceAndPath(
-            "ability",
+    private static final ResourceLocation DUNGEON_ICON_FRAME = AbilityMod.id(
             "textures/gui/dungeon_icon_frame.png"
     );
 
@@ -84,7 +89,7 @@ public final class AbilityScreen extends Screen {
     private int animationTicks;
 
     public AbilityScreen(Screen previousScreen) {
-        super(Component.translatable("gui.ability.title"));
+        super(Component.translatable("gui.fantasypower.title"));
         this.previousScreen = previousScreen;
     }
 
@@ -109,7 +114,7 @@ public final class AbilityScreen extends Screen {
                 panelY + 9,
                 leftWidth - 18,
                 20,
-                Component.translatable("gui.ability.inventory_tab"),
+                Component.translatable("gui.fantasypower.inventory_tab"),
                 ButtonStyle.BACK,
                 false,
                 () -> minecraft.setScreen(previousScreen)
@@ -286,7 +291,7 @@ public final class AbilityScreen extends Screen {
                 () -> moveAbilityPage(-1)
         );
         previous.active = abilityScroll > 0;
-        previous.setTooltip(Tooltip.create(Component.translatable("gui.ability.previous_page")));
+        previous.setTooltip(Tooltip.create(Component.translatable("gui.fantasypower.previous_page")));
         addRenderableWidget(previous);
 
         DungeonsButton next = new DungeonsButton(
@@ -300,7 +305,7 @@ public final class AbilityScreen extends Screen {
                 () -> moveAbilityPage(1)
         );
         next.active = abilityScroll + pageSize < abilities.size();
-        next.setTooltip(Tooltip.create(Component.translatable("gui.ability.next_page")));
+        next.setTooltip(Tooltip.create(Component.translatable("gui.fantasypower.next_page")));
         addRenderableWidget(next);
     }
 
@@ -331,12 +336,12 @@ public final class AbilityScreen extends Screen {
         }
         PurchaseState state = purchaseState(selected.id(), selected.definition());
         Component label = state.maxed()
-                ? Component.translatable("gui.ability.max_rank")
+                ? Component.translatable("gui.fantasypower.max_rank")
                 : state.purchasedRank() > 0
-                        ? Component.translatable("gui.ability.upgrade")
+                        ? Component.translatable("gui.fantasypower.upgrade")
                         : state.canPurchase()
-                                ? Component.translatable("gui.ability.purchase")
-                                : Component.translatable("gui.ability.locked");
+                                ? Component.translatable("gui.fantasypower.purchase")
+                                : Component.translatable("gui.fantasypower.locked");
         DungeonsButton purchase = new DungeonsButton(
                 detailX + 10,
                 contentBottom - (compactDetails() ? 23 : 29),
@@ -348,6 +353,9 @@ public final class AbilityScreen extends Screen {
                 () -> requestPurchase(selected.id())
         );
         purchase.active = state.canPurchase() && ClientProgressCache.pendingPurchase() == null;
+        if (!state.maxed() && !state.canPurchase()) {
+            purchase.setTooltip(Tooltip.create(requirementTooltip(state)));
+        }
         purchase.setAccent(parseColor(selected.definition().display().color(), BORDER_BRIGHT));
         addRenderableWidget(purchase);
     }
@@ -384,7 +392,7 @@ public final class AbilityScreen extends Screen {
                 rightWidth - 11, contentBottom - contentTop - 6, 19);
         graphics.drawCenteredString(
                 font,
-                Component.translatable("gui.ability.skills_heading"),
+                Component.translatable("gui.fantasypower.skills_heading"),
                 panelX + leftWidth / 2,
                 contentTop + 9,
                 TEXT_MUTED
@@ -407,7 +415,7 @@ public final class AbilityScreen extends Screen {
 
     private void renderSelectedSkill(GuiGraphics graphics) {
         if (selectedSkill == null || minecraft.level == null) {
-            graphics.drawCenteredString(font, Component.translatable("gui.ability.no_skills"),
+            graphics.drawCenteredString(font, Component.translatable("gui.fantasypower.no_skills"),
                     centerX + centerWidth / 2, contentTop + 20, TEXT_MUTED);
             return;
         }
@@ -425,10 +433,10 @@ public final class AbilityScreen extends Screen {
         renderDiamondSelection(graphics, centerX + 21, contentTop + 20, 24, animatedGold());
         graphics.drawString(font, Component.translatable(definition.display().name()),
                 centerX + 42, contentTop + 7, TEXT_PRIMARY, false);
-        graphics.drawString(font, Component.translatable("gui.ability.skill_progress",
+        graphics.drawString(font, Component.translatable("gui.fantasypower.skill_progress",
                         progress.level(), definition.maxLevel()),
                 centerX + 42, contentTop + 19, TEXT_MUTED, false);
-        Component points = Component.translatable("gui.ability.skill_points",
+        Component points = Component.translatable("gui.fantasypower.skill_points",
                 lastSnapshot.availableSkillPoints(selectedSkill));
         graphics.drawString(font, points, centerX + 42, contentTop + 31, BORDER_BRIGHT, false);
 
@@ -440,8 +448,8 @@ public final class AbilityScreen extends Screen {
         long withinLevel = Math.max(0L, progress.totalXp() - consumed);
         if (centerWidth >= 220) {
             Component xp = required == 0
-                    ? Component.translatable("gui.ability.max_level")
-                    : Component.translatable("gui.ability.xp", withinLevel, required);
+                    ? Component.translatable("gui.fantasypower.max_level")
+                    : Component.translatable("gui.fantasypower.xp", withinLevel, required);
             graphics.drawString(font, xp, centerX + centerWidth - 8 - font.width(xp),
                     contentTop + 31, TEXT_MUTED, false);
         }
@@ -466,7 +474,7 @@ public final class AbilityScreen extends Screen {
         renderGoldenDust(graphics, partialTick);
         List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> abilities = abilitiesForSelectedSkill();
         if (abilities.isEmpty()) {
-            graphics.drawCenteredString(font, Component.translatable("gui.ability.no_abilities"),
+            graphics.drawCenteredString(font, Component.translatable("gui.fantasypower.no_abilities"),
                     centerX + centerWidth / 2, contentTop + 80, TEXT_MUTED);
             return;
         }
@@ -474,7 +482,7 @@ public final class AbilityScreen extends Screen {
         if (abilities.size() > visible) {
             int currentPage = abilityScroll / visible + 1;
             int totalPages = (int) Math.ceil(abilities.size() / (double) visible);
-            Component position = Component.translatable("gui.ability.page", currentPage, totalPages);
+            Component position = Component.translatable("gui.fantasypower.page", currentPage, totalPages);
             graphics.drawCenteredString(font, position, centerX + centerWidth / 2,
                     contentBottom - 16, TEXT_MUTED);
         }
@@ -525,7 +533,7 @@ public final class AbilityScreen extends Screen {
         int x = detailX + 10;
         int width = rightWidth - 25;
         if (selected == null) {
-            graphics.drawCenteredString(font, Component.translatable("gui.ability.no_abilities"),
+            graphics.drawCenteredString(font, Component.translatable("gui.fantasypower.no_abilities"),
                     detailX + (rightWidth - 5) / 2, contentTop + 30, TEXT_MUTED);
             return;
         }
@@ -544,7 +552,7 @@ public final class AbilityScreen extends Screen {
         for (int line = 0; line < Math.min(2, nameLines.size()); line++) {
             graphics.drawString(font, nameLines.get(line), textX, contentTop + 10 + line * 10, TEXT_PRIMARY, false);
         }
-        graphics.drawString(font, Component.translatable("gui.ability.rank",
+        graphics.drawString(font, Component.translatable("gui.fantasypower.rank",
                         Math.min(state.purchasedRank(), state.maxRank()), state.maxRank()),
                 textX, contentTop + 35, state.purchasedRank() > 0 ? accent : LOCKED, false);
 
@@ -563,7 +571,7 @@ public final class AbilityScreen extends Screen {
 
         int descriptionHeadingY = detailDescriptionHeadingY();
         pixelDiamond(graphics, x + 2, descriptionHeadingY + 4, 1, BORDER_GOLD);
-        graphics.drawString(font, Component.translatable("gui.ability.description_heading"),
+        graphics.drawString(font, Component.translatable("gui.fantasypower.description_heading"),
                 x + 7, descriptionHeadingY, BORDER_GOLD, false);
         int descriptionY = detailDescriptionY();
         int descriptionBottom = detailDescriptionBottom();
@@ -590,17 +598,21 @@ public final class AbilityScreen extends Screen {
         );
 
         int requirementHeadingY = detailRequirementHeadingY();
-        Component requirementHeading = Component.translatable("gui.ability.requirement_heading");
+        Component requirementHeading = Component.translatable("gui.fantasypower.requirement_heading");
         pixelDiamond(graphics, x + 2, requirementHeadingY + 4, 1, BORDER_GOLD);
         graphics.drawString(font, requirementHeading, x + 7, requirementHeadingY, BORDER_GOLD, false);
-        List<FormattedCharSequence> requirement = font.split(
-                Component.translatable("gui.ability.purchase_requirement",
-                        state.requiredLevel(), state.pointCost()),
-                width
-        );
-        int requirementTextY = contentBottom - (compactDetails() ? 47 : 57);
-        for (int line = 0; line < Math.min(2, requirement.size()); line++) {
-            graphics.drawString(font, requirement.get(line), x, requirementTextY + line * 10,
+        long satisfiedRequirements = state.requirements().stream()
+                .filter(requirement -> requirement.status() == RequirementStatus.SATISFIED)
+                .count();
+        Component summary = state.canPurchase() || state.maxed()
+                ? Component.translatable("gui.fantasypower.requirement.summary.complete",
+                        satisfiedRequirements, state.requirements().size())
+                : Component.translatable("gui.fantasypower.requirement.summary.incomplete",
+                        satisfiedRequirements, state.requirements().size());
+        List<FormattedCharSequence> summaryLines = font.split(summary, width);
+        int requirementTextY = contentBottom - (compactDetails() ? 45 : 57);
+        for (int line = 0; line < Math.min(2, summaryLines.size()); line++) {
+            graphics.drawString(font, summaryLines.get(line), x, requirementTextY + line * 10,
                     state.canPurchase() || state.maxed() ? TEXT_PRIMARY : FAILURE, false);
         }
     }
@@ -613,12 +625,12 @@ public final class AbilityScreen extends Screen {
         pixelDiamond(graphics, panelX + panelWidth - 14, y, 2, BORDER_GOLD);
         ClientboundPurchaseResultPayload result = ClientProgressCache.lastPurchaseResult();
         if (result == null) {
-            graphics.drawCenteredString(font, Component.translatable("gui.ability.ui_hint"),
+            graphics.drawCenteredString(font, Component.translatable("gui.fantasypower.ui_hint"),
                     panelX + panelWidth / 2, y + 7, 0xFF817A6B);
             return;
         }
         int color = result.status() == ClientboundPurchaseResultPayload.Status.SUCCESS ? SUCCESS : FAILURE;
-        graphics.drawCenteredString(font, PurchaseFeedback.message(result),
+        graphics.drawCenteredString(font, PurchaseFeedback.message(result, localizedFailedRequirement(result)),
                 panelX + panelWidth / 2, y + 7, color);
     }
 
@@ -773,10 +785,195 @@ public final class AbilityScreen extends Screen {
                 definition.ranks().unlockSkillLevels().get(nextRankIndex)
         );
         int pointCost = definition.ranks().skillPointCosts().get(nextRankIndex);
+        int availablePoints = lastSnapshot.availableSkillPoints(definition.skill());
+        ArrayList<RequirementLine> requirements = new ArrayList<>();
+        Component owningSkillName = skillName(definition.skill());
+        requirements.add(new RequirementLine(
+                Component.translatable("gui.fantasypower.requirement.skill_level",
+                        owningSkillName, requiredLevel, skill.level()),
+                skill.level() >= requiredLevel ? RequirementStatus.SATISFIED : RequirementStatus.UNSATISFIED
+        ));
+        requirements.add(new RequirementLine(
+                Component.translatable("gui.fantasypower.requirement.skill_points",
+                        owningSkillName, pointCost, availablePoints),
+                availablePoints >= pointCost ? RequirementStatus.SATISFIED : RequirementStatus.UNSATISFIED
+        ));
+
+        boolean additionalRequirementsMet = true;
+        for (TypedConfig requirement : definition.purchase().requirements()) {
+            RequirementEvaluation evaluation = evaluateRequirement(requirement);
+            additionalRequirementsMet &= evaluation.satisfied();
+            requirements.addAll(evaluation.lines());
+        }
         boolean canPurchase = !maxed
                 && skill.level() >= requiredLevel
-                && lastSnapshot.availableSkillPoints(definition.skill()) >= pointCost;
-        return new PurchaseState(purchasedRank, maxRank, requiredLevel, pointCost, maxed, canPurchase);
+                && availablePoints >= pointCost
+                && additionalRequirementsMet;
+        return new PurchaseState(purchasedRank, maxRank, requiredLevel, pointCost, maxed,
+                canPurchase, List.copyOf(requirements));
+    }
+
+    private RequirementEvaluation evaluateRequirement(TypedConfig requirement) {
+        if (requirement.type().equals(ConditionTypeRegistry.SKILL_LEVEL)) {
+            return ConditionTypeRegistry.SkillLevelConfig.CODEC.parse(requirement.config()).result()
+                    .map(config -> {
+                        int actual = lastSnapshot.skills().getOrDefault(
+                                config.skill(), PlayerProgressSnapshot.SkillSnapshot.EMPTY).level();
+                        boolean satisfied = actual >= config.level();
+                        return RequirementEvaluation.single(Component.translatable(
+                                "gui.fantasypower.requirement.skill_level",
+                                skillName(config.skill()), config.level(), actual), satisfied);
+                    })
+                    .orElseGet(() -> invalidRequirement(requirement));
+        }
+        if (requirement.type().equals(ConditionTypeRegistry.ABILITY_PURCHASED)) {
+            return ConditionTypeRegistry.AbilityPurchasedConfig.CODEC.parse(requirement.config()).result()
+                    .map(config -> RequirementEvaluation.single(Component.translatable(
+                                    "gui.fantasypower.requirement.ability_purchased",
+                                    abilityName(config.ability())),
+                            lastSnapshot.abilityRank(config.ability()) > 0))
+                    .orElseGet(() -> invalidRequirement(requirement));
+        }
+        if (requirement.type().equals(ConditionTypeRegistry.ALL_OF)
+                || requirement.type().equals(ConditionTypeRegistry.ANY_OF)) {
+            return ConditionTypeRegistry.CompositeConfig.CODEC.parse(requirement.config()).result()
+                    .map(config -> evaluateCompositeRequirement(requirement.type(), config.conditions()))
+                    .orElseGet(() -> invalidRequirement(requirement));
+        }
+        if (requirement.type().equals(ConditionTypeRegistry.NOT)) {
+            return ConditionTypeRegistry.NotConfig.CODEC.parse(requirement.config()).result()
+                    .map(config -> {
+                        RequirementEvaluation nested = evaluateRequirement(config.condition());
+                        boolean satisfied = !nested.satisfied();
+                        ArrayList<RequirementLine> lines = new ArrayList<>();
+                        lines.add(new RequirementLine(
+                                Component.translatable("gui.fantasypower.requirement.not"),
+                                satisfied ? RequirementStatus.SATISFIED : RequirementStatus.UNSATISFIED));
+                        lines.addAll(nested.lines());
+                        return new RequirementEvaluation(satisfied, List.copyOf(lines));
+                    })
+                    .orElseGet(() -> invalidRequirement(requirement));
+        }
+        if (requirement.type().equals(ConditionTypeRegistry.GAME_MODE)
+                || requirement.type().equals(ConditionTypeRegistry.NOT_GAME_MODE)) {
+            return ConditionTypeRegistry.GameModeConfig.CODEC.parse(requirement.config()).result()
+                    .map(config -> {
+                        boolean matches = minecraft.gameMode != null
+                                && minecraft.gameMode.getPlayerMode().getName().equals(config.gameMode().getPath());
+                        boolean negated = requirement.type().equals(ConditionTypeRegistry.NOT_GAME_MODE);
+                        return RequirementEvaluation.single(Component.translatable(
+                                        negated
+                                                ? "gui.fantasypower.requirement.not_game_mode"
+                                                : "gui.fantasypower.requirement.game_mode",
+                                        Component.translatable("selectWorld.gameMode." + config.gameMode().getPath())),
+                                negated != matches);
+                    })
+                    .orElseGet(() -> invalidRequirement(requirement));
+        }
+        if (requirement.type().equals(ConditionTypeRegistry.DIMENSION)) {
+            return ConditionTypeRegistry.DimensionConfig.CODEC.parse(requirement.config()).result()
+                    .map(config -> RequirementEvaluation.single(Component.translatable(
+                                    "gui.fantasypower.requirement.dimension", config.dimension().toString()),
+                            minecraft.level != null
+                                    && minecraft.level.dimension().location().equals(config.dimension())))
+                    .orElseGet(() -> invalidRequirement(requirement));
+        }
+        if (requirement.type().equals(ConditionTypeRegistry.ADVANCEMENT)) {
+            return ConditionTypeRegistry.AdvancementConfig.CODEC.parse(requirement.config()).result()
+                    .map(config -> {
+                        Component name = advancementName(config.advancement());
+                        // Vanilla does not expose advancement completion state through its public client API.
+                        // Keep the button available and let the authoritative server validate this condition.
+                        return new RequirementEvaluation(true, List.of(new RequirementLine(
+                                Component.translatable("gui.fantasypower.requirement.advancement", name),
+                                RequirementStatus.UNKNOWN)));
+                    })
+                    .orElseGet(() -> invalidRequirement(requirement));
+        }
+        return invalidRequirement(requirement);
+    }
+
+    private RequirementEvaluation evaluateCompositeRequirement(
+            ResourceLocation type,
+            List<TypedConfig> nestedRequirements
+    ) {
+        boolean anyOf = type.equals(ConditionTypeRegistry.ANY_OF);
+        boolean satisfied = !anyOf;
+        ArrayList<RequirementLine> lines = new ArrayList<>();
+        lines.add(new RequirementLine(Component.translatable(anyOf
+                        ? "gui.fantasypower.requirement.any_of"
+                        : "gui.fantasypower.requirement.all_of"), RequirementStatus.UNKNOWN));
+        for (TypedConfig nestedRequirement : nestedRequirements) {
+            RequirementEvaluation nested = evaluateRequirement(nestedRequirement);
+            satisfied = anyOf ? satisfied || nested.satisfied() : satisfied && nested.satisfied();
+            lines.addAll(nested.lines());
+        }
+        lines.set(0, new RequirementLine(lines.getFirst().text(),
+                satisfied ? RequirementStatus.SATISFIED : RequirementStatus.UNSATISFIED));
+        return new RequirementEvaluation(satisfied, List.copyOf(lines));
+    }
+
+    private RequirementEvaluation invalidRequirement(TypedConfig requirement) {
+        return new RequirementEvaluation(false, List.of(new RequirementLine(
+                Component.translatable("gui.fantasypower.requirement.invalid", requirement.type().toString()),
+                RequirementStatus.UNSATISFIED)));
+    }
+
+    private Component skillName(ResourceLocation skillId) {
+        SkillDefinition definition = skillRegistry().get(skillId);
+        return definition == null
+                ? Component.literal(skillId.toString())
+                : Component.translatable(definition.display().name());
+    }
+
+    private Component abilityName(ResourceLocation abilityId) {
+        AbilityDefinition definition = abilityRegistry().get(abilityId);
+        return definition == null
+                ? Component.literal(abilityId.toString())
+                : Component.translatable(definition.display().name());
+    }
+
+    private Component advancementName(ResourceLocation advancementId) {
+        if (minecraft.getConnection() == null) {
+            return Component.literal(advancementId.toString());
+        }
+        AdvancementHolder advancement = minecraft.getConnection().getAdvancements().get(advancementId);
+        return advancement == null
+                ? Component.literal(advancementId.toString())
+                : advancement.value().display().map(display -> display.getTitle())
+                        .orElseGet(() -> Component.literal(advancementId.toString()));
+    }
+
+    private Component localizedFailedRequirement(ClientboundPurchaseResultPayload result) {
+        if (result.status() != ClientboundPurchaseResultPayload.Status.REQUIREMENT_NOT_MET
+                || minecraft.level == null) {
+            return null;
+        }
+        AbilityDefinition definition = abilityRegistry().get(result.abilityId());
+        if (definition == null) {
+            return null;
+        }
+        return purchaseState(result.abilityId(), definition).requirements().stream()
+                .filter(requirement -> requirement.status() == RequirementStatus.UNSATISFIED)
+                .map(RequirementLine::text)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private Component requirementTooltip(PurchaseState state) {
+        Component tooltip = Component.translatable("gui.fantasypower.requirement.tooltip_heading")
+                .withStyle(ChatFormatting.GOLD);
+        for (RequirementLine requirement : state.requirements()) {
+            ChatFormatting color = switch (requirement.status()) {
+                case SATISFIED -> ChatFormatting.GREEN;
+                case UNSATISFIED -> ChatFormatting.RED;
+                case UNKNOWN -> ChatFormatting.GRAY;
+            };
+            tooltip = tooltip.copy()
+                    .append(Component.literal("\n• "))
+                    .append(requirement.text().copy().withStyle(color));
+        }
+        return tooltip;
     }
 
     private void requestPurchase(ResourceLocation abilityId) {
@@ -869,6 +1066,7 @@ public final class AbilityScreen extends Screen {
             return List.of();
         }
         return abilityRegistry().entrySet().stream()
+                .filter(entry -> ModDataRegistries.isBuiltinAbility(entry.getKey().location()))
                 .filter(entry -> entry.getValue().skill().equals(selectedSkill))
                 .sorted(Comparator.comparingInt((Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition> entry) ->
                                 entry.getValue().display().sortOrder())
@@ -1172,7 +1370,26 @@ public final class AbilityScreen extends Screen {
             int requiredLevel,
             int pointCost,
             boolean maxed,
-            boolean canPurchase
+            boolean canPurchase,
+            List<RequirementLine> requirements
     ) {
+    }
+
+    private enum RequirementStatus {
+        SATISFIED,
+        UNSATISFIED,
+        UNKNOWN
+    }
+
+    private record RequirementLine(Component text, RequirementStatus status) {
+    }
+
+    private record RequirementEvaluation(boolean satisfied, List<RequirementLine> lines) {
+        private static RequirementEvaluation single(Component text, boolean satisfied) {
+            return new RequirementEvaluation(satisfied, List.of(new RequirementLine(
+                    text,
+                    satisfied ? RequirementStatus.SATISFIED : RequirementStatus.UNSATISFIED
+            )));
+        }
     }
 }

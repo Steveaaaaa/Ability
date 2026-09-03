@@ -1,27 +1,21 @@
-# Excel 技能目录映射（临时 ID）
+# FantasyPower 技能目录
 
-这些 ID 用于后续 JSON 与 Java，不影响最终中文显示名。正式 mod id 确定后替换 `ability` 命名空间。
+这里列出内置技能和能力的固定 ID。覆盖数据时请保留 ID，只修改定义内容；游戏中的显示名称仍由语言文件决定。
 
-| 技能分类 | 技能 ID | 能力名称与临时 ID |
+| 技能分类 | 技能 ID | 能力名称与 ID |
 |---|---|---|
-| 畜牧 | `ability:husbandry` | 援护 `support_aura`、精饲 `fine_feed`、狼群 `wolf_pack`、铁骑 `iron_cavalry` |
-| 挖掘 | `ability:mining` | 爆破掘进 `blast_excavation`、贪婪 `greed`、伴生矿 `associated_ore` |
-| 采集 | `ability:gathering` | 嗅探奇物 `sniffer_treasure`、招财猫 `lucky_cat`、沙里淘金 `gravel_panning` |
-| 攻击 | `ability:combat` | 直取要害 `weak_point`、迅刺 `rapid_thrust`、攻其不备 `ambush`、跃斩 `charged_leap` |
-| 防御 | `ability:defense` | 同态复仇 `retaliatory_flame`、准备万全 `well_prepared`、求生技巧 `survival_skills`、生还者 `survivor` |
-| 建造 | `ability:building` | 紫颂果嬗变术 `chorus_transmutation`、威亚 `ceiling_wire`、环球旅行者/铁砧修补（待确认）`world_traveler` |
-| 农耕 | `ability:farming` | 精力充沛 `energetic`、俭省 `frugality`、收割 `harvest` |
-| 敏捷 | `ability:agility` | 长旅 `long_journey`、潜匿 `stealth`、闪避 `dodge`、突破 `breakthrough` |
-| 魔法 | `ability:magic` | 压碎/重锤（待确认）`crushing_blow`、缠魔剑锋 `enchanted_edge`、黑曜石加固 `obsidian_reinforcement`、寒流 `cold_current` |
-| 射击 | `ability:archery` | 危险装药 `dangerous_charge`、反狙击 `counter_sniper`、底火 `primer`、衰竭 `exhaustion` |
+| 畜牧 | `fantasypower:husbandry` | 援护 `support_aura`、精饲 `fine_feed`、狼群 `wolf_pack`、铁骑 `iron_cavalry` |
+| 挖掘 | `fantasypower:mining` | 爆破掘进 `blast_excavation`、贪婪 `greed`、伴生矿 `associated_ore` |
+| 采集 | `fantasypower:gathering` | 嗅探奇物 `sniffer_treasure`、招财猫 `lucky_cat`、沙里淘金 `gravel_panning` |
+| 攻击 | `fantasypower:combat` | 直取要害 `weak_point`、迅刺 `rapid_thrust`、攻其不备 `ambush`、跃斩 `charged_leap` |
+| 防御 | `fantasypower:defense` | 同态复仇 `retaliatory_flame`、准备万全 `well_prepared`、求生技巧 `survival_skills`、生还者 `survivor` |
+| 建造 | `fantasypower:building` | 紫颂果嬗变术 `chorus_transmutation`、威亚 `ceiling_wire`、环球旅行者 `world_traveler` |
+| 农耕 | `fantasypower:farming` | 精力充沛 `energetic`、俭省 `frugality`、收割 `harvest` |
+| 敏捷 | `fantasypower:agility` | 长旅 `long_journey`、潜匿 `stealth`、闪避 `dodge`、突破 `breakthrough` |
+| 魔法 | `fantasypower:magic` | 压碎 `crushing_blow`、缠魔剑锋 `enchanted_edge`、黑曜石加固 `obsidian_reinforcement`、寒流 `cold_current` |
+| 射击 | `fantasypower:archery` | 危险装药 `dangerous_charge`、反狙击 `counter_sniper`、底火 `primer`、衰竭 `exhaustion` |
 
-## 待确认项
-
-1. 建造页“环球旅行者”与“其他说明”的“铁砧修补”可能不是同一技能。
-2. 魔法页“压碎”与“其他说明”的“重锤”命名不一致。
-3. “突破”未列入“其他说明”的汇总表。
-
-## 已接入运行时
+## 能力一览
 
 - 挖掘：伴生矿 `associated_ore`；成功追加伴生矿掉落时，在原矿物位置生成一簇静止的白色微光，并以错开的寿命平滑淡出。
 - 采集：沙里淘金 `gravel_panning`；使用通用掉落替换和按阶级解锁的带权池；成功将燧石替换为金属粒时，砂砾位置会生成少量缓慢向外飞溅并渐隐的金黄色微粒。
@@ -29,7 +23,7 @@
 - 攻击：攻其不备 `ambush`；目标尚未锁定战斗目标时使用通用伤害倍率；偷袭实际造成生命伤害时，从命中位置向外飞溅少量受重力影响并渐隐的暗红色血液微粒。
 - 攻击：直取要害 `weak_point`；独立叠加破绽标记，暗红刻痕会随进度环绕目标并逐渐转为赤金色、加速收紧，阈值攻击使刻痕向命中点收束爆开，同时增伤、眩晕并消耗饥饿值。
 - 攻击：跃斩 `charged_leap`；蓄力时平滑收窄视野，空中攻击会用技能最终伤害替换普通攻击伤害，并对目标周围除施法者外的所有生物造成同等伤害与眩晕；命中时同层地表方块会以客户端假模型向外依次震起，外圈扩散气浪，同时提供一次落地保护，第六阶解锁二段跳。
-- 防御：生还者 `survivor`；使用 `ability:undead` 实体类型标签筛选伤害来源，整合包可扩展该标签。
+- 防御：生还者 `survivor`；使用 `fantasypower:undead` 实体类型标签筛选伤害来源，整合包可扩展该标签。
 - 防御：求生技巧 `survival_skills`；每秒解除剩余时间严格小于阶级阈值的有害状态效果。
 - 防御：同态复仇 `retaliatory_flame`；身处火焰环境时点燃范围内敌人，灵魂火焰与岩浆额外造成周期火焰伤害。
 - 防御：准备万全 `well_prepared`；每游戏日一次免死，触发时净化、回复、获得吸收生命并短暂无敌；免死成功时，具有头部、长袍、祈祷手臂、动态双翼与像素光环的立体天使从上方降至玩家头顶，圣光柱、升腾光尘与双层地面光环会持续覆盖完整无敌时间。
@@ -59,38 +53,3 @@
 - 魔法：缠魔剑锋 `enchanted_edge`；将阶级比例的近战伤害转换为魔法伤害，低生命目标改为带独立伤害类型的真实伤害。
 - 魔法：黑曜石加固 `obsidian_reinforcement`；消耗24个黑曜石强化铁傀儡，战斗充能生成可格挡伤害并治疗的持久护盾。
 - 魔法：寒流 `cold_current`；蓝冰强化雪傀儡并按存活时长分阶段增加生命、护甲和雪球伤害，阶级同时缩短阶段时间。
-
-“生还者”表格中的六阶数值按“每超过解锁等级 2 级”推算会在 32 级结束，超过当前防御技能 30 级
-上限。内置数据保留六阶数值，将最后两阶安排在 29、30 级解锁，避免最终阶永远无法生效。
-
-“突破”从敏捷 22 级开始共有十阶。敏捷技能上限严格为 30 级，第九阶与第十阶都在 30 级开放，
-玩家需要分别消耗技能点购买，避免为了自动阶级推导而额外引入第 31 级。
-
-“直取要害”同样从攻击 22 级开始共有十阶；第九阶与第十阶都在攻击 30 级开放并分别购买。
-
-“跃斩”从攻击 18 级开始每超过解锁等级 2 级强化一次。表格明确标注当前配置最多强化至 7/10 级，
-并说明 8–10 阶蓝色字段在不修改配置时不可达到；因此内置定义只录入攻击 18–30 级可达的七阶
-140%–205% 伤害与 1–2.6 秒眩晕，不擅自开放不可达阶级。
-
-“反狙击”表格只给出了 1–5 阶倍率（120%、130%、140%、145%、150%），但说明文字写有最高十阶。
-内置数据暂时只实现有明确数值的五阶，避免推测缺失的 6–10 阶倍率。
-
-“衰竭”从射击 18 级开始每 2 级强化一次。当前射击技能上限为 30，因此内置定义录入可达的七阶，
-中毒/凋零支持等级上限依次为 1/1、1/2、2/2、2/3、3/3、3/4、4/4；表格中的 8–10 阶继续保留为
-调整技能等级配置后的扩展目标，不在当前配置中提前开放。
-
-“铁骑”从畜牧 16 级开始每 3 级强化一次，表格给出十阶数值，但第 6–10 阶分别需要畜牧
-31、34、37、40、43 级。当前畜牧上限为 30，因此内置定义录入可达的五阶（攻击增益 25%–45%、
-猪继承护甲 30%–55%），不为单项能力擅自抬高整个技能上限。
-
-“紫颂果嬗变术”从建造 22 级起强化，共十阶；建造技能上限保持 30，第九阶与第十阶都在 30 级开放并
-分别购买。表格中的“消耗 L-5 级对应经验”按消耗当前能力阶级减 5 个原版经验等级实现。
-
-“环球旅行者”第一阶（建造16级）允许同维度物品路由，第二阶（建造18级）开放跨维度路由。过滤面板只保存
-数量为1的物品样本，不是真实库存；同一种物品不能重复占用多个过滤槽。服务端从玩家容器菜单当前携带物生成样本，客户端不能凭空声明物品。
-样本只保存物品注册表 ID，不复制潜影盒内容等数据组件。玩家从世界中拾取匹配物品时，服务端按需同步加载唯一绑定
-容器所在区块，完成插入后不保留永久强加载票；目标被移除或无法接收物品时，物品按原版拾取流程进入玩家背包。
-通用远程菜单最多展示目标能力的前54个槽位，不复制机器专属控件。重新绑定会覆盖旧位置，旧容器立即失去关联。
-
-“黑曜石加固”的表格明确注明当前配置最高只能强化至 7/10；内置数据只录入魔法18–24级可达的七阶，
-不提前开放表格中不可达的8–10阶回充数值。

@@ -14,7 +14,6 @@ public final class ModAttachments {
             "player_progress",
             () -> AttachmentType.builder(() -> PlayerProgress.EMPTY)
                     .serialize(PlayerProgress.CODEC)
-                    .copyOnDeath()
                     .build()
     );
 
@@ -22,7 +21,6 @@ public final class ModAttachments {
             "experience_limits",
             () -> AttachmentType.builder(() -> ExperienceLimitState.EMPTY)
                     .serialize(ExperienceLimitState.CODEC)
-                    .copyOnDeath()
                     .build()
     );
 
@@ -30,7 +28,6 @@ public final class ModAttachments {
             "ability_daily_state",
             () -> AttachmentType.builder(() -> AbilityDailyState.EMPTY)
                     .serialize(AbilityDailyState.CODEC)
-                    .copyOnDeath()
                     .build()
     );
 
@@ -38,7 +35,6 @@ public final class ModAttachments {
             "world_traveler_state",
             () -> AttachmentType.builder(() -> WorldTravelerState.EMPTY)
                     .serialize(WorldTravelerState.CODEC)
-                    .copyOnDeath()
                     .build()
     );
 
