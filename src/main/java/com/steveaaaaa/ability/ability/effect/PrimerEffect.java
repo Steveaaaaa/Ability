@@ -8,6 +8,8 @@ import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.ability.ActiveAbilityActionService;
 import com.steveaaaaa.ability.ability.ActiveAbilityInput;
 import com.steveaaaaa.ability.data.model.AbilityDefinition;
+import com.steveaaaaa.ability.presentation.AbilityCue;
+import com.steveaaaaa.ability.presentation.AbilityPresentationService;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,9 +29,13 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
 
 public final class PrimerEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("primer");
+    private static final ResourceLocation CHARGE_CUE = AbilityMod.id("charge");
+    private static final ResourceLocation FIRE_CUE = AbilityMod.id("fire");
+    private static final ResourceLocation IMPACT_CUE = AbilityMod.id("impact");
     private static final Set<String> RANK_KEYS = Set.of("charge_seconds", "explosion_damage_bonus");
 
     private PrimerEffect() {
@@ -61,7 +67,7 @@ public final class PrimerEffect {
             }
             long gameTime = player.level().getGameTime();
             return switch (input) {
-                case CHARGE_START -> beginCharge(player, gameTime);
+                case CHARGE_START -> beginCharge(player, rank.requiredChargeTicks(), gameTime);
                 case CHARGE_RELEASE -> releaseAndFire(player, config, rank, gameTime);
                 default -> ActiveAbilityActionService.ActivationResult.UNSUPPORTED_ACTION;
             };
@@ -152,8 +158,13 @@ public final class PrimerEffect {
         return List.copyOf(errors);
     }
 
-    private static ActiveAbilityActionService.ActivationResult beginCharge(ServerPlayer player, long gameTime) {
+    private static ActiveAbilityActionService.ActivationResult beginCharge(
+            ServerPlayer player,
+            int requiredChargeTicks,
+            long gameTime
+    ) {
         PrimerStateTracker.beginCharge(player.getUUID(), gameTime);
+        AbilityPresentationService.sendTracking(player, chargeCue(player, requiredChargeTicks));
         return ActiveAbilityActionService.ActivationResult.SUCCESS;
     }
 
@@ -164,6 +175,7 @@ public final class PrimerEffect {
             long gameTime
     ) {
         OptionalLong elapsed = PrimerStateTracker.releaseCharge(player.getUUID(), gameTime);
+        AbilityPresentationService.sendTracking(player, chargeCue(player, 0).asStop());
         if (elapsed.isEmpty() || elapsed.getAsLong() < rank.requiredChargeTicks() || !hasFireCharge(player)) {
             return ActiveAbilityActionService.ActivationResult.INVALID_STATE;
         }
@@ -183,6 +195,16 @@ public final class PrimerEffect {
                 gameTime + config.projectileStateTicks(),
                 rank.explosionDamageMultiplier()
         );
+        AbilityPresentationService.sendTracking(player, AbilityCue.pulse(
+                TYPE,
+                FIRE_CUE,
+                player.getId(),
+                fireball.getId(),
+                spawn,
+                direction,
+                1,
+                fireball.getUUID().getLeastSignificantBits()
+        ));
 
         if (!player.getAbilities().instabuild) {
             player.getOffhandItem().shrink(1);
@@ -196,6 +218,40 @@ public final class PrimerEffect {
                 0.9F + player.getRandom().nextFloat() * 0.2F
         );
         return ActiveAbilityActionService.ActivationResult.SUCCESS;
+    }
+
+    public static void processProjectileImpact(ProjectileImpactEvent event) {
+        if (!(event.getProjectile() instanceof LargeFireball fireball)
+                || fireball.level().isClientSide()
+                || !PrimerStateTracker.beginImpactVisual(fireball.getUUID(), fireball.level().getGameTime())) {
+            return;
+        }
+        Vec3 direction = fireball.getDeltaMovement().normalize();
+        AbilityPresentationService.sendTracking(fireball, AbilityCue.pulse(
+                TYPE,
+                IMPACT_CUE,
+                fireball.getOwner() == null ? -1 : fireball.getOwner().getId(),
+                fireball.getId(),
+                event.getRayTraceResult().getLocation(),
+                direction,
+                1,
+                fireball.getUUID().getMostSignificantBits()
+        ));
+    }
+
+    private static AbilityCue chargeCue(ServerPlayer player, int requiredChargeTicks) {
+        return AbilityCue.start(
+                TYPE,
+                CHARGE_CUE,
+                player.getId(),
+                player.getId(),
+                player.getBoundingBox().getCenter(),
+                player.getLookAngle(),
+                1,
+                requiredChargeTicks,
+                player.getUUID().getLeastSignificantBits(),
+                player.getUUID().getMostSignificantBits()
+        );
     }
 
     private static boolean hasFireCharge(ServerPlayer player) {

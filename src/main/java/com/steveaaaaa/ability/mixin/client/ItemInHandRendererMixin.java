@@ -3,6 +3,7 @@ package com.steveaaaaa.ability.mixin.client;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.steveaaaaa.ability.client.presentation.EnchantedEdgeWeaponRenderer;
 import com.steveaaaaa.ability.client.presentation.BlastExcavationTntRenderer;
+import com.steveaaaaa.ability.client.presentation.PrimerPresentation;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -20,6 +21,7 @@ public abstract class ItemInHandRendererMixin {
             boolean leftHand, PoseStack poseStack, MultiBufferSource buffers, int light, CallbackInfo callback) {
         EnchantedEdgeWeaponRenderer.beginHeldItem(entity, stack, displayContext);
         BlastExcavationTntRenderer.beginHeldItem(entity, stack, displayContext);
+        PrimerPresentation.beginHeldItem(entity, stack, displayContext);
     }
 
     @Inject(method = "renderItem", at = @At("RETURN"), remap = false)
@@ -27,5 +29,6 @@ public abstract class ItemInHandRendererMixin {
             boolean leftHand, PoseStack poseStack, MultiBufferSource buffers, int light, CallbackInfo callback) {
         EnchantedEdgeWeaponRenderer.endHeldItem();
         BlastExcavationTntRenderer.endHeldItem();
+        PrimerPresentation.endHeldItem();
     }
 }

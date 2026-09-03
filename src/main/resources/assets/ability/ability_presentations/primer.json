@@ -1,0 +1,13 @@
+{
+  "cues": {
+    "ability:charge": {
+      "duration_ticks": 0
+    },
+    "ability:fire": {
+      "duration_ticks": 0
+    },
+    "ability:impact": {
+      "duration_ticks": 0
+    }
+  }
+}

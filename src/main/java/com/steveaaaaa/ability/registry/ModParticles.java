@@ -92,6 +92,18 @@ public final class ModParticles {
             "dangerous_charge_smoke",
             () -> new SimpleParticleType(false)
     );
+    public static final Supplier<SimpleParticleType> PRIMER_EMBER = PARTICLE_TYPES.register(
+            "primer_ember",
+            () -> new SimpleParticleType(false)
+    );
+    public static final Supplier<SimpleParticleType> PRIMER_IGNITION = PARTICLE_TYPES.register(
+            "primer_ignition",
+            () -> new SimpleParticleType(false)
+    );
+    public static final Supplier<SimpleParticleType> PRIMER_BURST = PARTICLE_TYPES.register(
+            "primer_burst",
+            () -> new SimpleParticleType(false)
+    );
 
     private ModParticles() {
     }

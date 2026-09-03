@@ -47,6 +47,15 @@ public final class PrimerStateTracker {
         return state.explosionDamageMultiplier();
     }
 
+    public static boolean beginImpactVisual(UUID projectile, long gameTime) {
+        ProjectileState state = PROJECTILES.get(projectile);
+        if (state == null || gameTime >= state.expiresAt() || state.impactVisualized()) {
+            return false;
+        }
+        PROJECTILES.put(projectile, state.withImpactVisualized());
+        return true;
+    }
+
     public static void cleanup(long gameTime) {
         PROJECTILES.values().removeIf(state -> gameTime >= state.expiresAt());
     }
@@ -60,6 +69,13 @@ public final class PrimerStateTracker {
         PROJECTILES.clear();
     }
 
-    private record ProjectileState(long expiresAt, double explosionDamageMultiplier) {
+    private record ProjectileState(long expiresAt, double explosionDamageMultiplier, boolean impactVisualized) {
+        private ProjectileState(long expiresAt, double explosionDamageMultiplier) {
+            this(expiresAt, explosionDamageMultiplier, false);
+        }
+
+        private ProjectileState withImpactVisualized() {
+            return new ProjectileState(expiresAt, explosionDamageMultiplier, true);
+        }
     }
 }

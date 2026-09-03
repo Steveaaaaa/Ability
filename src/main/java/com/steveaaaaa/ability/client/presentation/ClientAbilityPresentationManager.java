@@ -99,6 +99,7 @@ public final class ClientAbilityPresentationManager {
         PigArmorPresentation.accept(level, cue);
         StealthPresentation.accept(level, cue);
         CounterSniperMarkRenderer.accept(level, cue);
+        PrimerPresentation.accept(level, cue);
         InstanceKey key = InstanceKey.of(cue);
         if (cue.action() == AbilityCue.Action.STOP) {
             ACTIVE.remove(key);

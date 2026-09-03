@@ -167,6 +167,7 @@ public final class AbilityEffectEventHandler {
 
     @SubscribeEvent
     public static void onProjectileImpact(ProjectileImpactEvent event) {
+        PrimerEffect.processProjectileImpact(event);
         GolemEnhancementEffect.processSnowballImpact(event);
     }
 
