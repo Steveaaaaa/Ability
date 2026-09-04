@@ -9,7 +9,9 @@ public record ClientboundDodgeAnimationPayload(
         int playerEntityId,
         float motionX,
         float motionZ,
+        long startedAt,
         int durationTicks,
+        float totalDistance,
         boolean backward
 ) implements CustomPacketPayload {
     public static final Type<ClientboundDodgeAnimationPayload> TYPE =
@@ -25,6 +27,9 @@ public record ClientboundDodgeAnimationPayload(
         if (durationTicks < 1 || durationTicks > 100) {
             throw new IllegalArgumentException("Dodge animation duration must be between 1 and 100 ticks");
         }
+        if (!Float.isFinite(totalDistance) || totalDistance < 0.0F || totalDistance > 12.0F) {
+            throw new IllegalArgumentException("Dodge animation distance must be finite and between 0 and 12");
+        }
     }
 
     @Override
@@ -36,7 +41,9 @@ public record ClientboundDodgeAnimationPayload(
         buffer.writeVarInt(playerEntityId);
         buffer.writeFloat(motionX);
         buffer.writeFloat(motionZ);
+        buffer.writeVarLong(startedAt);
         buffer.writeVarInt(durationTicks);
+        buffer.writeFloat(totalDistance);
         buffer.writeBoolean(backward);
     }
 
@@ -45,7 +52,9 @@ public record ClientboundDodgeAnimationPayload(
                 buffer.readVarInt(),
                 buffer.readFloat(),
                 buffer.readFloat(),
+                buffer.readVarLong(),
                 buffer.readVarInt(),
+                buffer.readFloat(),
                 buffer.readBoolean()
         );
     }

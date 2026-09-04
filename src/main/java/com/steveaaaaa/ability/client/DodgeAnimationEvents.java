@@ -1,6 +1,7 @@
 package com.steveaaaaa.ability.client;
 
 import com.steveaaaaa.ability.AbilityMod;
+import com.steveaaaaa.ability.ability.effect.DodgeEffect;
 import com.steveaaaaa.ability.network.ClientDodgeAnimationQueue;
 import com.steveaaaaa.ability.network.ClientboundDodgeAnimationPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -17,6 +18,8 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -85,14 +88,23 @@ public final class DodgeAnimationEvents {
         while ((payload = ClientDodgeAnimationQueue.poll()) != null) {
             if (minecraft.level.getEntity(payload.playerEntityId()) instanceof AbstractClientPlayer player) {
                 ACTIVE.put(player.getUUID(), new RollAnimation(
-                        minecraft.level.getGameTime(),
+                        payload.startedAt(),
                         payload.durationTicks(),
                         movementYawDegrees(payload.motionX(), payload.motionZ()),
+                        payload.motionX(),
+                        payload.motionZ(),
+                        payload.totalDistance(),
                         payload.backward()
                 ));
             }
         }
         long gameTime = minecraft.level.getGameTime();
+        if (minecraft.player != null) {
+            RollAnimation localRoll = ACTIVE.get(minecraft.player.getUUID());
+            if (localRoll != null) {
+                applyLocalRootMotion(minecraft.player, localRoll, gameTime);
+            }
+        }
         ACTIVE.entrySet().removeIf(entry -> gameTime >= entry.getValue().startedAt()
                 + entry.getValue().durationTicks());
         if (minecraft.player != null && isRolling(minecraft.player)) {
@@ -216,6 +228,42 @@ public final class DodgeAnimationEvents {
         float clipProgress = Mth.clamp((elapsed - TRANSITION_TICKS) / mainDuration, 0.0F, 1.0F);
         float transition = Mth.clamp(elapsed / TRANSITION_TICKS, 0.0F, 1.0F);
         return animation.clip().sample(clipProgress).scale(transition);
+    }
+
+    private static void applyLocalRootMotion(
+            AbstractClientPlayer player,
+            RollAnimation animation,
+            long gameTime
+    ) {
+        long finalMotionTick = animation.startedAt() + animation.durationTicks() - 1L;
+        long nextMotionTick = Math.max(animation.startedAt(), animation.lastMotionTick + 1L);
+        long targetTick = Math.min(gameTime, finalMotionTick);
+        if (nextMotionTick > targetTick) {
+            return;
+        }
+
+        player.setSprinting(false);
+        player.setDeltaMovement(0.0D, player.getDeltaMovement().y, 0.0D);
+        for (long tick = nextMotionTick; tick <= targetTick; tick++) {
+            int elapsed = Math.toIntExact(tick - animation.startedAt());
+            double distance = DodgeEffect.motionForTick(
+                    animation.totalDistance,
+                    animation.durationTicks(),
+                    elapsed,
+                    animation.backward()
+            );
+            Vec3 direction = animation.blocked
+                    ? Vec3.ZERO
+                    : new Vec3(animation.directionX, 0.0D, animation.directionZ);
+            Vec3 before = player.position();
+            player.move(MoverType.SELF, direction.scale(distance));
+            double requestedSqr = distance * distance;
+            double movedSqr = player.position().subtract(before).horizontalDistanceSqr();
+            if (requestedSqr > 1.0E-8D && movedSqr < requestedSqr * 0.36D) {
+                animation.blocked = true;
+            }
+            animation.lastMotionTick = tick;
+        }
     }
 
     public static boolean renderArticulatedModel(
@@ -386,7 +434,52 @@ public final class DodgeAnimationEvents {
     private record RenderContext(RollPose pose, boolean slim) {
     }
 
-    private record RollAnimation(long startedAt, int durationTicks, float movementYaw, boolean backward) {
+    private static final class RollAnimation {
+        private final long startedAt;
+        private final int durationTicks;
+        private final float movementYaw;
+        private final float directionX;
+        private final float directionZ;
+        private final float totalDistance;
+        private final boolean backward;
+        private long lastMotionTick;
+        private boolean blocked;
+
+        private RollAnimation(
+                long startedAt,
+                int durationTicks,
+                float movementYaw,
+                float directionX,
+                float directionZ,
+                float totalDistance,
+                boolean backward
+        ) {
+            this.startedAt = startedAt;
+            this.durationTicks = durationTicks;
+            this.movementYaw = movementYaw;
+            this.directionX = directionX;
+            this.directionZ = directionZ;
+            this.totalDistance = totalDistance;
+            this.backward = backward;
+            this.lastMotionTick = startedAt - 1L;
+        }
+
+        private long startedAt() {
+            return startedAt;
+        }
+
+        private int durationTicks() {
+            return durationTicks;
+        }
+
+        private float movementYaw() {
+            return movementYaw;
+        }
+
+        private boolean backward() {
+            return backward;
+        }
+
         private RollClip clip() {
             return backward ? BACKWARD_CLIP : FORWARD_CLIP;
         }

@@ -169,7 +169,9 @@ public final class DodgeEffect {
         return new RollPresentation(
                 (float) roll.direction().x,
                 (float) roll.direction().z,
+                roll.startedAt(),
                 Math.toIntExact(roll.endsAt() - roll.startedAt()),
+                (float) roll.totalDistance(),
                 roll.backward()
         );
     }
@@ -295,7 +297,7 @@ public final class DodgeEffect {
         roll.lastMotionTick = gameTime;
     }
 
-    private static double motionForTick(double totalDistance, int duration, int elapsed, boolean backward) {
+    public static double motionForTick(double totalDistance, int duration, int elapsed, boolean backward) {
         if (elapsed < 0 || elapsed >= duration) {
             return 0.0D;
         }
@@ -376,7 +378,14 @@ public final class DodgeEffect {
     public record ResolvedRank(double damageReduction) {
     }
 
-    public record RollPresentation(float directionX, float directionZ, int durationTicks, boolean backward) {
+    public record RollPresentation(
+            float directionX,
+            float directionZ,
+            long startedAt,
+            int durationTicks,
+            float totalDistance,
+            boolean backward
+    ) {
     }
 
     private static final class RollState {
