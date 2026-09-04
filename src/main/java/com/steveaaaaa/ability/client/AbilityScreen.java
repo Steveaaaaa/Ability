@@ -97,6 +97,8 @@ public final class AbilityScreen extends Screen {
     private int skillScroll;
     private int abilityScroll;
     private int detailScroll;
+    private DetailTab detailTab = DetailTab.OVERVIEW;
+    private int detailRankIndex;
     private int panelX;
     private int panelY;
     private int panelWidth;
@@ -204,12 +206,16 @@ public final class AbilityScreen extends Screen {
             selectedAbility = abilities.isEmpty() ? null : abilities.getFirst().getKey().location();
             abilityScroll = 0;
             detailScroll = 0;
+            detailTab = DetailTab.OVERVIEW;
+            detailRankIndex = selectedAbility == null ? 0 : Math.min(lastSnapshot.abilityRank(selectedAbility),
+                    Math.max(0, abilities.getFirst().getValue().ranks().values().size() - 1));
         }
         if (!narrowDetailsOpen) {
             addAbilityTiles(abilities);
             addAbilityPageButtons(abilities);
         }
         if (!narrow || narrowDetailsOpen) {
+            addDetailNavigation();
             addPurchaseButton();
         }
     }
@@ -342,6 +348,9 @@ public final class AbilityScreen extends Screen {
                     () -> {
                         selectedAbility = abilityId;
                         detailScroll = 0;
+                        detailTab = DetailTab.OVERVIEW;
+                        detailRankIndex = Math.min(lastSnapshot.abilityRank(abilityId),
+                                Math.max(0, definition.ranks().values().size() - 1));
                         ClientProgressCache.clearPurchaseResult();
                         if (narrowLayout()) {
                             narrowDetailsOpen = true;
@@ -406,8 +415,11 @@ public final class AbilityScreen extends Screen {
         abilityScroll = updated;
         if (!abilities.isEmpty() && updated < abilities.size()) {
             selectedAbility = abilities.get(updated).getKey().location();
+            detailRankIndex = Math.min(lastSnapshot.abilityRank(selectedAbility),
+                    Math.max(0, abilities.get(updated).getValue().ranks().values().size() - 1));
         }
         detailScroll = 0;
+        detailTab = DetailTab.OVERVIEW;
         ClientProgressCache.clearPurchaseResult();
         rebuildWidgets();
     }
@@ -441,6 +453,70 @@ public final class AbilityScreen extends Screen {
         }
         purchase.setAccent(parseColor(selected.definition().display().color(), BORDER_BRIGHT));
         addRenderableWidget(purchase);
+    }
+
+    private void addDetailNavigation() {
+        SelectedAbility selected = selectedAbility();
+        if (selected == null) {
+            return;
+        }
+        int x = detailX + 10;
+        int availableWidth = rightWidth - 20;
+        int gap = 2;
+        int tabWidth = (availableWidth - gap * 2) / 3;
+        DetailTab[] tabs = DetailTab.values();
+        for (int index = 0; index < tabs.length; index++) {
+            DetailTab tab = tabs[index];
+            int tabX = x + index * (tabWidth + gap);
+            int width = index == tabs.length - 1 ? x + availableWidth - tabX : tabWidth;
+            DungeonsButton button = new DungeonsButton(
+                    tabX,
+                    contentTop + 68,
+                    width,
+                    18,
+                    Component.translatable(tab.translationKey),
+                    ButtonStyle.PAGE,
+                    detailTab == tab,
+                    () -> {
+                        detailTab = tab;
+                        detailScroll = 0;
+                        rebuildWidgets();
+                    }
+            );
+            addTextOverflowTooltip(button, 8);
+            addRenderableWidget(button);
+        }
+
+        if (detailTab != DetailTab.RANKS) {
+            return;
+        }
+        int maximumRankIndex = Math.max(0, selected.definition().ranks().values().size() - 1);
+        detailRankIndex = Math.clamp(detailRankIndex, 0, maximumRankIndex);
+        DungeonsButton previous = new DungeonsButton(
+                x, contentTop + 91, 22, 17,
+                Component.literal("<"), ButtonStyle.PAGE, false,
+                () -> {
+                    detailRankIndex = Math.max(0, detailRankIndex - 1);
+                    detailScroll = 0;
+                    rebuildWidgets();
+                }
+        );
+        previous.active = detailRankIndex > 0;
+        previous.setTooltip(Tooltip.create(Component.translatable("gui.fantasypower.previous_rank")));
+        addRenderableWidget(previous);
+
+        DungeonsButton next = new DungeonsButton(
+                x + availableWidth - 22, contentTop + 91, 22, 17,
+                Component.literal(">"), ButtonStyle.PAGE, false,
+                () -> {
+                    detailRankIndex = Math.min(maximumRankIndex, detailRankIndex + 1);
+                    detailScroll = 0;
+                    rebuildWidgets();
+                }
+        );
+        next.active = detailRankIndex < maximumRankIndex;
+        next.setTooltip(Tooltip.create(Component.translatable("gui.fantasypower.next_rank")));
+        addRenderableWidget(next);
     }
 
     private void renderHeader(GuiGraphics graphics) {
@@ -677,6 +753,13 @@ public final class AbilityScreen extends Screen {
                     rankY,
                     dotWidth,
                     color);
+        }
+
+        if (detailTab == DetailTab.RANKS) {
+            Component rankPage = Component.translatable("gui.fantasypower.rank_page",
+                    detailRankIndex + 1, state.maxRank());
+            String fitted = ellipsize(font, rankPage.getString(), Math.max(20, width - 56));
+            graphics.drawCenteredString(font, fitted, x + width / 2, contentTop + 96, BORDER_BRIGHT);
         }
 
         int descriptionY = detailDescriptionY();
@@ -1109,7 +1192,7 @@ public final class AbilityScreen extends Screen {
     }
 
     private int detailDescriptionY() {
-        return contentTop + (compactDetails() ? 62 : 72);
+        return contentTop + (detailTab == DetailTab.RANKS ? 113 : 91);
     }
 
     private int detailDescriptionBottom() {
@@ -1134,21 +1217,25 @@ public final class AbilityScreen extends Screen {
         int lineWidth = Math.max(20, rightWidth - 33);
         ArrayList<DetailLine> lines = new ArrayList<>();
 
+        switch (detailTab) {
+            case OVERVIEW -> addOverviewLines(lines, selected, state, lineWidth);
+            case RANKS -> addRankLines(lines, selected, state, lineWidth);
+            case GUIDE -> addGuideLines(lines, selected, lineWidth);
+        }
+        return List.copyOf(lines);
+    }
+
+    private void addOverviewLines(
+            List<DetailLine> lines,
+            SelectedAbility selected,
+            PurchaseState state,
+            int lineWidth
+    ) {
+        AbilityDefinition definition = selected.definition();
+
         addDetailHeading(lines, Component.translatable("gui.fantasypower.description_heading"));
         addWrappedDetail(lines, Component.translatable(definition.display().description()),
                 lineWidth, TEXT_MUTED, 0);
-
-        String guidePrefix = "ability." + selected.id().getNamespace() + "."
-                + selected.id().getPath() + ".guide.";
-        if (I18n.exists(guidePrefix + "1")) {
-            addDetailSpacer(lines);
-            addDetailHeading(lines, Component.translatable("gui.fantasypower.guide_heading"));
-            for (int index = 1; index <= 64 && I18n.exists(guidePrefix + index); index++) {
-                addWrappedDetail(lines,
-                        Component.literal("◆ ").append(Component.translatable(guidePrefix + index)),
-                        lineWidth, TEXT_PRIMARY, 4);
-            }
-        }
 
         addDetailSpacer(lines);
         addDetailHeading(lines, Component.translatable("gui.fantasypower.requirement_heading"));
@@ -1160,41 +1247,97 @@ public final class AbilityScreen extends Screen {
         }
 
         addDetailSpacer(lines);
-        addDetailHeading(lines, Component.translatable("gui.fantasypower.progression_heading"));
-        for (int rankIndex = 0; rankIndex < state.maxRank(); rankIndex++) {
-            int rank = rankIndex + 1;
-            int color = rank <= state.purchasedRank()
-                    ? SUCCESS
-                    : rank == state.purchasedRank() + 1 ? BORDER_BRIGHT : TEXT_MUTED;
-            Component rankHeading = Component.translatable("gui.fantasypower.rank_entry",
-                    rank,
-                    definition.ranks().unlockSkillLevels().get(rankIndex),
-                    definition.ranks().skillPointCosts().get(rankIndex));
-            addWrappedDetail(lines, rankHeading, lineWidth, color, 2);
+        if (state.maxed()) {
+            addDetailHeading(lines, Component.translatable("gui.fantasypower.current_state_heading"));
+            addWrappedDetail(lines, Component.translatable("gui.fantasypower.all_ranks_unlocked"),
+                    lineWidth, SUCCESS, 4);
+        } else {
+            addDetailHeading(lines, Component.translatable("gui.fantasypower.next_upgrade_heading"));
+            addSingleRankDetails(lines, selected, state, state.purchasedRank(), lineWidth, false);
+        }
+    }
 
-            JsonObject values = rankValuesForDisplay(definition, rankIndex);
-            if (values.isEmpty()) {
-                String rankKey = "ability." + selected.id().getNamespace() + "."
-                        + selected.id().getPath() + ".rank." + rank;
-                if (I18n.exists(rankKey)) {
-                    addWrappedDetail(lines, Component.translatable(rankKey), lineWidth,
-                            TEXT_MUTED, 10);
-                } else if (I18n.exists(guidePrefix + rank)) {
-                    addWrappedDetail(lines, Component.translatable(guidePrefix + rank), lineWidth,
-                            TEXT_MUTED, 10);
-                }
+    private void addRankLines(
+            List<DetailLine> lines,
+            SelectedAbility selected,
+            PurchaseState state,
+            int lineWidth
+    ) {
+        detailRankIndex = Math.clamp(detailRankIndex, 0, Math.max(0, state.maxRank() - 1));
+        addSingleRankDetails(lines, selected, state, detailRankIndex, lineWidth, true);
+    }
+
+    private void addSingleRankDetails(
+            List<DetailLine> lines,
+            SelectedAbility selected,
+            PurchaseState state,
+            int rankIndex,
+            int lineWidth,
+            boolean showHeading
+    ) {
+        AbilityDefinition definition = selected.definition();
+        int rank = rankIndex + 1;
+        boolean unlocked = rank <= state.purchasedRank();
+        boolean next = rank == state.purchasedRank() + 1;
+        int color = unlocked ? SUCCESS : next ? BORDER_BRIGHT : TEXT_MUTED;
+        if (showHeading) {
+            addDetailHeading(lines, Component.translatable(unlocked
+                    ? "gui.fantasypower.rank_status.unlocked"
+                    : next ? "gui.fantasypower.rank_status.next" : "gui.fantasypower.rank_status.locked"));
+        }
+        Component rankHeading = Component.translatable("gui.fantasypower.rank_entry",
+                rank,
+                definition.ranks().unlockSkillLevels().get(rankIndex),
+                definition.ranks().skillPointCosts().get(rankIndex));
+        addWrappedDetail(lines, rankHeading, lineWidth, color, 2);
+
+        JsonObject values = rankValuesForDisplay(definition, rankIndex);
+        String prefix = "ability." + selected.id().getNamespace() + "." + selected.id().getPath() + ".";
+        if (values.isEmpty()) {
+            String rankKey = prefix + "rank." + rank;
+            String guideKey = prefix + "guide." + rank;
+            if (I18n.exists(rankKey)) {
+                addWrappedDetail(lines, Component.translatable(rankKey), lineWidth, TEXT_PRIMARY, 8);
+            } else if (I18n.exists(guideKey)) {
+                addWrappedDetail(lines, Component.translatable(guideKey), lineWidth, TEXT_PRIMARY, 8);
+            } else {
+                addWrappedDetail(lines, Component.translatable("gui.fantasypower.rank_no_numeric_change"),
+                        lineWidth, TEXT_MUTED, 8);
+            }
+            return;
+        }
+        addDetailSpacer(lines);
+        addDetailHeading(lines, Component.translatable("gui.fantasypower.rank_bonuses_heading"));
+        for (Map.Entry<String, JsonElement> value : values.entrySet()) {
+            if ("recharge".equals(value.getKey()) && value.getValue().isJsonPrimitive()
+                    && value.getValue().getAsDouble() == 0.0D) {
                 continue;
             }
-            for (Map.Entry<String, JsonElement> value : values.entrySet()) {
-                if ("recharge".equals(value.getKey()) && value.getValue().isJsonPrimitive()
-                        && value.getValue().getAsDouble() == 0.0D) {
-                    continue;
-                }
-                addWrappedDetail(lines, rankValueLine(value.getKey(), value.getValue()),
-                        lineWidth, TEXT_MUTED, 10);
+            addWrappedDetail(lines, rankValueLine(value.getKey(), value.getValue()),
+                    lineWidth, TEXT_PRIMARY, 8);
+        }
+    }
+
+    private void addGuideLines(List<DetailLine> lines, SelectedAbility selected, int lineWidth) {
+        String guidePrefix = "ability." + selected.id().getNamespace() + "."
+                + selected.id().getPath() + ".guide.";
+        addDetailHeading(lines, Component.translatable("gui.fantasypower.guide_heading"));
+        if (!I18n.exists(guidePrefix + "1")) {
+            addWrappedDetail(lines, Component.translatable(selected.definition().display().description()),
+                    lineWidth, TEXT_PRIMARY, 0);
+            addDetailSpacer(lines);
+            addWrappedDetail(lines, Component.translatable("gui.fantasypower.no_special_guide"),
+                    lineWidth, TEXT_MUTED, 0);
+            return;
+        }
+        for (int index = 1; index <= 64 && I18n.exists(guidePrefix + index); index++) {
+            addWrappedDetail(lines,
+                    Component.literal("◆ ").append(Component.translatable(guidePrefix + index)),
+                    lineWidth, TEXT_PRIMARY, 4);
+            if (index < 64 && I18n.exists(guidePrefix + (index + 1))) {
+                addDetailSpacer(lines);
             }
         }
-        return List.copyOf(lines);
     }
 
     private void addDetailHeading(List<DetailLine> lines, Component heading) {
@@ -1650,6 +1793,18 @@ public final class AbilityScreen extends Screen {
         SKILL,
         PURCHASE,
         PAGE
+    }
+
+    private enum DetailTab {
+        OVERVIEW("gui.fantasypower.detail_tab.overview"),
+        RANKS("gui.fantasypower.detail_tab.ranks"),
+        GUIDE("gui.fantasypower.detail_tab.guide");
+
+        private final String translationKey;
+
+        DetailTab(String translationKey) {
+            this.translationKey = translationKey;
+        }
     }
 
     private record SelectedAbility(ResourceLocation id, AbilityDefinition definition) {
