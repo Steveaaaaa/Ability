@@ -1,6 +1,9 @@
 package com.steveaaaaa.ability.client;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.mojang.math.Axis;
+import com.mojang.serialization.JsonOps;
 import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.condition.ConditionTypeRegistry;
 import com.steveaaaaa.ability.data.ModDataRegistries;
@@ -14,7 +17,9 @@ import com.steveaaaaa.ability.network.ServerboundPurchaseAbilityPayload;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -23,6 +28,7 @@ import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -42,11 +48,25 @@ public final class AbilityScreen extends Screen {
     private static final int PANE_GAP = 7;
     private static final int SKILL_BUTTON_HEIGHT = 24;
     private static final int SKILL_BUTTON_GAP = 2;
-    private static final int ABILITY_TILE_WIDTH = 68;
-    private static final int ABILITY_TILE_HEIGHT = 68;
+    private static final int ABILITY_TILE_WIDTH = 72;
+    private static final int ABILITY_TILE_HEIGHT = 74;
     private static final int TILE_GAP = 8;
-    private static final int DIAMOND_ICON_SIZE = 32;
+    private static final int DIAMOND_ICON_SIZE = 36;
     private static final int ABILITY_GRID_TOP_OFFSET = 65;
+    private static final int DETAIL_LINE_HEIGHT = 10;
+    private static final Set<String> FRACTION_PERCENT_STATS = Set.of(
+            "attack_speed_bonus",
+            "attack_damage_penalty",
+            "damage_reduction",
+            "chance",
+            "coal_bonus_chance",
+            "copper_to_raw_iron_chance",
+            "iron_to_raw_gold_chance",
+            "nether_gold_bonus_chance",
+            "rare_replacement_chance",
+            "emerald_weight",
+            "health_ratio_below"
+    );
 
     private static final ResourceLocation DUNGEON_ICON_FRAME = AbilityMod.id(
             "textures/gui/dungeon_icon_frame.png"
@@ -221,7 +241,7 @@ public final class AbilityScreen extends Screen {
         }
         if ((!narrowLayout() || narrowDetailsOpen)
                 && inside(mouseX, mouseY, detailX, contentTop, panelX + panelWidth - 5, contentBottom)) {
-            int maximum = Math.max(0, detailDescriptionLines().size() - detailVisibleLines());
+            int maximum = Math.max(0, detailContentLines().size() - detailVisibleLines());
             int updated = Math.clamp(detailScroll + (scrollY > 0.0D ? -1 : 1), 0, maximum);
             if (updated != detailScroll) {
                 detailScroll = updated;
@@ -630,13 +650,13 @@ public final class AbilityScreen extends Screen {
         AbilityDefinition definition = selected.definition();
         PurchaseState state = purchaseState(selected.id(), definition);
         int accent = parseColor(definition.display().color(), BORDER_GOLD);
-        renderDiamondFill(graphics, x + 24, contentTop + 32, 26, 0xFF111212);
+        renderDiamondFill(graphics, x + 28, contentTop + 32, 31, 0xFF111212);
         renderDiamondIcon(graphics, selected.id(), definition.display().icon(),
-                x + 24, contentTop + 32, 34, true);
-        renderDiamondSelection(graphics, x + 24, contentTop + 32, 34, animatedGold());
+                x + 28, contentTop + 32, 40, true);
+        renderDiamondSelection(graphics, x + 28, contentTop + 32, 40, animatedGold());
 
-        int textX = x + 57;
-        int nameWidth = Math.max(35, width - 57);
+        int textX = x + 63;
+        int nameWidth = Math.max(35, width - 63);
         List<FormattedCharSequence> nameLines = font.split(
                 Component.translatable(definition.display().name()), nameWidth);
         for (int line = 0; line < Math.min(2, nameLines.size()); line++) {
@@ -659,13 +679,9 @@ public final class AbilityScreen extends Screen {
                     color);
         }
 
-        int descriptionHeadingY = detailDescriptionHeadingY();
-        pixelDiamond(graphics, x + 2, descriptionHeadingY + 4, 1, BORDER_GOLD);
-        graphics.drawString(font, Component.translatable("gui.fantasypower.description_heading"),
-                x + 7, descriptionHeadingY, BORDER_GOLD, false);
         int descriptionY = detailDescriptionY();
         int descriptionBottom = detailDescriptionBottom();
-        List<FormattedCharSequence> description = detailDescriptionLines();
+        List<DetailLine> description = detailContentLines();
         int visibleDescriptionLines = detailVisibleLines();
         detailScroll = Math.clamp(detailScroll, 0, Math.max(0, description.size() - visibleDescriptionLines));
         graphics.enableScissor(x, descriptionY, x + width - 6, descriptionBottom);
@@ -674,7 +690,9 @@ public final class AbilityScreen extends Screen {
             if (index >= description.size()) {
                 break;
             }
-            graphics.drawString(font, description.get(index), x, descriptionY + line * 10, TEXT_MUTED, false);
+            DetailLine detailLine = description.get(index);
+            graphics.drawString(font, detailLine.text(), x + detailLine.indent(),
+                    descriptionY + line * DETAIL_LINE_HEIGHT, detailLine.color(), false);
         }
         graphics.disableScissor();
         scrollbar(
@@ -687,24 +705,6 @@ public final class AbilityScreen extends Screen {
                 detailScroll
         );
 
-        int requirementHeadingY = detailRequirementHeadingY();
-        Component requirementHeading = Component.translatable("gui.fantasypower.requirement_heading");
-        pixelDiamond(graphics, x + 2, requirementHeadingY + 4, 1, BORDER_GOLD);
-        graphics.drawString(font, requirementHeading, x + 7, requirementHeadingY, BORDER_GOLD, false);
-        long satisfiedRequirements = state.requirements().stream()
-                .filter(requirement -> requirement.status() == RequirementStatus.SATISFIED)
-                .count();
-        Component summary = state.canPurchase() || state.maxed()
-                ? Component.translatable("gui.fantasypower.requirement.summary.complete",
-                        satisfiedRequirements, state.requirements().size())
-                : Component.translatable("gui.fantasypower.requirement.summary.incomplete",
-                        satisfiedRequirements, state.requirements().size());
-        List<FormattedCharSequence> summaryLines = font.split(summary, width);
-        int requirementTextY = contentBottom - (compactDetails() ? 45 : 57);
-        for (int line = 0; line < Math.min(2, summaryLines.size()); line++) {
-            graphics.drawString(font, summaryLines.get(line), x, requirementTextY + line * 10,
-                    state.canPurchase() || state.maxed() ? TEXT_PRIMARY : FAILURE, false);
-        }
     }
 
     private void renderFooter(GuiGraphics graphics) {
@@ -1109,19 +1109,11 @@ public final class AbilityScreen extends Screen {
     }
 
     private int detailDescriptionY() {
-        return detailDescriptionHeadingY() + 12;
+        return contentTop + (compactDetails() ? 62 : 72);
     }
 
     private int detailDescriptionBottom() {
-        return Math.max(detailDescriptionY() + 10, detailRequirementHeadingY() - 6);
-    }
-
-    private int detailDescriptionHeadingY() {
-        return contentTop + (compactDetails() ? 64 : 75);
-    }
-
-    private int detailRequirementHeadingY() {
-        return contentBottom - (compactDetails() ? 58 : 70);
+        return contentBottom - (compactDetails() ? 27 : 34);
     }
 
     private boolean compactDetails() {
@@ -1129,18 +1121,184 @@ public final class AbilityScreen extends Screen {
     }
 
     private int detailVisibleLines() {
-        return Math.max(1, (detailDescriptionBottom() - detailDescriptionY()) / 10);
+        return Math.max(1, (detailDescriptionBottom() - detailDescriptionY()) / DETAIL_LINE_HEIGHT);
     }
 
-    private List<FormattedCharSequence> detailDescriptionLines() {
+    private List<DetailLine> detailContentLines() {
         SelectedAbility selected = selectedAbility();
         if (selected == null) {
             return List.of();
         }
-        return font.split(
-                Component.translatable(selected.definition().display().description()),
-                Math.max(20, rightWidth - 31)
-        );
+        AbilityDefinition definition = selected.definition();
+        PurchaseState state = purchaseState(selected.id(), definition);
+        int lineWidth = Math.max(20, rightWidth - 33);
+        ArrayList<DetailLine> lines = new ArrayList<>();
+
+        addDetailHeading(lines, Component.translatable("gui.fantasypower.description_heading"));
+        addWrappedDetail(lines, Component.translatable(definition.display().description()),
+                lineWidth, TEXT_MUTED, 0);
+
+        String guidePrefix = "ability." + selected.id().getNamespace() + "."
+                + selected.id().getPath() + ".guide.";
+        if (I18n.exists(guidePrefix + "1")) {
+            addDetailSpacer(lines);
+            addDetailHeading(lines, Component.translatable("gui.fantasypower.guide_heading"));
+            for (int index = 1; index <= 64 && I18n.exists(guidePrefix + index); index++) {
+                addWrappedDetail(lines,
+                        Component.literal("◆ ").append(Component.translatable(guidePrefix + index)),
+                        lineWidth, TEXT_PRIMARY, 4);
+            }
+        }
+
+        addDetailSpacer(lines);
+        addDetailHeading(lines, Component.translatable("gui.fantasypower.requirement_heading"));
+        for (RequirementLine requirement : state.requirements()) {
+            boolean satisfied = requirement.status() == RequirementStatus.SATISFIED;
+            Component entry = Component.literal(satisfied ? "✓ " : "✕ ")
+                    .append(requirement.text());
+            addWrappedDetail(lines, entry, lineWidth, satisfied ? SUCCESS : FAILURE, 4);
+        }
+
+        addDetailSpacer(lines);
+        addDetailHeading(lines, Component.translatable("gui.fantasypower.progression_heading"));
+        for (int rankIndex = 0; rankIndex < state.maxRank(); rankIndex++) {
+            int rank = rankIndex + 1;
+            int color = rank <= state.purchasedRank()
+                    ? SUCCESS
+                    : rank == state.purchasedRank() + 1 ? BORDER_BRIGHT : TEXT_MUTED;
+            Component rankHeading = Component.translatable("gui.fantasypower.rank_entry",
+                    rank,
+                    definition.ranks().unlockSkillLevels().get(rankIndex),
+                    definition.ranks().skillPointCosts().get(rankIndex));
+            addWrappedDetail(lines, rankHeading, lineWidth, color, 2);
+
+            JsonObject values = rankValuesForDisplay(definition, rankIndex);
+            if (values.isEmpty()) {
+                String rankKey = "ability." + selected.id().getNamespace() + "."
+                        + selected.id().getPath() + ".rank." + rank;
+                if (I18n.exists(rankKey)) {
+                    addWrappedDetail(lines, Component.translatable(rankKey), lineWidth,
+                            TEXT_MUTED, 10);
+                } else if (I18n.exists(guidePrefix + rank)) {
+                    addWrappedDetail(lines, Component.translatable(guidePrefix + rank), lineWidth,
+                            TEXT_MUTED, 10);
+                }
+                continue;
+            }
+            for (Map.Entry<String, JsonElement> value : values.entrySet()) {
+                if ("recharge".equals(value.getKey()) && value.getValue().isJsonPrimitive()
+                        && value.getValue().getAsDouble() == 0.0D) {
+                    continue;
+                }
+                addWrappedDetail(lines, rankValueLine(value.getKey(), value.getValue()),
+                        lineWidth, TEXT_MUTED, 10);
+            }
+        }
+        return List.copyOf(lines);
+    }
+
+    private void addDetailHeading(List<DetailLine> lines, Component heading) {
+        lines.add(new DetailLine(Component.literal("◆ ").append(heading).getVisualOrderText(), BORDER_GOLD, 0));
+    }
+
+    private static void addDetailSpacer(List<DetailLine> lines) {
+        lines.add(new DetailLine(Component.empty().getVisualOrderText(), TEXT_MUTED, 0));
+    }
+
+    private void addWrappedDetail(
+            List<DetailLine> lines,
+            Component text,
+            int lineWidth,
+            int color,
+            int indent
+    ) {
+        for (FormattedCharSequence line : font.split(text, Math.max(12, lineWidth - indent))) {
+            lines.add(new DetailLine(line, color, indent));
+        }
+    }
+
+    private static JsonObject rankValuesForDisplay(AbilityDefinition definition, int rankIndex) {
+        JsonElement direct = definition.ranks().values().get(rankIndex).convert(JsonOps.INSTANCE).getValue();
+        JsonObject result = direct.isJsonObject() ? direct.getAsJsonObject().deepCopy() : new JsonObject();
+        if (!result.isEmpty() || !"composite".equals(definition.effect().type().getPath())) {
+            return result;
+        }
+        JsonElement config = definition.effect().config().convert(JsonOps.INSTANCE).getValue();
+        if (!config.isJsonObject() || !config.getAsJsonObject().has("effects")) {
+            return result;
+        }
+        for (JsonElement effect : config.getAsJsonObject().getAsJsonArray("effects")) {
+            if (!effect.isJsonObject() || !effect.getAsJsonObject().has("rank_values")) {
+                continue;
+            }
+            if (rankIndex >= effect.getAsJsonObject().getAsJsonArray("rank_values").size()) {
+                continue;
+            }
+            JsonElement values = effect.getAsJsonObject().getAsJsonArray("rank_values").get(rankIndex);
+            if (values.isJsonObject()) {
+                values.getAsJsonObject().entrySet().forEach(entry -> result.add(entry.getKey(), entry.getValue()));
+            }
+        }
+        return result;
+    }
+
+    private static Component rankValueLine(String key, JsonElement value) {
+        String labelKey = "gui.fantasypower.stat." + key;
+        Component label = I18n.exists(labelKey)
+                ? Component.translatable(labelKey)
+                : Component.literal(humanizeKey(key));
+        return Component.translatable("gui.fantasypower.stat_line", label, formatRankValue(key, value));
+    }
+
+    private static Component formatRankValue(String key, JsonElement value) {
+        if (!value.isJsonPrimitive()) {
+            return Component.literal(value.toString());
+        }
+        if (value.getAsJsonPrimitive().isBoolean()) {
+            return Component.translatable(value.getAsBoolean()
+                    ? "gui.fantasypower.value.enabled"
+                    : "gui.fantasypower.value.disabled");
+        }
+        if (!value.getAsJsonPrimitive().isNumber()) {
+            return Component.literal(value.getAsString());
+        }
+        double number = value.getAsDouble();
+        if (FRACTION_PERCENT_STATS.contains(key)) {
+            return Component.literal(formatNumber(number * 100.0D) + "%");
+        }
+        if (key.endsWith("_percent")) {
+            return Component.literal(formatNumber(number) + "%");
+        }
+        if (key.endsWith("_ticks")) {
+            return Component.translatable("gui.fantasypower.value.seconds", formatNumber(number / 20.0D));
+        }
+        if (key.endsWith("_seconds")) {
+            return Component.translatable("gui.fantasypower.value.seconds", formatNumber(number));
+        }
+        if ("damage_multiplier".equals(key)) {
+            return Component.literal("×" + formatNumber(number));
+        }
+        return Component.literal(formatNumber(number));
+    }
+
+    private static String formatNumber(double value) {
+        if (Math.abs(value - Math.rint(value)) < 0.00001D) {
+            return Long.toString(Math.round(value));
+        }
+        return String.format(Locale.ROOT, "%.2f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
+    }
+
+    private static String humanizeKey(String key) {
+        String[] words = key.split("_");
+        StringBuilder result = new StringBuilder();
+        for (String word : words) {
+            if (!result.isEmpty()) {
+                result.append(' ');
+            }
+            result.append(word.isEmpty() ? word
+                    : Character.toUpperCase(word.charAt(0)) + word.substring(1));
+        }
+        return result.toString();
     }
 
     private SelectedAbility selectedAbility() {
@@ -1365,7 +1523,7 @@ public final class AbilityScreen extends Screen {
             int accent = parseColor(definition.display().color(), BORDER_GOLD);
             int fill = purchasedRank > 0 ? 0xFF302A21 : 0xFF191A19;
             int iconX = getX() + getWidth() / 2;
-            int iconY = getY() + 22 - (isHovered ? 1 : 0);
+            int iconY = getY() + 27 - (isHovered ? 1 : 0);
             renderDiamondFill(graphics, iconX, iconY, DIAMOND_ICON_SIZE - 8, fill);
             renderDiamondIcon(graphics, abilityId, definition.display().icon(),
                     iconX, iconY, DIAMOND_ICON_SIZE, true);
@@ -1384,7 +1542,7 @@ public final class AbilityScreen extends Screen {
                     ? BORDER_BRIGHT
                     : purchasedRank > 0 || isHovered ? TEXT_PRIMARY : TEXT_MUTED;
             int visibleLines = Math.min(2, nameLines.size());
-            int nameY = getY() + (visibleLines == 1 ? 48 : 43);
+            int nameY = getY() + (visibleLines == 1 ? 53 : 48);
             for (int line = 0; line < visibleLines; line++) {
                 graphics.drawCenteredString(font, nameLines.get(line), getX() + getWidth() / 2,
                         nameY + line * 10, nameColor);
@@ -1515,6 +1673,9 @@ public final class AbilityScreen extends Screen {
     }
 
     private record RequirementLine(Component text, RequirementStatus status) {
+    }
+
+    private record DetailLine(FormattedCharSequence text, int color, int indent) {
     }
 
     private record RequirementEvaluation(boolean satisfied, List<RequirementLine> lines) {
