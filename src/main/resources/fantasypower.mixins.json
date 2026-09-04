@@ -9,7 +9,9 @@
   "client": [
     "client.FireworkRocketEntityClientMixin",
     "client.ItemInHandRendererMixin",
-    "client.ItemRendererMixin"
+    "client.ItemRendererMixin",
+    "client.LivingEntityRendererMixin",
+    "client.PlayerModelMixin"
   ],
   "injectors": {
     "defaultRequire": 1

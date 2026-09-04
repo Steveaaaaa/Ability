@@ -4,8 +4,6 @@ import com.steveaaaaa.ability.AbilityMod;
 import com.steveaaaaa.ability.network.ClientAbilityCueQueue;
 import com.steveaaaaa.ability.network.ClientboundAbilityCuePayload;
 import com.steveaaaaa.ability.presentation.AbilityCue;
-import com.zigythebird.playeranim.animation.PlayerAnimationController;
-import com.zigythebird.playeranim.api.PlayerAnimationAccess;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -13,7 +11,6 @@ import java.util.Set;
 import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -152,7 +149,6 @@ public final class ClientAbilityPresentationManager {
             return;
         }
         definition.sound().ifPresent(sound -> playSound(level, cue, sound, random));
-        definition.animation().ifPresent(animation -> playAnimation(level, cue, animation));
     }
 
     private static void emitParticles(
@@ -208,15 +204,6 @@ public final class ClientAbilityPresentationManager {
                 pitch,
                 false
         );
-    }
-
-    private static void playAnimation(ClientLevel level, AbilityCue cue, ResourceLocation animation) {
-        Entity entity = level.getEntity(cue.sourceEntityId());
-        if (entity instanceof AbstractClientPlayer player
-                && PlayerAnimationAccess.getPlayerAnimationLayer(player, PresentationAnimationSetup.LAYER)
-                instanceof PlayerAnimationController controller) {
-            controller.triggerAnimation(animation);
-        }
     }
 
     private static Vec3 anchor(

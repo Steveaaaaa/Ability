@@ -191,7 +191,7 @@
   "ability.fantasypower.stealth": "Stealth",
   "ability.fantasypower.stealth.description": "Become invisible after a period without sound, taking damage, or dealing damage; the next damaging hit is amplified and ends Stealth.",
   "ability.fantasypower.dodge": "Dodge",
-  "ability.fantasypower.dodge.description": "Press the Dodge key to roll in the current movement direction, or backward without directional input, reducing incoming damage briefly.",
+  "ability.fantasypower.dodge.description": "Press the Dodge key while grounded to roll in the current movement direction, or backward without directional input. Actions are locked and incoming damage is reduced during the roll.",
   "ability.fantasypower.charged_leap": "Charged Leap",
   "ability.fantasypower.charged_leap.description": "Hold the Charged Leap key and release it to leap high; an optional Jump-key mode is available in the client config. An airborne hit replaces normal attack damage with skill damage and deals the same damage and stun to every nearby living entity except you, while negating landing damage.",
   "ability.fantasypower.primer": "Primer",

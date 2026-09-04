@@ -23,7 +23,6 @@ Install matching versions of the following on both the client and server:
 |---|---|
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.x |
-| Player Animation Library | 1.1.5 or later |
 | FantasyPower | 1.0beta |
 
 Place the mod JAR in the instance's `mods/` directory. For single-player, a local installation is enough; multiplayer requires the mod on both the client and server.
@@ -92,7 +91,7 @@ Administrative commands require permission level 2. See the [presentation-layer 
 
 ### Reporting Issues
 
-If the game crashes or an ability or interface does not behave correctly, open an [issue](https://github.com/Steveaaaaa/Ability/issues) and include the versions of FantasyPower, NeoForge, and Player Animation Library. Please attach `latest.log` or the crash report when available.
+If the game crashes or an ability or interface does not behave correctly, open an [issue](https://github.com/Steveaaaaa/Ability/issues) and include the versions of FantasyPower and NeoForge. Please attach `latest.log` or the crash report when available.
 
 ### License
 
@@ -115,7 +114,6 @@ FantasyPower 是一个运行在 Minecraft 1.21.1 / NeoForge 上的 RPG 能力模
 |---|---|
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.x |
-| Player Animation Library | 1.1.5 或更高 |
 | FantasyPower | 1.0beta |
 
 把模组 JAR 放进游戏实例的 `mods/` 文件夹即可。单人游戏只需要安装在本地；进入服务器时，客户端和服务端都要安装。
@@ -184,7 +182,7 @@ node tools/validate-examples.mjs
 
 ### 反馈问题
 
-遇到崩溃、能力没有生效或界面异常时，请在 [Issues](https://github.com/Steveaaaaa/Ability/issues) 中提交反馈，并附上 FantasyPower、NeoForge 和 Player Animation Library 的版本。若游戏生成了 `latest.log` 或崩溃报告，也请一并上传。
+遇到崩溃、能力没有生效或界面异常时，请在 [Issues](https://github.com/Steveaaaaa/Ability/issues) 中提交反馈，并附上 FantasyPower 和 NeoForge 的版本。若游戏生成了 `latest.log` 或崩溃报告，也请一并上传。
 
 ### 许可证
 

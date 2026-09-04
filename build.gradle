@@ -131,8 +131,6 @@ configurations {
 }
 
 dependencies {
-    implementation "maven.modrinth:ha1mEyJS:${pal_version}"
-
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     // Example optional mod dependency with JEI

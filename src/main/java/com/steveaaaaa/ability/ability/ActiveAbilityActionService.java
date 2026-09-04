@@ -16,6 +16,9 @@ public final class ActiveAbilityActionService {
             ResourceLocation abilityId,
             ActiveAbilityInput input
     ) {
+        if (DodgeEffect.isRolling(player)) {
+            return ActivationResult.INVALID_STATE;
+        }
         AbilityService.ActiveAbility active = AbilityService.active(player, abilityId).orElse(null);
         if (active == null) {
             return ActivationResult.INACTIVE;

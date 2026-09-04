@@ -62,10 +62,6 @@ public record AbilityPresentationDefinition(Map<ResourceLocation, CueDefinition>
                     finiteFloat(value, "pitch_random", 0.0F, 0.0F)
             ));
         }
-        Optional<ResourceLocation> animation = Optional.empty();
-        if (json.has("animation")) {
-            animation = Optional.of(requiredId(json, "animation"));
-        }
         List<OrbitingSprite> orbitingSprites = new ArrayList<>();
         JsonArray orbitArray = GsonHelper.getAsJsonArray(json, "orbiting_sprites", new JsonArray());
         for (JsonElement element : orbitArray) {
@@ -99,7 +95,7 @@ public record AbilityPresentationDefinition(Map<ResourceLocation, CueDefinition>
             ));
         }
         return new CueDefinition(
-                duration, interval, List.copyOf(particles), sound, animation, List.copyOf(orbitingSprites)
+                duration, interval, List.copyOf(particles), sound, List.copyOf(orbitingSprites)
         );
     }
 
@@ -170,7 +166,6 @@ public record AbilityPresentationDefinition(Map<ResourceLocation, CueDefinition>
             int emissionIntervalTicks,
             List<ParticleBurst> particles,
             Optional<SoundCue> sound,
-            Optional<ResourceLocation> animation,
             List<OrbitingSprite> orbitingSprites
     ) {
     }

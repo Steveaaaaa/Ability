@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -23,6 +25,7 @@ import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 public final class DodgeEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("dodge");
     private static final Set<String> RANK_KEYS = Set.of("damage_reduction");
+    private static final Map<UUID, RollState> ROLLS = new ConcurrentHashMap<>();
 
     private DodgeEffect() {
     }
@@ -65,9 +68,15 @@ public final class DodgeEffect {
                 return ActiveAbilityActionService.ActivationResult.COOLDOWN;
             }
 
-            Vec3 motion = directionalMotion(player.getLookAngle(), input, config.horizontalSpeed());
-            player.setDeltaMovement(motion.x, player.getDeltaMovement().y, motion.z);
-            player.hurtMarked = true;
+            Vec3 direction = directionalMotion(player.getLookAngle(), input, 1.0D);
+            RollState roll = new RollState(
+                    gameTime,
+                    gameTime + config.durationTicks(),
+                    direction,
+                    config.horizontalSpeed()
+            );
+            ROLLS.put(player.getUUID(), roll);
+            applyMotion(player, roll, gameTime);
             return ActiveAbilityActionService.ActivationResult.SUCCESS;
         } catch (RuntimeException exception) {
             AbilityMod.LOGGER.error("Invalid dodge ability {}: {}", active.abilityId(), exception.getMessage());
@@ -86,6 +95,51 @@ public final class DodgeEffect {
                 player.level().getGameTime()
         );
         event.setAmount(safeDamage((double) event.getAmount() * multiplier));
+    }
+
+    public static void processTick(ServerPlayer player) {
+        RollState roll = ROLLS.get(player.getUUID());
+        if (roll == null) {
+            return;
+        }
+        long gameTime = player.level().getGameTime();
+        if (!player.isAlive() || gameTime >= roll.endsAt()) {
+            ROLLS.remove(player.getUUID(), roll);
+            if (player.isAlive()) {
+                player.setDeltaMovement(0.0D, player.getDeltaMovement().y, 0.0D);
+                player.hurtMarked = true;
+            }
+            return;
+        }
+        applyMotion(player, roll, gameTime);
+    }
+
+    public static boolean isRolling(ServerPlayer player) {
+        RollState roll = ROLLS.get(player.getUUID());
+        if (roll == null) {
+            return false;
+        }
+        if (player.level().getGameTime() >= roll.endsAt()) {
+            ROLLS.remove(player.getUUID(), roll);
+            return false;
+        }
+        return true;
+    }
+
+    public static RollPresentation presentation(ServerPlayer player) {
+        RollState roll = ROLLS.get(player.getUUID());
+        if (roll == null || player.level().getGameTime() >= roll.endsAt()) {
+            return null;
+        }
+        return new RollPresentation(
+                (float) roll.direction().x,
+                (float) roll.direction().z,
+                Math.toIntExact(roll.endsAt() - roll.startedAt())
+        );
+    }
+
+    public static void forget(UUID playerId) {
+        ROLLS.remove(playerId);
     }
 
     static boolean isDodgeDirection(ActiveAbilityInput input) {
@@ -172,7 +226,43 @@ public final class DodgeEffect {
                 && !player.isSpectator()
                 && !CombatStatusTracker.isStunned(player)
                 && !player.isPassenger()
+                && !player.isInWaterOrBubble()
+                && !player.onClimbable()
+                && !player.isFallFlying()
                 && (!config.requireOnGround() || player.onGround());
+    }
+
+    private static void applyMotion(ServerPlayer player, RollState roll, long gameTime) {
+        if (roll.lastMotionTick == gameTime) {
+            return;
+        }
+        int elapsed = Math.toIntExact(gameTime - roll.startedAt());
+        int duration = Math.toIntExact(roll.endsAt() - roll.startedAt());
+        double speed = motionForTick(roll.totalDistance(), duration, elapsed);
+        if (player.horizontalCollision) {
+            roll.blocked = true;
+        }
+        Vec3 direction = roll.blocked ? Vec3.ZERO : roll.direction();
+        player.setSprinting(false);
+        player.setDeltaMovement(
+                direction.x * speed,
+                player.getDeltaMovement().y,
+                direction.z * speed
+        );
+        player.hurtMarked = true;
+        roll.lastMotionTick = gameTime;
+    }
+
+    private static double motionForTick(double totalDistance, int duration, int elapsed) {
+        if (elapsed < 0 || elapsed >= duration) {
+            return 0.0D;
+        }
+        double weight = Math.sin(Math.PI * (elapsed + 1.0D) / (duration + 1.0D));
+        double weightSum = 0.0D;
+        for (int tick = 0; tick < duration; tick++) {
+            weightSum += Math.sin(Math.PI * (tick + 1.0D) / (duration + 1.0D));
+        }
+        return totalDistance * weight / weightSum;
     }
 
     private static RankValues mergeRanks(AbilityService.ActiveAbility active) {
@@ -227,5 +317,40 @@ public final class DodgeEffect {
     }
 
     public record ResolvedRank(double damageReduction) {
+    }
+
+    public record RollPresentation(float directionX, float directionZ, int durationTicks) {
+    }
+
+    private static final class RollState {
+        private final long startedAt;
+        private final long endsAt;
+        private final Vec3 direction;
+        private final double totalDistance;
+        private long lastMotionTick = Long.MIN_VALUE;
+        private boolean blocked;
+
+        private RollState(long startedAt, long endsAt, Vec3 direction, double totalDistance) {
+            this.startedAt = startedAt;
+            this.endsAt = endsAt;
+            this.direction = direction;
+            this.totalDistance = totalDistance;
+        }
+
+        private long startedAt() {
+            return startedAt;
+        }
+
+        private long endsAt() {
+            return endsAt;
+        }
+
+        private Vec3 direction() {
+            return direction;
+        }
+
+        private double totalDistance() {
+            return totalDistance;
+        }
     }
 }

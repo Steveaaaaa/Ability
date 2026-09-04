@@ -3,6 +3,7 @@ package com.steveaaaaa.ability.network;
 import com.steveaaaaa.ability.ability.AbilityService;
 import com.steveaaaaa.ability.ability.ActiveAbilityActionService;
 import com.steveaaaaa.ability.ability.effect.WorldTravelerEffect;
+import com.steveaaaaa.ability.ability.effect.DodgeEffect;
 import com.steveaaaaa.ability.AbilityMod;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -10,7 +11,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class AbilityNetwork {
-    private static final String NETWORK_VERSION = "12";
+    private static final String NETWORK_VERSION = "13";
 
     private AbilityNetwork() {
     }
@@ -96,15 +97,18 @@ public final class AbilityNetwork {
                     );
                     if (result == ActiveAbilityActionService.ActivationResult.SUCCESS
                             && payload.abilityId().equals(AbilityMod.id("dodge"))) {
-                        var motion = player.getDeltaMovement();
-                        PacketDistributor.sendToPlayersTrackingEntityAndSelf(
-                                player,
-                                new ClientboundDodgeAnimationPayload(
-                                        player.getId(),
-                                        (float) motion.x,
-                                        (float) motion.z
-                                )
-                        );
+                        DodgeEffect.RollPresentation roll = DodgeEffect.presentation(player);
+                        if (roll != null) {
+                            PacketDistributor.sendToPlayersTrackingEntityAndSelf(
+                                    player,
+                                    new ClientboundDodgeAnimationPayload(
+                                            player.getId(),
+                                            roll.directionX(),
+                                            roll.directionZ(),
+                                            roll.durationTicks()
+                                    )
+                            );
+                        }
                     }
                 }
         );

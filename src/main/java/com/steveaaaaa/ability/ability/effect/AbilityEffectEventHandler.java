@@ -19,6 +19,7 @@ import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import net.minecraft.world.entity.animal.Wolf;
 
@@ -68,6 +69,10 @@ public final class AbilityEffectEventHandler {
 
     @SubscribeEvent
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getEntity() instanceof ServerPlayer player && DodgeEffect.isRolling(player)) {
+            event.setCanceled(true);
+            return;
+        }
         CeilingWireEffect.releaseDripstone(event);
         if (event.isCanceled()) {
             return;
@@ -86,6 +91,10 @@ public final class AbilityEffectEventHandler {
 
     @SubscribeEvent
     public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        if (event.getEntity() instanceof ServerPlayer player && DodgeEffect.isRolling(player)) {
+            event.setCanceled(true);
+            return;
+        }
         CeilingWireEffect.releaseDripstone(event);
         if (!event.isCanceled()) {
             SupportAuraEffect.activate(event);
@@ -99,7 +108,25 @@ public final class AbilityEffectEventHandler {
 
     @SubscribeEvent
     public static void onInteractEntity(PlayerInteractEvent.EntityInteract event) {
+        if (event.getEntity() instanceof ServerPlayer player && DodgeEffect.isRolling(player)) {
+            event.setCanceled(true);
+            return;
+        }
         GolemEnhancementEffect.enhance(event);
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onAttackEntity(AttackEntityEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && DodgeEffect.isRolling(player)) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
+        if (event.getEntity() instanceof ServerPlayer player && DodgeEffect.isRolling(player)) {
+            event.setCanceled(true);
+        }
     }
 
     @SubscribeEvent
@@ -192,6 +219,7 @@ public final class AbilityEffectEventHandler {
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            DodgeEffect.processTick(player);
             FrugalityEffect.refundNaturalHealingCost(player);
             SurvivalSkillsEffect.processTick(player);
             RetaliatoryFlameEffect.processTick(player);
@@ -232,6 +260,7 @@ public final class AbilityEffectEventHandler {
             AttributeModifierEffect.forget(player);
             InactivityTracker.forget(player.getUUID());
             ActiveAbilityRuntime.forget(player.getUUID());
+            DodgeEffect.forget(player.getUUID());
             ChargedLeapStateTracker.forget(player.getUUID());
             PrimerStateTracker.forgetPlayer(player.getUUID());
             FrugalityEffect.forget(player.getUUID());
@@ -264,6 +293,7 @@ public final class AbilityEffectEventHandler {
         if (event.getEntity() instanceof ServerPlayer player) {
             InactivityTracker.recordActivity(player);
             ActiveAbilityRuntime.forget(player.getUUID());
+            DodgeEffect.forget(player.getUUID());
             ChargedLeapStateTracker.forget(player.getUUID());
             PrimerStateTracker.forgetPlayer(player.getUUID());
             FrugalityEffect.forget(player.getUUID());
@@ -281,6 +311,7 @@ public final class AbilityEffectEventHandler {
         if (event.getEntity() instanceof ServerPlayer player) {
             InactivityTracker.recordActivity(player);
             ActiveAbilityRuntime.forget(player.getUUID());
+            DodgeEffect.forget(player.getUUID());
             ChargedLeapStateTracker.forget(player.getUUID());
             PrimerStateTracker.forgetPlayer(player.getUUID());
             FrugalityEffect.forget(player.getUUID());
