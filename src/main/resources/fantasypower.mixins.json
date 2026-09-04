@@ -4,7 +4,8 @@
   "package": "com.steveaaaaa.ability.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "FireworkRocketEntityMixin"
+    "FireworkRocketEntityMixin",
+    "PlayerDimensionsMixin"
   ],
   "client": [
     "client.FireworkRocketEntityClientMixin",

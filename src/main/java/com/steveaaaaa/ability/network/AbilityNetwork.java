@@ -11,7 +11,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 public final class AbilityNetwork {
-    private static final String NETWORK_VERSION = "13";
+    private static final String NETWORK_VERSION = "14";
 
     private AbilityNetwork() {
     }
@@ -105,7 +105,8 @@ public final class AbilityNetwork {
                                             player.getId(),
                                             roll.directionX(),
                                             roll.directionZ(),
-                                            roll.durationTicks()
+                                            roll.durationTicks(),
+                                            roll.backward()
                                     )
                             );
                         }

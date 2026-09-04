@@ -89,6 +89,6 @@ public final class DodgeInputEvents {
                     : right > 0 ? ActiveAbilityInput.BACKWARD_RIGHT : ActiveAbilityInput.BACKWARD;
         }
         return right < 0 ? ActiveAbilityInput.LEFT
-                : right > 0 ? ActiveAbilityInput.RIGHT : ActiveAbilityInput.BACKWARD;
+                : right > 0 ? ActiveAbilityInput.RIGHT : ActiveAbilityInput.FORWARD;
     }
 }

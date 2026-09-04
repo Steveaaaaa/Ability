@@ -9,7 +9,8 @@ public record ClientboundDodgeAnimationPayload(
         int playerEntityId,
         float motionX,
         float motionZ,
-        int durationTicks
+        int durationTicks,
+        boolean backward
 ) implements CustomPacketPayload {
     public static final Type<ClientboundDodgeAnimationPayload> TYPE =
             new Type<>(AbilityMod.id("dodge_animation"));
@@ -36,6 +37,7 @@ public record ClientboundDodgeAnimationPayload(
         buffer.writeFloat(motionX);
         buffer.writeFloat(motionZ);
         buffer.writeVarInt(durationTicks);
+        buffer.writeBoolean(backward);
     }
 
     private static ClientboundDodgeAnimationPayload decode(RegistryFriendlyByteBuf buffer) {
@@ -43,7 +45,8 @@ public record ClientboundDodgeAnimationPayload(
                 buffer.readVarInt(),
                 buffer.readFloat(),
                 buffer.readFloat(),
-                buffer.readVarInt()
+                buffer.readVarInt(),
+                buffer.readBoolean()
         );
     }
 }

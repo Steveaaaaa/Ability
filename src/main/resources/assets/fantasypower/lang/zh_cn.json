@@ -191,7 +191,7 @@
   "ability.fantasypower.stealth": "潜匿",
   "ability.fantasypower.stealth.description": "一段时间未发声、未承伤且未造成伤害后进入隐身；下一次有效伤害获得增幅并解除潜匿。",
   "ability.fantasypower.dodge": "闪避",
-  "ability.fantasypower.dodge.description": "在地面按闪避键向当前移动方向翻滚，无方向输入时向后翻滚；翻滚期间无法操作，并降低受到的伤害。",
+  "ability.fantasypower.dodge.description": "在地面按闪避键向当前移动方向翻滚，无方向输入时向前翻滚；翻滚期间无法操作，并降低受到的伤害。",
   "ability.fantasypower.charged_leap": "跃斩",
   "ability.fantasypower.charged_leap.description": "按住跃斩键蓄力，松开后高高跃起；也可在客户端配置中启用空格蓄力模式。空中命中会以技能伤害取代普通攻击，并对目标周围除自身外的所有生物造成同等伤害与眩晕，同时抵消落地伤害。",
   "ability.fantasypower.primer": "底火",

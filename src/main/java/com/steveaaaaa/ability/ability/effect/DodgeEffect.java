@@ -19,6 +19,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
@@ -26,6 +29,17 @@ public final class DodgeEffect {
     public static final ResourceLocation TYPE = AbilityMod.id("dodge");
     private static final Set<String> RANK_KEYS = Set.of("damage_reduction");
     private static final Map<UUID, RollState> ROLLS = new ConcurrentHashMap<>();
+    private static final double[] MOTION_TIMES = {
+            0.0D, 0.105D, 0.211D, 0.368D, 0.553D, 0.684D, 0.789D, 0.895D, 1.0D
+    };
+    private static final double[] FORWARD_MOTION = {
+            0.0D, 0.142D, 0.291D, 0.471D, 0.756D, 0.908D, 0.977D, 0.997D, 1.0D
+    };
+    private static final double[] BACKWARD_MOTION = {
+            0.0D, 0.141D, 0.282D, 0.619D, 0.785D, 0.881D, 0.935D, 0.992D, 1.0D
+    };
+    public static final EntityDimensions ROLL_DIMENSIONS = EntityDimensions.scalable(0.6F, 0.8F)
+            .withEyeHeight(0.68F);
 
     private DodgeEffect() {
     }
@@ -51,7 +65,7 @@ public final class DodgeEffect {
             AbilityService.ActiveAbility projected = CompositeEffect.projectActive(active, components.getFirst());
             Config config = parse(Config.CODEC, projected.definition().effect().config(), "effect.config");
             ResolvedRank rank = resolve(mergeRanks(projected));
-            if (!canDodge(player, config)) {
+            if (!canDodge(player, config) || isRolling(player)) {
                 return ActiveAbilityActionService.ActivationResult.INVALID_STATE;
             }
 
@@ -69,13 +83,26 @@ public final class DodgeEffect {
             }
 
             Vec3 direction = directionalMotion(player.getLookAngle(), input, 1.0D);
+            boolean backward = isBackward(input);
             RollState roll = new RollState(
                     gameTime,
                     gameTime + config.durationTicks(),
                     direction,
-                    config.horizontalSpeed()
+                    config.horizontalSpeed(),
+                    backward
             );
             ROLLS.put(player.getUUID(), roll);
+            player.refreshDimensions();
+            player.level().playSound(
+                    null,
+                    player.getX(),
+                    player.getY(),
+                    player.getZ(),
+                    SoundEvents.ARMOR_EQUIP_LEATHER.value(),
+                    SoundSource.PLAYERS,
+                    0.7F,
+                    0.88F + player.getRandom().nextFloat() * 0.08F
+            );
             applyMotion(player, roll, gameTime);
             return ActiveAbilityActionService.ActivationResult.SUCCESS;
         } catch (RuntimeException exception) {
@@ -108,6 +135,7 @@ public final class DodgeEffect {
             if (player.isAlive()) {
                 player.setDeltaMovement(0.0D, player.getDeltaMovement().y, 0.0D);
                 player.hurtMarked = true;
+                player.refreshDimensions();
             }
             return;
         }
@@ -134,7 +162,8 @@ public final class DodgeEffect {
         return new RollPresentation(
                 (float) roll.direction().x,
                 (float) roll.direction().z,
-                Math.toIntExact(roll.endsAt() - roll.startedAt())
+                Math.toIntExact(roll.endsAt() - roll.startedAt()),
+                roll.backward()
         );
     }
 
@@ -149,6 +178,12 @@ public final class DodgeEffect {
                 || input == ActiveAbilityInput.RIGHT
                 || input == ActiveAbilityInput.FORWARD_LEFT
                 || input == ActiveAbilityInput.FORWARD_RIGHT
+                || input == ActiveAbilityInput.BACKWARD_LEFT
+                || input == ActiveAbilityInput.BACKWARD_RIGHT;
+    }
+
+    private static boolean isBackward(ActiveAbilityInput input) {
+        return input == ActiveAbilityInput.BACKWARD
                 || input == ActiveAbilityInput.BACKWARD_LEFT
                 || input == ActiveAbilityInput.BACKWARD_RIGHT;
     }
@@ -238,7 +273,7 @@ public final class DodgeEffect {
         }
         int elapsed = Math.toIntExact(gameTime - roll.startedAt());
         int duration = Math.toIntExact(roll.endsAt() - roll.startedAt());
-        double speed = motionForTick(roll.totalDistance(), duration, elapsed);
+        double speed = motionForTick(roll.totalDistance(), duration, elapsed, roll.backward());
         if (player.horizontalCollision) {
             roll.blocked = true;
         }
@@ -253,16 +288,26 @@ public final class DodgeEffect {
         roll.lastMotionTick = gameTime;
     }
 
-    private static double motionForTick(double totalDistance, int duration, int elapsed) {
+    private static double motionForTick(double totalDistance, int duration, int elapsed, boolean backward) {
         if (elapsed < 0 || elapsed >= duration) {
             return 0.0D;
         }
-        double weight = Math.sin(Math.PI * (elapsed + 1.0D) / (duration + 1.0D));
-        double weightSum = 0.0D;
-        for (int tick = 0; tick < duration; tick++) {
-            weightSum += Math.sin(Math.PI * (tick + 1.0D) / (duration + 1.0D));
+        double from = motionProgress((double) elapsed / duration, backward);
+        double to = motionProgress((double) (elapsed + 1) / duration, backward);
+        return totalDistance * Math.max(0.0D, to - from);
+    }
+
+    private static double motionProgress(double progress, boolean backward) {
+        double clamped = Math.clamp(progress, 0.0D, 1.0D);
+        double[] values = backward ? BACKWARD_MOTION : FORWARD_MOTION;
+        for (int index = 1; index < MOTION_TIMES.length; index++) {
+            if (clamped <= MOTION_TIMES[index]) {
+                double local = (clamped - MOTION_TIMES[index - 1])
+                        / (MOTION_TIMES[index] - MOTION_TIMES[index - 1]);
+                return values[index - 1] + (values[index] - values[index - 1]) * local;
+            }
         }
-        return totalDistance * weight / weightSum;
+        return 1.0D;
     }
 
     private static RankValues mergeRanks(AbilityService.ActiveAbility active) {
@@ -300,7 +345,7 @@ public final class DodgeEffect {
     ) {
         public static final Codec<Config> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 Codec.intRange(0, 1200).optionalFieldOf("cooldown_ticks", 12).forGetter(Config::cooldownTicks),
-                Codec.intRange(1, 100).optionalFieldOf("duration_ticks", 4).forGetter(Config::durationTicks),
+                Codec.intRange(1, 100).optionalFieldOf("duration_ticks", 13).forGetter(Config::durationTicks),
                 Codec.doubleRange(0.0D, 4.0D).optionalFieldOf("horizontal_speed", 0.9D)
                         .forGetter(Config::horizontalSpeed),
                 Codec.BOOL.optionalFieldOf("require_on_ground", true).forGetter(Config::requireOnGround)
@@ -319,7 +364,7 @@ public final class DodgeEffect {
     public record ResolvedRank(double damageReduction) {
     }
 
-    public record RollPresentation(float directionX, float directionZ, int durationTicks) {
+    public record RollPresentation(float directionX, float directionZ, int durationTicks, boolean backward) {
     }
 
     private static final class RollState {
@@ -327,14 +372,16 @@ public final class DodgeEffect {
         private final long endsAt;
         private final Vec3 direction;
         private final double totalDistance;
+        private final boolean backward;
         private long lastMotionTick = Long.MIN_VALUE;
         private boolean blocked;
 
-        private RollState(long startedAt, long endsAt, Vec3 direction, double totalDistance) {
+        private RollState(long startedAt, long endsAt, Vec3 direction, double totalDistance, boolean backward) {
             this.startedAt = startedAt;
             this.endsAt = endsAt;
             this.direction = direction;
             this.totalDistance = totalDistance;
+            this.backward = backward;
         }
 
         private long startedAt() {
@@ -351,6 +398,10 @@ public final class DodgeEffect {
 
         private double totalDistance() {
             return totalDistance;
+        }
+
+        private boolean backward() {
+            return backward;
         }
     }
 }

@@ -23,6 +23,31 @@ import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class DodgeAnimationEvents {
     private static final Map<UUID, RollAnimation> ACTIVE = new HashMap<>();
+    private static final float[] KEY_TIMES = {
+            0.0F, 0.105F, 0.211F, 0.368F, 0.553F, 0.684F, 0.789F, 0.895F, 1.0F
+    };
+    private static final RollClip FORWARD_CLIP = new RollClip(
+            new float[]{0.0F, 28.0F, 72.0F, 142.0F, 232.0F, 298.0F, 342.0F, 370.0F, 360.0F},
+            new float[]{0.0F, 0.11F, 0.19F, 0.35F, 0.48F, 0.27F, -0.08F, -0.04F, 0.0F},
+            new float[]{8.0F, 20.0F, 28.0F, 18.0F, -4.0F, 8.0F, 18.0F, 12.0F, 0.0F},
+            new float[]{-5.0F, -20.0F, -32.0F, -20.0F, 10.0F, -12.0F, -18.0F, -8.0F, 0.0F},
+            new float[]{-35.0F, -75.0F, -125.0F, -150.0F, -135.0F, -95.0F, -55.0F, -25.0F, 0.0F},
+            new float[]{-10.0F, -55.0F, -115.0F, -150.0F, -145.0F, -110.0F, -65.0F, -30.0F, 0.0F},
+            new float[]{20.0F, -15.0F, -65.0F, -110.0F, -95.0F, -55.0F, -20.0F, 12.0F, 0.0F},
+            new float[]{-10.0F, -50.0F, -115.0F, -95.0F, -55.0F, -10.0F, 20.0F, 5.0F, 0.0F},
+            new float[]{15.0F, 25.0F, 16.0F, 5.0F, -10.0F, -18.0F, -12.0F, -5.0F, 0.0F}
+    );
+    private static final RollClip BACKWARD_CLIP = new RollClip(
+            new float[]{0.0F, 34.0F, 78.0F, 158.0F, 244.0F, 304.0F, 346.0F, 368.0F, 360.0F},
+            new float[]{0.0F, 0.12F, 0.20F, 0.55F, 0.47F, 0.30F, -0.03F, -0.06F, 0.0F},
+            new float[]{-7.0F, -18.0F, -24.0F, -8.0F, 12.0F, 16.0F, 10.0F, 5.0F, 0.0F},
+            new float[]{4.0F, 18.0F, 28.0F, 18.0F, -8.0F, -15.0F, -10.0F, -5.0F, 0.0F},
+            new float[]{-15.0F, -55.0F, -118.0F, -152.0F, -142.0F, -105.0F, -58.0F, -22.0F, 0.0F},
+            new float[]{-38.0F, -82.0F, -132.0F, -148.0F, -126.0F, -86.0F, -42.0F, -18.0F, 0.0F},
+            new float[]{-15.0F, -48.0F, -110.0F, -98.0F, -62.0F, -22.0F, 18.0F, 8.0F, 0.0F},
+            new float[]{18.0F, -10.0F, -58.0F, -112.0F, -98.0F, -52.0F, -16.0F, 12.0F, 0.0F},
+            new float[]{-16.0F, -27.0F, -18.0F, -6.0F, 12.0F, 18.0F, 11.0F, 4.0F, 0.0F}
+    );
 
     private DodgeAnimationEvents() {
     }
@@ -41,7 +66,8 @@ public final class DodgeAnimationEvents {
                 ACTIVE.put(player.getUUID(), new RollAnimation(
                         minecraft.level.getGameTime(),
                         payload.durationTicks(),
-                        movementYawDegrees(payload.motionX(), payload.motionZ())
+                        movementYawDegrees(payload.motionX(), payload.motionZ()),
+                        payload.backward()
                 ));
                 DodgePresentation.start(player, payload.motionX(), payload.motionZ());
             }
@@ -81,17 +107,16 @@ public final class DodgeAnimationEvents {
             return;
         }
         float progress = progress(player, animation, partialTick);
-        float eased = smootherStep(progress);
+        RollPose pose = animation.clip().sample(progress);
         float bodyYaw = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot);
         float relativeYaw = relativeYawDegrees(animation.movementYaw(), bodyYaw);
-        float lift = Mth.sin(progress * Mth.PI) * 0.13F;
 
-        poseStack.translate(0.0F, lift, 0.0F);
-        poseStack.translate(0.0F, 0.92F, 0.0F);
+        poseStack.translate(0.0F, pose.verticalOffset(), 0.0F);
+        poseStack.translate(0.0F, 0.82F, 0.0F);
         poseStack.mulPose(Axis.YP.rotationDegrees(-relativeYaw));
-        poseStack.mulPose(Axis.XP.rotationDegrees(eased * 360.0F));
+        poseStack.mulPose(Axis.XP.rotationDegrees(pose.rootPitch()));
         poseStack.mulPose(Axis.YP.rotationDegrees(relativeYaw));
-        poseStack.translate(0.0F, -0.92F, 0.0F);
+        poseStack.translate(0.0F, -0.82F, 0.0F);
     }
 
     public static void posePlayer(AbstractClientPlayer player, PlayerModel<?> model, float partialTick) {
@@ -99,21 +124,26 @@ public final class DodgeAnimationEvents {
         if (animation == null) {
             return;
         }
-        float envelope = Mth.sin(progress(player, animation, partialTick) * Mth.PI);
+        RollPose pose = animation.clip().sample(progress(player, animation, partialTick));
         model.crouching = false;
         model.swimAmount = 0.0F;
-        model.body.xRot = Mth.lerp(envelope, model.body.xRot, 0.32F);
-        model.head.xRot = Mth.lerp(envelope, model.head.xRot, -0.28F);
-        model.rightArm.xRot = Mth.lerp(envelope, model.rightArm.xRot, -1.38F);
-        model.leftArm.xRot = Mth.lerp(envelope, model.leftArm.xRot, -1.38F);
-        model.rightArm.yRot = Mth.lerp(envelope, model.rightArm.yRot, -0.16F);
-        model.leftArm.yRot = Mth.lerp(envelope, model.leftArm.yRot, 0.16F);
-        model.rightArm.zRot = Mth.lerp(envelope, model.rightArm.zRot, 0.28F);
-        model.leftArm.zRot = Mth.lerp(envelope, model.leftArm.zRot, -0.28F);
-        model.rightLeg.xRot = Mth.lerp(envelope, model.rightLeg.xRot, -0.92F);
-        model.leftLeg.xRot = Mth.lerp(envelope, model.leftLeg.xRot, -0.92F);
-        model.rightLeg.yRot = Mth.lerp(envelope, model.rightLeg.yRot, -0.12F);
-        model.leftLeg.yRot = Mth.lerp(envelope, model.leftLeg.yRot, 0.12F);
+        model.body.xRot = radians(pose.bodyPitch());
+        model.head.xRot = radians(pose.headPitch());
+        model.head.yRot = 0.0F;
+        model.head.zRot = 0.0F;
+        model.hat.copyFrom(model.head);
+        model.rightArm.xRot = radians(pose.rightArmPitch());
+        model.leftArm.xRot = radians(pose.leftArmPitch());
+        model.rightArm.yRot = -0.12F;
+        model.leftArm.yRot = 0.12F;
+        model.rightArm.zRot = radians(pose.armSpread());
+        model.leftArm.zRot = radians(-pose.armSpread());
+        model.rightLeg.xRot = radians(pose.rightLegPitch());
+        model.leftLeg.xRot = radians(pose.leftLegPitch());
+        model.rightLeg.yRot = -0.08F;
+        model.leftLeg.yRot = 0.08F;
+        model.rightLeg.zRot = 0.0F;
+        model.leftLeg.zRot = 0.0F;
         model.leftSleeve.copyFrom(model.leftArm);
         model.rightSleeve.copyFrom(model.rightArm);
         model.leftPants.copyFrom(model.leftLeg);
@@ -145,10 +175,6 @@ public final class DodgeAnimationEvents {
         );
     }
 
-    private static float smootherStep(float value) {
-        return value * value * value * (value * (value * 6.0F - 15.0F) + 10.0F);
-    }
-
     private static void suppressActionKeys(Minecraft minecraft) {
         minecraft.options.keyAttack.setDown(false);
         minecraft.options.keyUse.setDown(false);
@@ -169,6 +195,65 @@ public final class DodgeAnimationEvents {
         return Mth.wrapDegrees(movementYaw - bodyYaw);
     }
 
-    private record RollAnimation(long startedAt, int durationTicks, float movementYaw) {
+    private static float radians(float degrees) {
+        return degrees * Mth.DEG_TO_RAD;
+    }
+
+    private static float sample(float[] values, float progress) {
+        float clamped = Mth.clamp(progress, 0.0F, 1.0F);
+        for (int index = 1; index < KEY_TIMES.length; index++) {
+            if (clamped <= KEY_TIMES[index]) {
+                float local = (clamped - KEY_TIMES[index - 1])
+                        / (KEY_TIMES[index] - KEY_TIMES[index - 1]);
+                float eased = local * local * (3.0F - 2.0F * local);
+                return Mth.lerp(eased, values[index - 1], values[index]);
+            }
+        }
+        return values[values.length - 1];
+    }
+
+    private record RollClip(
+            float[] rootPitch,
+            float[] verticalOffset,
+            float[] bodyPitch,
+            float[] headPitch,
+            float[] rightArmPitch,
+            float[] leftArmPitch,
+            float[] rightLegPitch,
+            float[] leftLegPitch,
+            float[] armSpread
+    ) {
+        private RollPose sample(float progress) {
+            return new RollPose(
+                    DodgeAnimationEvents.sample(rootPitch, progress),
+                    DodgeAnimationEvents.sample(verticalOffset, progress),
+                    DodgeAnimationEvents.sample(bodyPitch, progress),
+                    DodgeAnimationEvents.sample(headPitch, progress),
+                    DodgeAnimationEvents.sample(rightArmPitch, progress),
+                    DodgeAnimationEvents.sample(leftArmPitch, progress),
+                    DodgeAnimationEvents.sample(rightLegPitch, progress),
+                    DodgeAnimationEvents.sample(leftLegPitch, progress),
+                    DodgeAnimationEvents.sample(armSpread, progress)
+            );
+        }
+    }
+
+    private record RollPose(
+            float rootPitch,
+            float verticalOffset,
+            float bodyPitch,
+            float headPitch,
+            float rightArmPitch,
+            float leftArmPitch,
+            float rightLegPitch,
+            float leftLegPitch,
+            float armSpread
+    ) {
+    }
+
+    private record RollAnimation(long startedAt, int durationTicks, float movementYaw, boolean backward) {
+        private RollClip clip() {
+            return backward ? BACKWARD_CLIP : FORWARD_CLIP;
+        }
     }
 }
