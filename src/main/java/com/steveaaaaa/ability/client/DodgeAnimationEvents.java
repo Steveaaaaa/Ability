@@ -1,18 +1,22 @@
 package com.steveaaaaa.ability.client;
 
 import com.steveaaaaa.ability.AbilityMod;
-import com.steveaaaaa.ability.client.presentation.DodgePresentation;
 import com.steveaaaaa.ability.network.ClientDodgeAnimationQueue;
 import com.steveaaaaa.ability.network.ClientboundDodgeAnimationPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.AgeableListModel;
+import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.HumanoidArm;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -23,6 +27,8 @@ import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 @EventBusSubscriber(modid = AbilityMod.MOD_ID, value = Dist.CLIENT)
 public final class DodgeAnimationEvents {
     private static final Map<UUID, RollAnimation> ACTIVE = new HashMap<>();
+    private static final ThreadLocal<RenderContext> RENDER_CONTEXT = new ThreadLocal<>();
+    private static final int TRANSITION_TICKS = 2;
     private static final float[] KEY_TIMES = {
             0.0F, 0.105F, 0.211F, 0.368F, 0.553F, 0.684F, 0.789F, 0.895F, 1.0F
     };
@@ -30,22 +36,36 @@ public final class DodgeAnimationEvents {
             new float[]{0.0F, 28.0F, 72.0F, 142.0F, 232.0F, 298.0F, 342.0F, 370.0F, 360.0F},
             new float[]{0.0F, 0.11F, 0.19F, 0.35F, 0.48F, 0.27F, -0.08F, -0.04F, 0.0F},
             new float[]{8.0F, 20.0F, 28.0F, 18.0F, -4.0F, 8.0F, 18.0F, 12.0F, 0.0F},
+            new float[]{2.0F, 10.0F, 18.0F, 24.0F, 15.0F, 0.0F, -8.0F, -4.0F, 0.0F},
             new float[]{-5.0F, -20.0F, -32.0F, -20.0F, 10.0F, -12.0F, -18.0F, -8.0F, 0.0F},
             new float[]{-35.0F, -75.0F, -125.0F, -150.0F, -135.0F, -95.0F, -55.0F, -25.0F, 0.0F},
             new float[]{-10.0F, -55.0F, -115.0F, -150.0F, -145.0F, -110.0F, -65.0F, -30.0F, 0.0F},
+            new float[]{10.0F, 45.0F, 90.0F, 125.0F, 140.0F, 115.0F, 75.0F, 32.0F, 0.0F},
+            new float[]{5.0F, 35.0F, 82.0F, 120.0F, 138.0F, 120.0F, 80.0F, 35.0F, 0.0F},
+            new float[]{0.0F, 10.0F, 20.0F, 18.0F, 5.0F, -10.0F, -8.0F, 0.0F, 0.0F},
+            new float[]{0.0F, 6.0F, 16.0F, 20.0F, 8.0F, -8.0F, -6.0F, 0.0F, 0.0F},
             new float[]{20.0F, -15.0F, -65.0F, -110.0F, -95.0F, -55.0F, -20.0F, 12.0F, 0.0F},
             new float[]{-10.0F, -50.0F, -115.0F, -95.0F, -55.0F, -10.0F, 20.0F, 5.0F, 0.0F},
+            new float[]{5.0F, 30.0F, 75.0F, 120.0F, 135.0F, 105.0F, 60.0F, 25.0F, 0.0F},
+            new float[]{10.0F, 45.0F, 95.0F, 130.0F, 120.0F, 90.0F, 50.0F, 20.0F, 0.0F},
             new float[]{15.0F, 25.0F, 16.0F, 5.0F, -10.0F, -18.0F, -12.0F, -5.0F, 0.0F}
     );
     private static final RollClip BACKWARD_CLIP = new RollClip(
             new float[]{0.0F, 34.0F, 78.0F, 158.0F, 244.0F, 304.0F, 346.0F, 368.0F, 360.0F},
             new float[]{0.0F, 0.12F, 0.20F, 0.55F, 0.47F, 0.30F, -0.03F, -0.06F, 0.0F},
             new float[]{-7.0F, -18.0F, -24.0F, -8.0F, 12.0F, 16.0F, 10.0F, 5.0F, 0.0F},
+            new float[]{-2.0F, -8.0F, -16.0F, -22.0F, -10.0F, 5.0F, 9.0F, 4.0F, 0.0F},
             new float[]{4.0F, 18.0F, 28.0F, 18.0F, -8.0F, -15.0F, -10.0F, -5.0F, 0.0F},
             new float[]{-15.0F, -55.0F, -118.0F, -152.0F, -142.0F, -105.0F, -58.0F, -22.0F, 0.0F},
             new float[]{-38.0F, -82.0F, -132.0F, -148.0F, -126.0F, -86.0F, -42.0F, -18.0F, 0.0F},
+            new float[]{8.0F, 38.0F, 85.0F, 124.0F, 142.0F, 118.0F, 72.0F, 28.0F, 0.0F},
+            new float[]{12.0F, 48.0F, 96.0F, 128.0F, 136.0F, 108.0F, 65.0F, 25.0F, 0.0F},
+            new float[]{0.0F, -8.0F, -18.0F, -20.0F, -6.0F, 10.0F, 7.0F, 0.0F, 0.0F},
+            new float[]{0.0F, -10.0F, -20.0F, -16.0F, -4.0F, 8.0F, 6.0F, 0.0F, 0.0F},
             new float[]{-15.0F, -48.0F, -110.0F, -98.0F, -62.0F, -22.0F, 18.0F, 8.0F, 0.0F},
             new float[]{18.0F, -10.0F, -58.0F, -112.0F, -98.0F, -52.0F, -16.0F, 12.0F, 0.0F},
+            new float[]{10.0F, 42.0F, 92.0F, 132.0F, 125.0F, 92.0F, 52.0F, 20.0F, 0.0F},
+            new float[]{5.0F, 28.0F, 70.0F, 118.0F, 138.0F, 110.0F, 58.0F, 22.0F, 0.0F},
             new float[]{-16.0F, -27.0F, -18.0F, -6.0F, 12.0F, 18.0F, 11.0F, 4.0F, 0.0F}
     );
 
@@ -58,6 +78,7 @@ public final class DodgeAnimationEvents {
         if (minecraft.level == null) {
             ClientDodgeAnimationQueue.clear();
             ACTIVE.clear();
+            RENDER_CONTEXT.remove();
             return;
         }
         ClientboundDodgeAnimationPayload payload;
@@ -69,7 +90,6 @@ public final class DodgeAnimationEvents {
                         movementYawDegrees(payload.motionX(), payload.motionZ()),
                         payload.backward()
                 ));
-                DodgePresentation.start(player, payload.motionX(), payload.motionZ());
             }
         }
         long gameTime = minecraft.level.getGameTime();
@@ -99,6 +119,7 @@ public final class DodgeAnimationEvents {
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientDodgeAnimationQueue.clear();
         ACTIVE.clear();
+        RENDER_CONTEXT.remove();
     }
 
     public static void transformPlayer(AbstractClientPlayer player, PoseStack poseStack, float partialTick) {
@@ -106,25 +127,35 @@ public final class DodgeAnimationEvents {
         if (animation == null) {
             return;
         }
-        float progress = progress(player, animation, partialTick);
-        RollPose pose = animation.clip().sample(progress);
+        RollPose pose = sampledPose(player, animation, partialTick);
         float bodyYaw = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot);
-        float relativeYaw = relativeYawDegrees(animation.movementYaw(), bodyYaw);
+        // Epic-style directional dodges turn the rendered model toward the
+        // requested direction before the local roll is applied. A backward
+        // dodge keeps the model facing away from its travel direction and
+        // uses the dedicated backward clip.
+        float modelYaw = animation.backward()
+                ? Mth.wrapDegrees(animation.movementYaw() + 180.0F)
+                : animation.movementYaw();
+        float relativeYaw = relativeYawDegrees(modelYaw, bodyYaw);
 
         poseStack.translate(0.0F, pose.verticalOffset(), 0.0F);
-        poseStack.translate(0.0F, 0.82F, 0.0F);
         poseStack.mulPose(Axis.YP.rotationDegrees(-relativeYaw));
-        poseStack.mulPose(Axis.XP.rotationDegrees(pose.rootPitch()));
-        poseStack.mulPose(Axis.YP.rotationDegrees(relativeYaw));
+        poseStack.translate(0.0F, 0.82F, 0.0F);
+        poseStack.mulPose(Axis.XN.rotationDegrees(pose.rootPitch()));
         poseStack.translate(0.0F, -0.82F, 0.0F);
     }
 
     public static void posePlayer(AbstractClientPlayer player, PlayerModel<?> model, float partialTick) {
         RollAnimation animation = active(player);
         if (animation == null) {
+            RENDER_CONTEXT.remove();
             return;
         }
-        RollPose pose = animation.clip().sample(progress(player, animation, partialTick));
+        RollPose pose = sampledPose(player, animation, partialTick);
+        RENDER_CONTEXT.set(new RenderContext(
+                pose,
+                player.getSkin().model() == PlayerSkin.Model.SLIM
+        ));
         model.crouching = false;
         model.swimAmount = 0.0F;
         model.body.xRot = radians(pose.bodyPitch());
@@ -175,6 +206,66 @@ public final class DodgeAnimationEvents {
         );
     }
 
+    private static RollPose sampledPose(
+            AbstractClientPlayer player,
+            RollAnimation animation,
+            float partialTick
+    ) {
+        float elapsed = progress(player, animation, partialTick) * animation.durationTicks();
+        float mainDuration = Math.max(1.0F, animation.durationTicks() - TRANSITION_TICKS);
+        float clipProgress = Mth.clamp((elapsed - TRANSITION_TICKS) / mainDuration, 0.0F, 1.0F);
+        float transition = Mth.clamp(elapsed / TRANSITION_TICKS, 0.0F, 1.0F);
+        return animation.clip().sample(clipProgress).scale(transition);
+    }
+
+    public static boolean renderArticulatedModel(
+            AgeableListModel<?> model,
+            PoseStack poseStack,
+            VertexConsumer consumer,
+            int packedLight,
+            int packedOverlay,
+            int color
+    ) {
+        RenderContext context = RENDER_CONTEXT.get();
+        if (context == null || !(model instanceof HumanoidModel<?> humanoidModel)) {
+            return false;
+        }
+        if (model instanceof PlayerModel<?>) {
+            return DodgeRollModel.renderSkin(
+                    context.slim(),
+                    humanoidModel,
+                    context.pose(),
+                    poseStack,
+                    consumer,
+                    packedLight,
+                    packedOverlay,
+                    color
+            );
+        }
+        return DodgeRollModel.renderArmor(
+                humanoidModel,
+                context.pose(),
+                poseStack,
+                consumer,
+                packedLight,
+                packedOverlay,
+                color
+        );
+    }
+
+    public static boolean translateArticulatedHand(HumanoidArm arm, PoseStack poseStack) {
+        RenderContext context = RENDER_CONTEXT.get();
+        if (context == null) {
+            return false;
+        }
+        DodgeRollModel.translateToHand(context.slim(), arm, context.pose(), poseStack);
+        return true;
+    }
+
+    public static void clearRenderContext() {
+        RENDER_CONTEXT.remove();
+    }
+
     private static void suppressActionKeys(Minecraft minecraft) {
         minecraft.options.keyAttack.setDown(false);
         minecraft.options.keyUse.setDown(false);
@@ -216,11 +307,18 @@ public final class DodgeAnimationEvents {
             float[] rootPitch,
             float[] verticalOffset,
             float[] bodyPitch,
+            float[] chestPitch,
             float[] headPitch,
             float[] rightArmPitch,
             float[] leftArmPitch,
+            float[] rightElbowPitch,
+            float[] leftElbowPitch,
+            float[] rightWristPitch,
+            float[] leftWristPitch,
             float[] rightLegPitch,
             float[] leftLegPitch,
+            float[] rightKneePitch,
+            float[] leftKneePitch,
             float[] armSpread
     ) {
         private RollPose sample(float progress) {
@@ -228,27 +326,64 @@ public final class DodgeAnimationEvents {
                     DodgeAnimationEvents.sample(rootPitch, progress),
                     DodgeAnimationEvents.sample(verticalOffset, progress),
                     DodgeAnimationEvents.sample(bodyPitch, progress),
+                    DodgeAnimationEvents.sample(chestPitch, progress),
                     DodgeAnimationEvents.sample(headPitch, progress),
                     DodgeAnimationEvents.sample(rightArmPitch, progress),
                     DodgeAnimationEvents.sample(leftArmPitch, progress),
+                    DodgeAnimationEvents.sample(rightElbowPitch, progress),
+                    DodgeAnimationEvents.sample(leftElbowPitch, progress),
+                    DodgeAnimationEvents.sample(rightWristPitch, progress),
+                    DodgeAnimationEvents.sample(leftWristPitch, progress),
                     DodgeAnimationEvents.sample(rightLegPitch, progress),
                     DodgeAnimationEvents.sample(leftLegPitch, progress),
+                    DodgeAnimationEvents.sample(rightKneePitch, progress),
+                    DodgeAnimationEvents.sample(leftKneePitch, progress),
                     DodgeAnimationEvents.sample(armSpread, progress)
             );
         }
     }
 
-    private record RollPose(
+    public record RollPose(
             float rootPitch,
             float verticalOffset,
             float bodyPitch,
+            float chestPitch,
             float headPitch,
             float rightArmPitch,
             float leftArmPitch,
+            float rightElbowPitch,
+            float leftElbowPitch,
+            float rightWristPitch,
+            float leftWristPitch,
             float rightLegPitch,
             float leftLegPitch,
+            float rightKneePitch,
+            float leftKneePitch,
             float armSpread
     ) {
+        private RollPose scale(float amount) {
+            return new RollPose(
+                    rootPitch * amount,
+                    verticalOffset * amount,
+                    bodyPitch * amount,
+                    chestPitch * amount,
+                    headPitch * amount,
+                    rightArmPitch * amount,
+                    leftArmPitch * amount,
+                    rightElbowPitch * amount,
+                    leftElbowPitch * amount,
+                    rightWristPitch * amount,
+                    leftWristPitch * amount,
+                    rightLegPitch * amount,
+                    leftLegPitch * amount,
+                    rightKneePitch * amount,
+                    leftKneePitch * amount,
+                    armSpread * amount
+            );
+        }
+    }
+
+    private record RenderContext(RollPose pose, boolean slim) {
     }
 
     private record RollAnimation(long startedAt, int durationTicks, float movementYaw, boolean backward) {

@@ -22,6 +22,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.EntityDimensions;
+import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 
@@ -84,11 +86,16 @@ public final class DodgeEffect {
 
             Vec3 direction = directionalMotion(player.getLookAngle(), input, 1.0D);
             boolean backward = isBackward(input);
+            double movementScale = 1.0D;
+            var movementSpeed = player.getAttribute(Attributes.MOVEMENT_SPEED);
+            if (movementSpeed != null && movementSpeed.getBaseValue() > 1.0E-8D) {
+                movementScale = Math.clamp(movementSpeed.getValue() / movementSpeed.getBaseValue(), 0.25D, 3.0D);
+            }
             RollState roll = new RollState(
                     gameTime,
                     gameTime + config.durationTicks(),
                     direction,
-                    config.horizontalSpeed(),
+                    config.horizontalSpeed() * movementScale,
                     backward
             );
             ROLLS.put(player.getUUID(), roll);
@@ -273,17 +280,17 @@ public final class DodgeEffect {
         }
         int elapsed = Math.toIntExact(gameTime - roll.startedAt());
         int duration = Math.toIntExact(roll.endsAt() - roll.startedAt());
-        double speed = motionForTick(roll.totalDistance(), duration, elapsed, roll.backward());
-        if (player.horizontalCollision) {
-            roll.blocked = true;
-        }
+        double distance = motionForTick(roll.totalDistance(), duration, elapsed, roll.backward());
         Vec3 direction = roll.blocked ? Vec3.ZERO : roll.direction();
         player.setSprinting(false);
-        player.setDeltaMovement(
-                direction.x * speed,
-                player.getDeltaMovement().y,
-                direction.z * speed
-        );
+        player.setDeltaMovement(0.0D, player.getDeltaMovement().y, 0.0D);
+        Vec3 before = player.position();
+        player.move(MoverType.SELF, direction.scale(distance));
+        double requestedSqr = distance * distance;
+        double movedSqr = player.position().subtract(before).horizontalDistanceSqr();
+        if (requestedSqr > 1.0E-8D && movedSqr < requestedSqr * 0.36D) {
+            roll.blocked = true;
+        }
         player.hurtMarked = true;
         roll.lastMotionTick = gameTime;
     }
@@ -292,8 +299,13 @@ public final class DodgeEffect {
         if (elapsed < 0 || elapsed >= duration) {
             return 0.0D;
         }
-        double from = motionProgress((double) elapsed / duration, backward);
-        double to = motionProgress((double) (elapsed + 1) / duration, backward);
+        int transitionTicks = Math.min(2, Math.max(0, duration - 1));
+        int motionTicks = Math.max(1, duration - transitionTicks);
+        if (elapsed < transitionTicks) {
+            return 0.0D;
+        }
+        double from = motionProgress((double) (elapsed - transitionTicks) / motionTicks, backward);
+        double to = motionProgress((double) (elapsed - transitionTicks + 1) / motionTicks, backward);
         return totalDistance * Math.max(0.0D, to - from);
     }
 
@@ -345,7 +357,7 @@ public final class DodgeEffect {
     ) {
         public static final Codec<Config> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 Codec.intRange(0, 1200).optionalFieldOf("cooldown_ticks", 12).forGetter(Config::cooldownTicks),
-                Codec.intRange(1, 100).optionalFieldOf("duration_ticks", 13).forGetter(Config::durationTicks),
+                Codec.intRange(1, 100).optionalFieldOf("duration_ticks", 15).forGetter(Config::durationTicks),
                 Codec.doubleRange(0.0D, 4.0D).optionalFieldOf("horizontal_speed", 0.9D)
                         .forGetter(Config::horizontalSpeed),
                 Codec.BOOL.optionalFieldOf("require_on_ground", true).forGetter(Config::requireOnGround)

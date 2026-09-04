@@ -9,6 +9,7 @@
   ],
   "client": [
     "client.FireworkRocketEntityClientMixin",
+    "client.AgeableListModelMixin",
     "client.ItemInHandRendererMixin",
     "client.ItemRendererMixin",
     "client.LivingEntityRendererMixin",

@@ -31,8 +31,8 @@
   "effect": {
     "type": "fantasypower:dodge",
     "config": {
-      "cooldown_ticks": 13,
-      "duration_ticks": 13,
+      "cooldown_ticks": 15,
+      "duration_ticks": 15,
       "horizontal_speed": 3.5,
       "require_on_ground": true
     }
