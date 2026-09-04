@@ -153,7 +153,8 @@ public final class DodgeAnimationEvents {
         poseStack.translate(0.0F, pose.verticalOffset(), 0.0F);
         poseStack.mulPose(Axis.YP.rotationDegrees(-relativeYaw));
         poseStack.translate(0.0F, 0.82F, 0.0F);
-        poseStack.mulPose(Axis.XN.rotationDegrees(pose.rootPitch()));
+        float rollPitch = animation.backward() ? -pose.rootPitch() : pose.rootPitch();
+        poseStack.mulPose(Axis.XN.rotationDegrees(rollPitch));
         poseStack.translate(0.0F, -0.82F, 0.0F);
     }
 
