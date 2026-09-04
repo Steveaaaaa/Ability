@@ -227,7 +227,7 @@ public final class GolemEnhancementEffect {
         if (!(golem.level() instanceof ServerLevel level)) return;
         ServerPlayer owner = owner(golem, state);
         if (owner != null) {
-            float damage = (float) (owner.getAttributeValue(Attributes.ATTACK_DAMAGE)
+            float damage = (float) (golem.getAttributeValue(Attributes.ATTACK_DAMAGE)
                     * state.getDouble("damage_percent") / 100.0D);
             List<LivingEntity> affected = level.getEntitiesOfClass(LivingEntity.class,
                     new AABB(golem.blockPosition()).inflate(state.getDouble("crushing_radius")),

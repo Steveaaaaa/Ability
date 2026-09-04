@@ -460,18 +460,22 @@ public final class AbilityScreen extends Screen {
         if (selected == null) {
             return;
         }
-        int x = detailX + 10;
+        int baseX = detailX + 10;
         int availableWidth = rightWidth - 20;
+        boolean expanded = expandedDetailLayout();
+        int tabOffset = expanded ? Math.min(190, Math.max(150, availableWidth / 3)) : 0;
+        int x = baseX + tabOffset;
+        int tabAreaWidth = availableWidth - tabOffset;
         int gap = 2;
-        int tabWidth = (availableWidth - gap * 2) / 3;
+        int tabWidth = (tabAreaWidth - gap * 2) / 3;
         DetailTab[] tabs = DetailTab.values();
         for (int index = 0; index < tabs.length; index++) {
             DetailTab tab = tabs[index];
             int tabX = x + index * (tabWidth + gap);
-            int width = index == tabs.length - 1 ? x + availableWidth - tabX : tabWidth;
+            int width = index == tabs.length - 1 ? x + tabAreaWidth - tabX : tabWidth;
             DungeonsButton button = new DungeonsButton(
                     tabX,
-                    contentTop + 68,
+                    detailTabsY(),
                     width,
                     18,
                     Component.translatable(tab.translationKey),
@@ -493,7 +497,7 @@ public final class AbilityScreen extends Screen {
         int maximumRankIndex = Math.max(0, selected.definition().ranks().values().size() - 1);
         detailRankIndex = Math.clamp(detailRankIndex, 0, maximumRankIndex);
         DungeonsButton previous = new DungeonsButton(
-                x, contentTop + 91, 22, 17,
+                x, detailRankNavigationY(), 22, 17,
                 Component.literal("<"), ButtonStyle.PAGE, false,
                 () -> {
                     detailRankIndex = Math.max(0, detailRankIndex - 1);
@@ -506,7 +510,7 @@ public final class AbilityScreen extends Screen {
         addRenderableWidget(previous);
 
         DungeonsButton next = new DungeonsButton(
-                x + availableWidth - 22, contentTop + 91, 22, 17,
+                x + tabAreaWidth - 22, detailRankNavigationY(), 22, 17,
                 Component.literal(">"), ButtonStyle.PAGE, false,
                 () -> {
                     detailRankIndex = Math.min(maximumRankIndex, detailRankIndex + 1);
@@ -732,7 +736,9 @@ public final class AbilityScreen extends Screen {
         renderDiamondSelection(graphics, x + 28, contentTop + 32, 40, animatedGold());
 
         int textX = x + 63;
-        int nameWidth = Math.max(35, width - 63);
+        int nameWidth = expandedDetailLayout()
+                ? Math.max(35, detailTabsX() - textX - 8)
+                : Math.max(35, width - 63);
         List<FormattedCharSequence> nameLines = font.split(
                 Component.translatable(definition.display().name()), nameWidth);
         for (int line = 0; line < Math.min(2, nameLines.size()); line++) {
@@ -742,10 +748,14 @@ public final class AbilityScreen extends Screen {
                         Math.min(state.purchasedRank(), state.maxRank()), state.maxRank()),
                 textX, contentTop + 35, state.purchasedRank() > 0 ? accent : LOCKED, false);
 
-        int rankY = contentTop + (compactDetails() ? 56 : 62);
+        int rankY = expandedDetailLayout()
+                ? contentTop + 53
+                : contentTop + (compactDetails() ? 56 : 62);
         int dotWidth = Math.max(4, Math.min(7, (width - Math.max(0, state.maxRank() - 1) * 3) / state.maxRank()));
         int totalWidth = state.maxRank() * dotWidth + Math.max(0, state.maxRank() - 1) * 3;
-        int rankX = x + Math.max(0, (width - totalWidth) / 2);
+        int rankX = expandedDetailLayout()
+                ? textX
+                : x + Math.max(0, (width - totalWidth) / 2);
         for (int index = 0; index < state.maxRank(); index++) {
             int color = index < state.purchasedRank() ? accent : 0xFF4B4943;
             renderDiamondFill(graphics,
@@ -758,8 +768,10 @@ public final class AbilityScreen extends Screen {
         if (detailTab == DetailTab.RANKS) {
             Component rankPage = Component.translatable("gui.fantasypower.rank_page",
                     detailRankIndex + 1, state.maxRank());
-            String fitted = ellipsize(font, rankPage.getString(), Math.max(20, width - 56));
-            graphics.drawCenteredString(font, fitted, x + width / 2, contentTop + 96, BORDER_BRIGHT);
+            int navigationWidth = detailTabAreaWidth();
+            String fitted = ellipsize(font, rankPage.getString(), Math.max(20, navigationWidth - 56));
+            graphics.drawCenteredString(font, fitted, detailTabsX() + navigationWidth / 2,
+                    detailRankNavigationY() + 5, BORDER_BRIGHT);
         }
 
         int descriptionY = detailDescriptionY();
@@ -1179,6 +1191,31 @@ public final class AbilityScreen extends Screen {
         return rows * abilityColumns();
     }
 
+    private boolean expandedDetailLayout() {
+        return narrowLayout() && narrowDetailsOpen;
+    }
+
+    private int detailTabsY() {
+        return contentTop + (expandedDetailLayout() ? 13 : 68);
+    }
+
+    private int detailRankNavigationY() {
+        return contentTop + (expandedDetailLayout() ? 42 : 91);
+    }
+
+    private int detailTabOffset() {
+        int availableWidth = rightWidth - 20;
+        return expandedDetailLayout() ? Math.min(190, Math.max(150, availableWidth / 3)) : 0;
+    }
+
+    private int detailTabsX() {
+        return detailX + 10 + detailTabOffset();
+    }
+
+    private int detailTabAreaWidth() {
+        return rightWidth - 20 - detailTabOffset();
+    }
+
     private boolean narrowLayout() {
         return panelWidth < 560;
     }
@@ -1192,6 +1229,9 @@ public final class AbilityScreen extends Screen {
     }
 
     private int detailDescriptionY() {
+        if (expandedDetailLayout()) {
+            return contentTop + 66;
+        }
         return contentTop + (detailTab == DetailTab.RANKS ? 113 : 91);
     }
 
