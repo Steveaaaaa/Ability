@@ -752,7 +752,9 @@ public final class AbilityScreen extends Screen {
                     centerX - finishedSize / 2, centerY - finishedSize / 2,
                     0.0F, 0.0F, finishedSize, finishedSize, finishedSize, finishedSize);
         } else if (minecraft.getResourceManager().getResource(squareTexture).isPresent()) {
-            renderRotatedTexture(graphics, squareTexture, centerX, centerY, size);
+            graphics.blit(squareTexture,
+                    centerX - size / 2, centerY - size / 2,
+                    0.0F, 0.0F, size, size, size, size);
         } else {
             ItemStack stack = BuiltInRegistries.ITEM.getOptional(fallbackItemId)
                     .map(ItemStack::new)
@@ -783,20 +785,6 @@ public final class AbilityScreen extends Screen {
     }
 
     private static void renderDiamondFill(
-            GuiGraphics graphics,
-            int centerX,
-            int centerY,
-            int size,
-            int color
-    ) {
-        graphics.pose().pushPose();
-        graphics.pose().translate(centerX, centerY, 0.0F);
-        graphics.pose().mulPose(Axis.ZP.rotationDegrees(45.0F));
-        graphics.fill(-size / 2, -size / 2, size / 2, size / 2, color);
-        graphics.pose().popPose();
-    }
-
-    private static void renderDiamondShade(
             GuiGraphics graphics,
             int centerX,
             int centerY,
@@ -1366,9 +1354,7 @@ public final class AbilityScreen extends Screen {
             renderDiamondFill(graphics, iconX, iconY, DIAMOND_ICON_SIZE - 8, fill);
             renderDiamondIcon(graphics, abilityId, definition.display().icon(),
                     iconX, iconY, DIAMOND_ICON_SIZE, true);
-            if (purchasedRank <= 0) {
-                renderDiamondShade(graphics, iconX, iconY, DIAMOND_ICON_SIZE - 4, 0x55101010);
-            } else {
+            if (purchasedRank > 0) {
                 renderUnlockedSparkle(graphics, abilityId, iconX, iconY, DIAMOND_ICON_SIZE);
             }
             if (selected) {
