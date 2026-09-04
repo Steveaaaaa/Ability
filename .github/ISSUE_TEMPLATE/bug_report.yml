@@ -12,7 +12,7 @@ body:
     id: mod-version
     attributes:
       label: FantasyPower 版本
-      placeholder: 例如 0.1.0
+      placeholder: 例如 1.0beta
     validations:
       required: true
   - type: input
