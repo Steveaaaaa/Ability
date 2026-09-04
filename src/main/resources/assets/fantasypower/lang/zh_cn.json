@@ -29,6 +29,7 @@
   "message.fantasypower.world_traveler.bound": "已绑定容器：%1$s, %2$s, %3$s",
   "message.fantasypower.world_traveler.unavailable": "绑定容器已失效或当前阶级无法跨维度访问",
   "gui.fantasypower.inventory_tab": "背包",
+  "gui.fantasypower.back_to_abilities": "返回",
   "gui.fantasypower.no_skills": "没有可用的技能定义",
   "gui.fantasypower.no_abilities": "该技能暂时没有能力",
   "gui.fantasypower.skill_progress": "等级 %1$s/%2$s",

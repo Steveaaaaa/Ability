@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.Tooltip;
@@ -34,14 +35,15 @@ import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 public final class AbilityScreen extends Screen {
-    private static final int MAX_PANEL_WIDTH = 680;
+    private static final int MAX_PANEL_WIDTH = 840;
     private static final int MAX_PANEL_HEIGHT = 360;
     private static final int HEADER_HEIGHT = 42;
     private static final int FOOTER_HEIGHT = 24;
     private static final int PANE_GAP = 7;
     private static final int SKILL_BUTTON_HEIGHT = 24;
     private static final int SKILL_BUTTON_GAP = 2;
-    private static final int ABILITY_TILE_SIZE = 58;
+    private static final int ABILITY_TILE_WIDTH = 68;
+    private static final int ABILITY_TILE_HEIGHT = 68;
     private static final int TILE_GAP = 8;
     private static final int DIAMOND_ICON_SIZE = 32;
     private static final int ABILITY_GRID_TOP_OFFSET = 65;
@@ -87,6 +89,7 @@ public final class AbilityScreen extends Screen {
     private int centerWidth;
     private int detailX;
     private int animationTicks;
+    private boolean narrowDetailsOpen;
 
     public AbilityScreen(Screen previousScreen) {
         super(Component.translatable("gui.fantasypower.title"));
@@ -99,17 +102,40 @@ public final class AbilityScreen extends Screen {
         panelHeight = Math.min(MAX_PANEL_HEIGHT, height - 12);
         panelX = (width - panelWidth) / 2;
         panelY = (height - panelHeight) / 2;
-        leftWidth = panelWidth >= 620 ? 132 : panelWidth >= 500 ? 116 : 92;
-        rightWidth = panelWidth >= 620 ? 214 : panelWidth >= 500 ? 184 : 146;
+        boolean narrow = narrowLayout();
+        if (!narrow) {
+            narrowDetailsOpen = false;
+        }
+        leftWidth = panelWidth >= 800 ? 148
+                : panelWidth >= 700 ? 140
+                : panelWidth >= 620 ? 132
+                : panelWidth >= 560 ? 120
+                : 104;
+        rightWidth = panelWidth >= 800 ? 260
+                : panelWidth >= 700 ? 238
+                : panelWidth >= 620 ? 214
+                : panelWidth >= 560 ? 190
+                : 0;
         contentTop = panelY + HEADER_HEIGHT + 4;
         contentBottom = panelY + panelHeight - FOOTER_HEIGHT - 4;
-        centerX = panelX + leftWidth + PANE_GAP;
-        detailX = panelX + panelWidth - rightWidth;
-        centerWidth = detailX - PANE_GAP - centerX;
+        if (narrow && narrowDetailsOpen) {
+            detailX = panelX + 5;
+            rightWidth = panelWidth;
+            centerX = panelX + panelWidth;
+            centerWidth = 0;
+        } else if (narrow) {
+            centerX = panelX + leftWidth + PANE_GAP;
+            centerWidth = panelX + panelWidth - 5 - centerX;
+            detailX = panelX + panelWidth;
+        } else {
+            centerX = panelX + leftWidth + PANE_GAP;
+            detailX = panelX + panelWidth - rightWidth;
+            centerWidth = detailX - PANE_GAP - centerX;
+        }
         lastSnapshot = ClientProgressCache.snapshot();
         lastCacheRevision = ClientProgressCache.uiRevision();
 
-        addRenderableWidget(new DungeonsButton(
+        DungeonsButton inventoryButton = new DungeonsButton(
                 panelX + 9,
                 panelY + 9,
                 leftWidth - 18,
@@ -118,7 +144,28 @@ public final class AbilityScreen extends Screen {
                 ButtonStyle.BACK,
                 false,
                 () -> minecraft.setScreen(previousScreen)
-        ));
+        );
+        addTextOverflowTooltip(inventoryButton, 8);
+        addRenderableWidget(inventoryButton);
+
+        if (narrow && narrowDetailsOpen) {
+            DungeonsButton back = new DungeonsButton(
+                    panelX + panelWidth - 61,
+                    panelY + 9,
+                    52,
+                    20,
+                    Component.translatable("gui.fantasypower.back_to_abilities"),
+                    ButtonStyle.BACK,
+                    false,
+                    () -> {
+                        narrowDetailsOpen = false;
+                        detailScroll = 0;
+                        rebuildWidgets();
+                    }
+            );
+            addTextOverflowTooltip(back, 8);
+            addRenderableWidget(back);
+        }
 
         List<Map.Entry<ResourceKey<SkillDefinition>, SkillDefinition>> skills = skills();
         if (selectedSkill == null || skills.stream().noneMatch(entry ->
@@ -127,7 +174,9 @@ public final class AbilityScreen extends Screen {
             skillScroll = 0;
             abilityScroll = 0;
         }
-        addSkillButtons(skills);
+        if (!narrowDetailsOpen) {
+            addSkillButtons(skills);
+        }
 
         List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> abilities = abilitiesForSelectedSkill();
         if (selectedAbility == null || abilities.stream().noneMatch(entry ->
@@ -136,9 +185,13 @@ public final class AbilityScreen extends Screen {
             abilityScroll = 0;
             detailScroll = 0;
         }
-        addAbilityTiles(abilities);
-        addAbilityPageButtons(abilities);
-        addPurchaseButton();
+        if (!narrowDetailsOpen) {
+            addAbilityTiles(abilities);
+            addAbilityPageButtons(abilities);
+        }
+        if (!narrow || narrowDetailsOpen) {
+            addPurchaseButton();
+        }
     }
 
     @Override
@@ -157,7 +210,8 @@ public final class AbilityScreen extends Screen {
         if (scrollY == 0.0D) {
             return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
         }
-        if (inside(mouseX, mouseY, panelX + 4, contentTop, panelX + leftWidth, contentBottom)) {
+        if (!narrowDetailsOpen
+                && inside(mouseX, mouseY, panelX + 4, contentTop, panelX + leftWidth, contentBottom)) {
             int updated = ScrollWindow.scroll(skillScroll, scrollY, skills().size(), visibleSkillCount());
             if (updated != skillScroll) {
                 skillScroll = updated;
@@ -165,7 +219,8 @@ public final class AbilityScreen extends Screen {
             }
             return true;
         }
-        if (inside(mouseX, mouseY, detailX, contentTop, panelX + panelWidth - 5, contentBottom)) {
+        if ((!narrowLayout() || narrowDetailsOpen)
+                && inside(mouseX, mouseY, detailX, contentTop, panelX + panelWidth - 5, contentBottom)) {
             int maximum = Math.max(0, detailDescriptionLines().size() - detailVisibleLines());
             int updated = Math.clamp(detailScroll + (scrollY > 0.0D ? -1 : 1), 0, maximum);
             if (updated != detailScroll) {
@@ -173,7 +228,8 @@ public final class AbilityScreen extends Screen {
             }
             return true;
         }
-        if (inside(mouseX, mouseY, centerX, contentTop, centerX + centerWidth, contentBottom)) {
+        if (!narrowDetailsOpen
+                && inside(mouseX, mouseY, centerX, contentTop, centerX + centerWidth, contentBottom)) {
             moveAbilityPage(scrollY > 0.0D ? -1 : 1);
             return true;
         }
@@ -237,6 +293,7 @@ public final class AbilityScreen extends Screen {
                     }
             );
             button.setAccent(parseColor(definition.display().color(), BORDER_GOLD));
+            addTextOverflowTooltip(button, 18);
             addRenderableWidget(button);
         }
     }
@@ -257,7 +314,7 @@ public final class AbilityScreen extends Screen {
             int row = visibleIndex / columns;
             AbilityTile tile = new AbilityTile(
                     abilityTileX(visibleIndex, visibleCount, columns),
-                    gridTop + row * (ABILITY_TILE_SIZE + TILE_GAP),
+                    gridTop + row * (ABILITY_TILE_HEIGHT + TILE_GAP),
                     abilityId,
                     definition,
                     lastSnapshot.abilityRank(abilityId),
@@ -266,10 +323,16 @@ public final class AbilityScreen extends Screen {
                         selectedAbility = abilityId;
                         detailScroll = 0;
                         ClientProgressCache.clearPurchaseResult();
+                        if (narrowLayout()) {
+                            narrowDetailsOpen = true;
+                        }
                         rebuildWidgets();
                     }
             );
-            tile.setTooltip(Tooltip.create(Component.translatable(definition.display().description())));
+            tile.setTooltip(Tooltip.create(Component.empty()
+                    .append(Component.translatable(definition.display().name()).withStyle(ChatFormatting.GOLD))
+                    .append(Component.literal("\n"))
+                    .append(Component.translatable(definition.display().description()))));
             addRenderableWidget(tile);
         }
     }
@@ -378,21 +441,34 @@ public final class AbilityScreen extends Screen {
     }
 
     private void renderPanes(GuiGraphics graphics) {
+        if (narrowDetailsOpen) {
+            panel(graphics, detailX, contentTop, rightWidth - 5, contentBottom - contentTop,
+                    PANEL_LIGHT, BORDER_DARK, false);
+            renderStoneTexture(graphics, detailX + 3, contentTop + 3,
+                    rightWidth - 11, contentBottom - contentTop - 6, 19);
+            return;
+        }
         panel(graphics, panelX + 5, contentTop, leftWidth - 10, contentBottom - contentTop,
                 PANEL_MID, BORDER_DARK, false);
         panel(graphics, centerX, contentTop, centerWidth, contentBottom - contentTop,
                 PANEL_MID, BORDER_DARK, false);
-        panel(graphics, detailX, contentTop, rightWidth - 5, contentBottom - contentTop,
-                PANEL_LIGHT, BORDER_DARK, false);
+        if (!narrowLayout()) {
+            panel(graphics, detailX, contentTop, rightWidth - 5, contentBottom - contentTop,
+                    PANEL_LIGHT, BORDER_DARK, false);
+        }
         renderStoneTexture(graphics, panelX + 7, contentTop + 3,
                 leftWidth - 14, contentBottom - contentTop - 6, 3);
         renderStoneTexture(graphics, centerX + 3, contentTop + 3,
                 centerWidth - 6, contentBottom - contentTop - 6, 11);
-        renderStoneTexture(graphics, detailX + 3, contentTop + 3,
-                rightWidth - 11, contentBottom - contentTop - 6, 19);
+        if (!narrowLayout()) {
+            renderStoneTexture(graphics, detailX + 3, contentTop + 3,
+                    rightWidth - 11, contentBottom - contentTop - 6, 19);
+        }
+        Component heading = Component.translatable("gui.fantasypower.skills_heading");
+        String fittedHeading = ellipsize(font, heading.getString(), Math.max(8, leftWidth - 28));
         graphics.drawCenteredString(
                 font,
-                Component.translatable("gui.fantasypower.skills_heading"),
+                fittedHeading,
                 panelX + leftWidth / 2,
                 contentTop + 9,
                 TEXT_MUTED
@@ -402,6 +478,9 @@ public final class AbilityScreen extends Screen {
     }
 
     private void renderSkillScrollbar(GuiGraphics graphics) {
+        if (narrowDetailsOpen) {
+            return;
+        }
         scrollbar(
                 graphics,
                 panelX + leftWidth - 10,
@@ -414,6 +493,9 @@ public final class AbilityScreen extends Screen {
     }
 
     private void renderSelectedSkill(GuiGraphics graphics) {
+        if (narrowDetailsOpen) {
+            return;
+        }
         if (selectedSkill == null || minecraft.level == null) {
             graphics.drawCenteredString(font, Component.translatable("gui.fantasypower.no_skills"),
                     centerX + centerWidth / 2, contentTop + 20, TEXT_MUTED);
@@ -431,7 +513,9 @@ public final class AbilityScreen extends Screen {
         renderDiamondIcon(graphics, selectedSkill, definition.display().icon(),
                 centerX + 21, contentTop + 20, 24, false);
         renderDiamondSelection(graphics, centerX + 21, contentTop + 20, 24, animatedGold());
-        graphics.drawString(font, Component.translatable(definition.display().name()),
+        String skillName = ellipsize(font, Component.translatable(definition.display().name()).getString(),
+                Math.max(12, centerWidth - 50));
+        graphics.drawString(font, skillName,
                 centerX + 42, contentTop + 7, TEXT_PRIMARY, false);
         graphics.drawString(font, Component.translatable("gui.fantasypower.skill_progress",
                         progress.level(), definition.maxLevel()),
@@ -471,6 +555,9 @@ public final class AbilityScreen extends Screen {
     }
 
     private void renderAbilityGridBackground(GuiGraphics graphics, float partialTick) {
+        if (narrowDetailsOpen) {
+            return;
+        }
         renderGoldenDust(graphics, partialTick);
         List<Map.Entry<ResourceKey<AbilityDefinition>, AbilityDefinition>> abilities = abilitiesForSelectedSkill();
         if (abilities.isEmpty()) {
@@ -523,12 +610,15 @@ public final class AbilityScreen extends Screen {
         int column = visibleIndex % columns;
         int rowStart = row * columns;
         int rowCount = Math.min(columns, visibleCount - rowStart);
-        int rowWidth = rowCount * ABILITY_TILE_SIZE + Math.max(0, rowCount - 1) * TILE_GAP;
+        int rowWidth = rowCount * ABILITY_TILE_WIDTH + Math.max(0, rowCount - 1) * TILE_GAP;
         return centerX + Math.max(5, (centerWidth - rowWidth) / 2)
-                + column * (ABILITY_TILE_SIZE + TILE_GAP);
+                + column * (ABILITY_TILE_WIDTH + TILE_GAP);
     }
 
     private void renderAbilityDetails(GuiGraphics graphics) {
+        if (narrowLayout() && !narrowDetailsOpen) {
+            return;
+        }
         SelectedAbility selected = selectedAbility();
         int x = detailX + 10;
         int width = rightWidth - 25;
@@ -625,12 +715,16 @@ public final class AbilityScreen extends Screen {
         pixelDiamond(graphics, panelX + panelWidth - 14, y, 2, BORDER_GOLD);
         ClientboundPurchaseResultPayload result = ClientProgressCache.lastPurchaseResult();
         if (result == null) {
-            graphics.drawCenteredString(font, Component.translatable("gui.fantasypower.ui_hint"),
+            String hint = ellipsize(font, Component.translatable("gui.fantasypower.ui_hint").getString(),
+                    panelWidth - 28);
+            graphics.drawCenteredString(font, hint,
                     panelX + panelWidth / 2, y + 7, 0xFF817A6B);
             return;
         }
         int color = result.status() == ClientboundPurchaseResultPayload.Status.SUCCESS ? SUCCESS : FAILURE;
-        graphics.drawCenteredString(font, PurchaseFeedback.message(result, localizedFailedRequirement(result)),
+        String feedback = ellipsize(font,
+                PurchaseFeedback.message(result, localizedFailedRequirement(result)).getString(), panelWidth - 28);
+        graphics.drawCenteredString(font, feedback,
                 panelX + panelWidth / 2, y + 7, color);
     }
 
@@ -990,13 +1084,17 @@ public final class AbilityScreen extends Screen {
     }
 
     private int abilityColumns() {
-        return Math.max(1, (centerWidth - 10 + TILE_GAP) / (ABILITY_TILE_SIZE + TILE_GAP));
+        return Math.max(1, (centerWidth - 10 + TILE_GAP) / (ABILITY_TILE_WIDTH + TILE_GAP));
     }
 
     private int visibleAbilityCount() {
         int gridHeight = contentBottom - (contentTop + ABILITY_GRID_TOP_OFFSET) - 17;
-        int rows = Math.max(1, (gridHeight + TILE_GAP) / (ABILITY_TILE_SIZE + TILE_GAP));
+        int rows = Math.max(1, (gridHeight + TILE_GAP) / (ABILITY_TILE_HEIGHT + TILE_GAP));
         return rows * abilityColumns();
+    }
+
+    private boolean narrowLayout() {
+        return panelWidth < 560;
     }
 
     private static int clampAbilityPageOffset(int offset, int itemCount, int pageSize) {
@@ -1199,6 +1297,32 @@ public final class AbilityScreen extends Screen {
         }
     }
 
+    private void addTextOverflowTooltip(DungeonsButton button, int horizontalPadding) {
+        int availableWidth = Math.max(4, button.getWidth() - horizontalPadding);
+        if (font.width(button.getMessage()) > availableWidth) {
+            button.setTooltip(Tooltip.create(button.getMessage()));
+        }
+    }
+
+    private static String ellipsize(Font font, String text, int maximumWidth) {
+        if (maximumWidth <= 0 || text.isEmpty()) {
+            return "";
+        }
+        if (font.width(text) <= maximumWidth) {
+            return text;
+        }
+        return forceEllipsis(font, text, maximumWidth);
+    }
+
+    private static String forceEllipsis(Font font, String text, int maximumWidth) {
+        String suffix = "...";
+        int suffixWidth = font.width(suffix);
+        if (maximumWidth <= suffixWidth) {
+            return font.plainSubstrByWidth(suffix, maximumWidth);
+        }
+        return font.plainSubstrByWidth(text, maximumWidth - suffixWidth) + suffix;
+    }
+
     private static boolean inside(double mouseX, double mouseY, int left, int top, int right, int bottom) {
         return mouseX >= left && mouseX < right && mouseY >= top && mouseY < bottom;
     }
@@ -1219,7 +1343,7 @@ public final class AbilityScreen extends Screen {
                 boolean selected,
                 Runnable action
         ) {
-            super(x, y, ABILITY_TILE_SIZE, ABILITY_TILE_SIZE,
+            super(x, y, ABILITY_TILE_WIDTH, ABILITY_TILE_HEIGHT,
                     Component.translatable(definition.display().name()));
             this.abilityId = abilityId;
             this.definition = definition;
@@ -1251,19 +1375,24 @@ public final class AbilityScreen extends Screen {
                 renderDiamondSelection(graphics, iconX, iconY, DIAMOND_ICON_SIZE, animatedGold());
             }
             Component name = Component.translatable(definition.display().name());
-            String clipped = font.plainSubstrByWidth(name.getString(), getWidth() - 8);
+            int nameWidth = getWidth() - 6;
+            List<FormattedCharSequence> nameLines = font.split(name, nameWidth);
             int nameColor = selected
                     ? BORDER_BRIGHT
                     : purchasedRank > 0 || isHovered ? TEXT_PRIMARY : TEXT_MUTED;
-            graphics.drawCenteredString(font, clipped, getX() + getWidth() / 2, getY() + 46,
-                    nameColor);
+            int visibleLines = Math.min(2, nameLines.size());
+            int nameY = getY() + (visibleLines == 1 ? 48 : 43);
+            for (int line = 0; line < visibleLines; line++) {
+                graphics.drawCenteredString(font, nameLines.get(line), getX() + getWidth() / 2,
+                        nameY + line * 10, nameColor);
+            }
             if (selected) {
                 int selectionColor = animatedGold();
-                graphics.fill(getX() + getWidth() / 2 - 10, getY() + 56,
-                        getX() + getWidth() / 2 + 10, getY() + 57, selectionColor);
+                graphics.fill(getX() + getWidth() / 2 - 10, getY() + getHeight() - 2,
+                        getX() + getWidth() / 2 + 10, getY() + getHeight() - 1, selectionColor);
             } else if (isHovered) {
-                graphics.fill(getX() + getWidth() / 2 - 5, getY() + 56,
-                        getX() + getWidth() / 2 + 5, getY() + 57, BORDER_DIM);
+                graphics.fill(getX() + getWidth() / 2 - 5, getY() + getHeight() - 2,
+                        getX() + getWidth() / 2 + 5, getY() + getHeight() - 1, BORDER_DIM);
             }
             int maxRank = definition.ranks().values().size();
             if (purchasedRank > 0) {
@@ -1340,9 +1469,10 @@ public final class AbilityScreen extends Screen {
                         getY() + getHeight() / 2, 2, accent);
             }
             int color = !active ? LOCKED : style == ButtonStyle.PURCHASE ? 0xFFFFE6A6 : TEXT_PRIMARY;
-            String clipped = Minecraft.getInstance().font.plainSubstrByWidth(
-                    getMessage().getString(), Math.max(4, getWidth() - (style == ButtonStyle.SKILL ? 18 : 8)));
-            graphics.drawCenteredString(Minecraft.getInstance().font, clipped,
+            Font font = Minecraft.getInstance().font;
+            String clipped = ellipsize(font, getMessage().getString(),
+                    Math.max(4, getWidth() - (style == ButtonStyle.SKILL ? 18 : 8)));
+            graphics.drawCenteredString(font, clipped,
                     getX() + getWidth() / 2,
                     getY() + (getHeight() - 8) / 2,
                     color);

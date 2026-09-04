@@ -118,10 +118,19 @@ public final class InventoryAbilityTab {
         graphics.fill(x, y, x + 1, y + PANEL_HEIGHT, 0xFFE3BC6B);
         graphics.fill(x + PANEL_WIDTH - 1, y, x + PANEL_WIDTH, y + PANEL_HEIGHT, 0xFF6A5030);
         var font = Minecraft.getInstance().font;
-        graphics.drawString(font, Component.translatable("gui.fantasypower.world_traveler.filters"),
-                x + 7, y + 6, 0xFFFFFF, false);
-        graphics.drawString(font, Component.translatable("gui.fantasypower.world_traveler.filters.hint"),
-                x + 7, y + 17, 0xFF9EA8B6, false);
+        int headerWidth = PANEL_WIDTH - 14;
+        Component title = Component.translatable("gui.fantasypower.world_traveler.filters");
+        Component hint = Component.translatable("gui.fantasypower.world_traveler.filters.hint");
+        graphics.drawString(font, ellipsize(title.getString(), headerWidth), x + 7, y + 6, 0xFFFFFF, false);
+        graphics.drawString(font, ellipsize(hint.getString(), headerWidth), x + 7, y + 17, 0xFF9EA8B6, false);
+        Component hoveredText = null;
+        if (font.width(title) > headerWidth
+                && inside(event.getMouseX(), event.getMouseY(), x + 7, y + 5, headerWidth, 10)) {
+            hoveredText = title;
+        } else if (font.width(hint) > headerWidth
+                && inside(event.getMouseX(), event.getMouseY(), x + 7, y + 16, headerWidth, 10)) {
+            hoveredText = hint;
+        }
         ItemStack hovered = ItemStack.EMPTY;
         for (int slot = 0; slot < 36; slot++) {
             int sx = x + 7 + (slot % 9) * 18;
@@ -134,22 +143,47 @@ public final class InventoryAbilityTab {
                 if (inside(event.getMouseX(), event.getMouseY(), sx, sy, 18, 18)) hovered = filter;
             }
         }
-        ClientWorldTravelerCache.boundContainer().ifPresentOrElse(pos -> {
-            String dimension = font.plainSubstrByWidth(pos.dimension().location().toString(), 124);
-            String coordinates = font.plainSubstrByWidth(pos.pos().toShortString(), 124);
+        var boundContainer = ClientWorldTravelerCache.boundContainer();
+        if (boundContainer.isPresent()) {
+            var pos = boundContainer.get();
+            String fullDimension = pos.dimension().location().toString();
+            String fullCoordinates = pos.pos().toShortString();
+            String dimension = ellipsize(fullDimension, 124);
+            String coordinates = ellipsize(fullCoordinates, 124);
             graphics.drawString(font, dimension, x + 7, y + 106, 0xB8C1CC, false);
             graphics.drawString(font, coordinates, x + 7, y + 117, 0xB8C1CC, false);
-        }, () -> graphics.drawString(font,
-                Component.translatable("gui.fantasypower.world_traveler.unbound"),
-                x + 7, y + 111, 0xB8C1CC, false));
+            if (font.width(fullDimension) > 124
+                    && inside(event.getMouseX(), event.getMouseY(), x + 7, y + 105, 124, 10)) {
+                hoveredText = Component.literal(fullDimension);
+            } else if (font.width(fullCoordinates) > 124
+                    && inside(event.getMouseX(), event.getMouseY(), x + 7, y + 116, 124, 10)) {
+                hoveredText = Component.literal(fullCoordinates);
+            }
+        } else {
+            Component unbound = Component.translatable("gui.fantasypower.world_traveler.unbound");
+            graphics.drawString(font, ellipsize(unbound.getString(), 124), x + 7, y + 111, 0xB8C1CC, false);
+            if (font.width(unbound) > 124
+                    && inside(event.getMouseX(), event.getMouseY(), x + 7, y + 110, 124, 10)) {
+                hoveredText = unbound;
+            }
+        }
         graphics.fill(x + REMOTE_BUTTON_X, y + REMOTE_BUTTON_Y,
                 x + REMOTE_BUTTON_X + REMOTE_BUTTON_WIDTH,
                 y + REMOTE_BUTTON_Y + REMOTE_BUTTON_HEIGHT, 0xFF475569);
-        graphics.drawCenteredString(Minecraft.getInstance().font,
-                Component.translatable("gui.fantasypower.world_traveler.remote"),
+        Component remote = Component.translatable("gui.fantasypower.world_traveler.remote");
+        graphics.drawCenteredString(font,
+                ellipsize(remote.getString(), REMOTE_BUTTON_WIDTH - 4),
                 x + REMOTE_BUTTON_X + REMOTE_BUTTON_WIDTH / 2, y + REMOTE_BUTTON_Y + 6, 0xFFFFFF);
-        if (!hovered.isEmpty())
-            graphics.renderTooltip(Minecraft.getInstance().font, hovered, event.getMouseX(), event.getMouseY());
+        if (font.width(remote) > REMOTE_BUTTON_WIDTH - 4
+                && inside(event.getMouseX(), event.getMouseY(), x + REMOTE_BUTTON_X, y + REMOTE_BUTTON_Y,
+                REMOTE_BUTTON_WIDTH, REMOTE_BUTTON_HEIGHT)) {
+            hoveredText = remote;
+        }
+        if (!hovered.isEmpty()) {
+            graphics.renderTooltip(font, hovered, event.getMouseX(), event.getMouseY());
+        } else if (hoveredText != null) {
+            graphics.renderTooltip(font, hoveredText, event.getMouseX(), event.getMouseY());
+        }
         graphics.pose().popPose();
     }
 
@@ -205,6 +239,13 @@ public final class InventoryAbilityTab {
 
     private static boolean inside(double mouseX, double mouseY, int x, int y, int width, int height) {
         return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+    }
+
+    private static String ellipsize(String text, int maximumWidth) {
+        var font = Minecraft.getInstance().font;
+        if (font.width(text) <= maximumWidth) return text;
+        String suffix = "...";
+        return font.plainSubstrByWidth(text, Math.max(0, maximumWidth - font.width(suffix))) + suffix;
     }
 
     private static void send(ServerboundWorldTravelerPayload.Action action, int slot) {
