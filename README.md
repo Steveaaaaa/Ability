@@ -23,7 +23,7 @@ Install matching versions of the following on both the client and server:
 |---|---|
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.x |
-| FantasyPower | 1.0beta |
+| FantasyPower | 1.0.0 |
 
 Place the mod JAR in the instance's `mods/` directory. For single-player, a local installation is enough; multiplayer requires the mod on both the client and server.
 
@@ -114,7 +114,7 @@ FantasyPower 是一个运行在 Minecraft 1.21.1 / NeoForge 上的 RPG 能力模
 |---|---|
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.x |
-| FantasyPower | 1.0beta |
+| FantasyPower | 1.0.0 |
 
 把模组 JAR 放进游戏实例的 `mods/` 文件夹即可。单人游戏只需要安装在本地；进入服务器时，客户端和服务端都要安装。
 
